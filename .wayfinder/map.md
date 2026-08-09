@@ -34,6 +34,10 @@ A full spec for a reusable admin-grid pattern: replace the download-Excel / popu
 - [Entity/key model](01-entity-key-model.md) — UUID PK, no uniqueness constraint, all 8 columns editable, `closureTiming` and `topic` as `z.enum` (closed sets), full Zod shape locked
 - [Tabulator TSX spike](02-tabulator-tsx-spike.md) — Tabulator 6.5.2 renders in TSX via div-ref pattern. Paste-from-Excel, list editor, validation highlight + getInvalidCells all proven. Key finding: highlight mode validates on keyboard edit only; save loop must call validate() manually after paste.
 - [Zod compliance schema](03-zod-compliance-schema.md) — 22 TDD tests, ComplianceLibrarySchema with 5 enums, BulkSaveRequest/Response schemas, routes wired. Review fixes: catalog deps, pagination wrapper on list response.
+- [Mock backend bulk-save](04-mock-backend-bulk-save.md) — NestJS in-memory store, oRPC controller, 8 e2e tests. Atomic save with Zod validation. Contract-level validation rejects with 400 before service layer.
+- [Column derivation from Zod](05-column-derivation.md) — zodToTabulatorColumns() utility, 6 tests. Maps Zod types to Tabulator column defs (enum→list editor, string→input, uuid/datetime→hidden).
+- [Validation error display loop](06-error-display-loop.md) — ComplianceGridEditor.tsx integrates all tickets: Zod-derived columns, dirty tracking, paste, mock bulk save, per-cell error highlighting + error sidebar with click-to-scroll. Route /compliance-editor.
+- [Dirty tracking for diff-based upsert](07-dirty-tracking.md) — useDirtyTracking() composable, 12 tests. Tracks added/modified/deleted via Tabulator events, buildSavePayload() returns {upserts, deletes}, clearDirty() on save.
 
 ## Not yet specified
 
