@@ -2,7 +2,7 @@
 
 > **Label:** `wayfinder:task`
 > **Type:** Task (AFK)
-> **Status:** Open — blocked
+> **Status:** In progress — subagent running
 
 ## Question
 

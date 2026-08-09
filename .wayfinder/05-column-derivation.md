@@ -2,7 +2,7 @@
 
 > **Label:** `wayfinder:prototype`
 > **Type:** Prototype (HITL)
-> **Status:** Open — blocked
+> **Status:** In progress — subagent running
 
 ## Question
 

@@ -2,7 +2,7 @@
 
 > **Label:** `wayfinder:task`
 > **Type:** Task (AFK)
-> **Status:** Open — blocked
+> **Status:** Closed — resolved 2026-08-10
 
 ## Question
 

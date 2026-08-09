@@ -33,6 +33,7 @@ A full spec for a reusable admin-grid pattern: replace the download-Excel / popu
 
 - [Entity/key model](01-entity-key-model.md) — UUID PK, no uniqueness constraint, all 8 columns editable, `closureTiming` and `topic` as `z.enum` (closed sets), full Zod shape locked
 - [Tabulator TSX spike](02-tabulator-tsx-spike.md) — Tabulator 6.5.2 renders in TSX via div-ref pattern. Paste-from-Excel, list editor, validation highlight + getInvalidCells all proven. Key finding: highlight mode validates on keyboard edit only; save loop must call validate() manually after paste.
+- [Zod compliance schema](03-zod-compliance-schema.md) — 22 TDD tests, ComplianceLibrarySchema with 5 enums, BulkSaveRequest/Response schemas, routes wired. Review fixes: catalog deps, pagination wrapper on list response.
 
 ## Not yet specified
 
