@@ -24,12 +24,14 @@
     "bp-contracts": "workspace:*",
     "classnames": "catalog:",
     "pinia": "catalog:",
+    "tabulator-tables": "^6.5.2",
     "vue": "catalog:",
     "vue-router": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@types/tabulator-tables": "^6.3.6",
     "@vitejs/plugin-vue": "catalog:",
     "@vitejs/plugin-vue-jsx": "catalog:",
     "autoprefixer": "catalog:",

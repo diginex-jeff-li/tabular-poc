@@ -2,7 +2,7 @@
 
 > **Label:** `wayfinder:prototype`
 > **Type:** Prototype (HITL)
-> **Status:** Open — frontier ticket
+> **Status:** Closed — resolved 2026-08-10
 
 ## Question
 
@@ -44,6 +44,18 @@ Dummy data matching the compliance library's 8 columns. No backend, no Zod, no s
 - Editing a `Risk Level` cell to an invalid value (e.g., "Critical") flags it with `tabulator-validation-fail`.
 - `getInvalidCells()` returns the flagged cell.
 
-## Blocked by
+## Resolution
 
-(none — frontier ticket)
+All five acceptance criteria proven on 2026-08-10. Prototype at `bp-frontend/apps/admin/src/pages/ComplianceGridSpike.tsx`, route `/compliance-spike`.
+
+### Findings
+
+1. **Tabulator renders in TSX** — `defineComponent({ setup() { ... return (): VNode => <div ref={tableEl} /> } })` + `new Tabulator(tableEl.value, options)` in `onMounted`. Clean, no SFC, no wrapper.
+2. **Paste from Excel works** — `clipboardPasteParser: 'table'` + `clipboardPasteAction: 'insert'`. Clipboard paste event (simulated via `ClipboardEvent` with tab-delimited data) populated 3 rows with all 8 columns mapped correctly by field name.
+3. **Cell editing** — `"list"` is the correct editor name for dropdowns (not `"select"` — that's not registered). `"input"` for free text. Verified from Tabulator 6.5.2 runtime source: `defaultEditors = { input, textarea, number, range, date, time, datetime, list, star, progress, tickCross, adaptable }`.
+4. **Validation** — `validationMode: 'highlight'` flags invalid cells with red borders. `getInvalidCells()` returns invalid Cell Components. `cell.validate()` returns the failed validator objects.
+5. **Key finding for save loop**: `highlight` mode only validates on user keyboard edit, not programmatic `setValue()`. For the save loop (Ticket 06), must call `table.validate()` or iterate `cell.validate()` on all cells after paste to catch errors before POST. Backend Zod validation remains the authoritative check.
+
+### Type compatibility note
+
+`@types/tabulator-tables@6.3.6` is outdated vs `tabulator-tables@6.5.2`. The `"list"` editor and `"in"` validator exist at runtime but not in the type definitions. Column definitions are cast through `as any` to bridge this gap. For production, either upgrade the types or use `// @ts-expect-error` per line.
