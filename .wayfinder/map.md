@@ -1,0 +1,50 @@
+# Wayfinder Map: Admin Grid Editor
+
+> **Label:** `wayfinder:map`
+> **Status:** Charted — 2026-08-09
+> **Repo:** `sc-boilerplate` (prototype host)
+
+## Destination
+
+A full spec for a reusable admin-grid pattern: replace the download-Excel / populate / upload flow with an in-browser grid editor (Tabulator) where admins paste from Excel, validate with Zod, and save via diff-based upsert. The compliance library (`Sample library.xlsx`, 8 columns × ~100 rows) is the first instance. A prototype in `sc-boilerplate` validates the spec before it's carried back to `sc1.5`.
+
+## Notes
+
+**Stack** — `sc-boilerplate`: Vue 3.5 + TSX (no SFCs, no `<script setup>`), Vite 8, NestJS 11, oRPC/Zod contracts (`bp-contracts`), TypeORM 0.3.30, Nuxt UI v4, Tailwind v4, oxlint/oxfmt/vitest.
+
+**Library** — Tabulator (MIT, all features free). Clipboard paste, validation framework (`highlight` mode, `getInvalidCells()`), range selection all in core. No paid tier. Vue 3 integration: plain JS + `div` ref in `onMounted`, no wrapper. Fallback if paste UX fails: RevoGrid Community (free clipboard, DIY validation) → AG Grid Enterprise (paid, everything).
+
+**Skills every session should consult:** `/sc15-frontend`, `/prototype`, `/vue`, `/tdd`, `/code-review`.
+
+**Key decisions (from grilling rounds 1–4):**
+
+| # | Decision | Resolution |
+|---|---|---|
+| Q1 | Destination shape | Full spec (B) — library choice + backend contract + validation + save model |
+| Q2 | Scope | Reusable pattern (B) — not just this library; future admin tables reuse it |
+| Q3 | Excel role | Authoring tool only — admin populates Excel, copies body, pastes into FE grid. No separate import endpoint |
+| Q4 | Validation source | Shared Zod contract (B) — single source for grid column config + backend POST |
+| Q5–Q8 | Library | Tabulator first (c) — all features free, cleanest TSX fit. Handsontable eliminated (no free commercial license). RevoGrid Community gates validation behind Pro. AG Grid Community gates clipboard behind Enterprise. |
+| Q9 | Save model | Diff-based upsert (B) — grid tracks dirty/added/deleted, sends `{ upserts, deletes }`. Preserves referential integrity (rows have stable IDs) |
+| Q10 | Prototype scope | FE + mock backend (A) — Tabulator TSX page, paste + Zod validation, Save POSTs to mock NestJS controller with in-memory store. No real DB |
+| Q11 | Library lock | Tabulator (A) — locked as prototype library |
+
+## Decisions so far
+
+*(none yet — charting is this session's work)*
+
+## Not yet specified
+
+- **Excel template generation**: Does the download-template step still exist in the new flow? Jeff's Q3 answer implies the admin still uses Excel with its own validations before pasting. If so, how are the Excel data-validation rules derived from the same Zod schema? (Could use `exceljs` to generate `.xlsx` with dropdown validations from the Zod enums.) Graduates when the save-loop prototype is proven and we revisit the full flow.
+- **Excel export fallback**: Needed for audit/offline review? Jeff rejected import (C), but export may still be wanted by compliance (Jill). Graduates when the prototype is reviewed with stakeholders.
+- **Concurrent editing**: What happens if two admins edit the library simultaneously? Diff-based upsert assumes single-editor. Is a lock or optimistic-concurrency check needed? Graduates when the multi-user model is discussed.
+- **Performance at scale**: 100 rows now. What if the library grows to 1000+? Tabulator's virtual DOM handles rendering, but validating 1000 rows on save? Graduates when the real data volume is known.
+- **Tabulator theming**: Match Nuxt UI / Tailwind v4 design tokens? Tabulator ships its own CSS. Graduates when the prototype's visual fidelity is reviewed.
+- **Audit trail**: Who edited what, when? Reference data changes may need an audit log for compliance. Graduates when the compliance team (Jill) weighs in.
+
+## Out of scope
+
+- **Real DB persistence** — prototype uses mock backend (in-memory store). The boilerplate's `item` domain already proves the TypeORM + migration pattern.
+- **Authentication/authorization** — boilerplate has it; prototype doesn't need to re-prove it.
+- **Production deployment** — prototype is local-only.
+- **Other admin tables** — this is the first instance of the pattern. Reuse comes after the spec is proven.

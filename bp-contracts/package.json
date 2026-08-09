@@ -1,0 +1,63 @@
+{
+  "name": "bp-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/esm/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js"
+    },
+    "./item": {
+      "types": "./dist/types/item/index.d.ts",
+      "import": "./dist/esm/item/index.js"
+    },
+    "./item/routes": {
+      "types": "./dist/types/item/routes/index.d.ts",
+      "import": "./dist/esm/item/routes/index.js"
+    },
+    "./item/requests": {
+      "types": "./dist/types/item/requests/index.d.ts",
+      "import": "./dist/esm/item/requests/index.js"
+    },
+    "./item/responses": {
+      "types": "./dist/types/item/responses/index.d.ts",
+      "import": "./dist/esm/item/responses/index.js"
+    },
+    "./item/schemas": {
+      "types": "./dist/types/item/schemas/index.d.ts",
+      "import": "./dist/esm/item/schemas/index.js"
+    },
+    "./common": {
+      "types": "./dist/types/common/index.d.ts",
+      "import": "./dist/esm/common/index.js"
+    },
+    "./common/schemas": {
+      "types": "./dist/types/common/schemas/index.d.ts",
+      "import": "./dist/esm/common/schemas/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build:esm": "swc src -d dist/esm --strip-leading-paths --extensions '.ts' -C module.type=es6 -C sourceMaps=true",
+    "build:types": "tsc -p tsconfig.build.json --emitDeclarationOnly",
+    "build": "pnpm run clean && pnpm run build:esm && pnpm run build:types",
+    "fmt": "oxfmt --write \"src/**/*.ts\"",
+    "lint": "oxlint src"
+  },
+  "dependencies": {
+    "@orpc/contract": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@swc/cli": "catalog:",
+    "@swc/core": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "typescript": "catalog:"
+  }
+}

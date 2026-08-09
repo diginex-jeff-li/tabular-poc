@@ -1,0 +1,16 @@
+{
+  "name": "sc-boilerplate",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fullstack boilerplate for SC1.5 tech stack demos",
+  "type": "module",
+  "scripts": {
+    "setup": "cd bp-backend && docker compose up -d postgres redis && pnpm install --recursive && pnpm --filter bp-contracts build && pnpm --filter bp-backend migration:run && pnpm --filter bp-backend seed",
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm --filter bp-contracts build && pnpm --filter bp-backend build && pnpm --filter bp-frontend build",
+    "lint": "pnpm -r run lint",
+    "fmt": "pnpm -r run fmt",
+    "test": "pnpm -r run test"
+  },
+  "packageManager": "pnpm@11.7.0"
+}

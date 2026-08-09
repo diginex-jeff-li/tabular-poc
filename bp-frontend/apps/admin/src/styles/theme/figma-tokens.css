@@ -1,0 +1,163 @@
+/* GENERATED from Figma "💠 Diginex Library" variables — do not edit by hand.
+   Fonts (Open Sans, Public_Sans) load via apps/supply-chain/index.html.
+   Source: tokens/_extracted/*  ·  regen: node tokens/build-theme.mjs
+   Active colors: primary=Lilac-3, secondary=Orange-3, neutral=Slate, error=Red, info=Blue, success=Green, warning=Yellow */
+
+@theme {
+    --font-sans: 'Open Sans', ui-sans-serif, system-ui, sans-serif;
+    --default-font-family: var(--font-sans);
+    --font-public-sans: 'Public Sans', ui-sans-serif, system-ui, sans-serif;
+    --text-xs: 12px;
+    --text-sm: 14px;
+    --text-base: 16px;
+    --text-lg: 18px;
+    --text-2xl: 24px;
+    --text-3xl: 30px;
+    --text-4xl: 36px;
+    --text-5xl: 48px;
+    --text-6xl: 60px;
+    --text-7xl: 72px;
+    --text-8xl: 96px;
+    --text-9xl: 128px;
+    --text-xl: 20px;
+
+
+
+}
+
+:root {
+    --ui-color-primary-50: #F5F5FD;
+    --ui-color-primary-100: #EDEDFB;
+    --ui-color-primary-200: #DEDEF6;
+    --ui-color-primary-300: #C5C3EF;
+    --ui-color-primary-400: #A7A0E5;
+    --ui-color-primary-500: #8171D7;
+    --ui-color-primary-600: #755DCB;
+    --ui-color-primary-700: #634AB8;
+    --ui-color-primary-800: #533D9B;
+    --ui-color-primary-900: #45337F;
+    --ui-color-primary-950: #2B2056;
+
+    --ui-color-secondary-50: #FEF6EC;
+    --ui-color-secondary-100: #FAE6CB;
+    --ui-color-secondary-200: #F6CB91;
+    --ui-color-secondary-300: #F1AA58;
+    --ui-color-secondary-400: #ED8D32;
+    --ui-color-secondary-500: #E66B1A;
+    --ui-color-secondary-600: #CB4B14;
+    --ui-color-secondary-700: #A83214;
+    --ui-color-secondary-800: #892717;
+    --ui-color-secondary-900: #712216;
+    --ui-color-secondary-950: #410D07;
+
+    --ui-color-neutral-50: #F8FAFC;
+    --ui-color-neutral-100: #F1F5F9;
+    --ui-color-neutral-200: #E2E8F0;
+    --ui-color-neutral-300: #CAD5E2;
+    --ui-color-neutral-400: #90A1B9;
+    --ui-color-neutral-500: #62748E;
+    --ui-color-neutral-600: #45556C;
+    --ui-color-neutral-700: #314158;
+    --ui-color-neutral-800: #1D293D;
+    --ui-color-neutral-900: #0F172B;
+    --ui-color-neutral-950: #020618;
+
+    --ui-color-error-50: #FEF2F2;
+    --ui-color-error-100: #FFE2E2;
+    --ui-color-error-200: #FFC9C9;
+    --ui-color-error-300: #FFA2A2;
+    --ui-color-error-400: #FF6467;
+    --ui-color-error-500: #FB2C36;
+    --ui-color-error-600: #E7000B;
+    --ui-color-error-700: #C10007;
+    --ui-color-error-800: #9F0712;
+    --ui-color-error-900: #82181A;
+    --ui-color-error-950: #460809;
+
+    --ui-color-info-50: #EFF6FF;
+    --ui-color-info-100: #DBEAFE;
+    --ui-color-info-200: #BEDBFF;
+    --ui-color-info-300: #8EC5FF;
+    --ui-color-info-400: #51A2FF;
+    --ui-color-info-500: #2B7FFF;
+    --ui-color-info-600: #155DFC;
+    --ui-color-info-700: #1447E6;
+    --ui-color-info-800: #193CB8;
+    --ui-color-info-900: #1C398E;
+    --ui-color-info-950: #162456;
+
+    --ui-color-success-50: #EFFDF5;
+    --ui-color-success-100: #D9FBE8;
+    --ui-color-success-200: #B3F5D1;
+    --ui-color-success-300: #75EDAE;
+    --ui-color-success-400: #00DC82;
+    --ui-color-success-500: #00C16A;
+    --ui-color-success-600: #00A155;
+    --ui-color-success-700: #007F45;
+    --ui-color-success-800: #016538;
+    --ui-color-success-900: #0A5331;
+    --ui-color-success-950: #052E16;
+
+    --ui-color-warning-50: #FEFCE8;
+    --ui-color-warning-100: #FEF9C2;
+    --ui-color-warning-200: #FFF085;
+    --ui-color-warning-300: #FFDF20;
+    --ui-color-warning-400: #FCC800;
+    --ui-color-warning-500: #EFB100;
+    --ui-color-warning-600: #D08700;
+    --ui-color-warning-700: #A65F00;
+    --ui-color-warning-800: #894B00;
+    --ui-color-warning-900: #733E0A;
+    --ui-color-warning-950: #432004;
+}
+
+:root,
+.light {
+    --ui-primary: #755DCB;
+    --ui-secondary: #CB4B14;
+    --ui-success: #007F45;
+    --ui-info: #155DFC;
+    --ui-warning: #A65F00;
+    --ui-error: #E7000B;
+    --ui-text-dimmed: #90A1B9;
+    --ui-text-muted: #62748E;
+    --ui-text-toned: #45556C;
+    --ui-text: #314158;
+    --ui-text-highlighted: #0F172B;
+    --ui-bg: #FFFFFF;
+    --ui-bg-muted: #F8FAFC;
+    --ui-bg-accented: #E2E8F0;
+    --ui-bg-inverted: #314158;
+    --ui-border: #E2E8F0;
+    --ui-border-accented: #CAD5E2;
+    --ui-border-inverted: #0F172B;
+    --ui-bg-elevated: #F1F5F9;
+    --ui-border-muted: #E2E8F0;
+    --ui-text-inverted: #FFFFFF;
+    --ui-neutral: #000000;
+}
+
+.dark {
+    --ui-primary: #A7A0E5;
+    --ui-secondary: #ED8D32;
+    --ui-success: #00DC82;
+    --ui-info: #51A2FF;
+    --ui-warning: #FCC800;
+    --ui-error: #FF6467;
+    --ui-text-dimmed: #62748E;
+    --ui-text-muted: #90A1B9;
+    --ui-text-toned: #CAD5E2;
+    --ui-text: #E2E8F0;
+    --ui-text-highlighted: #FFFFFF;
+    --ui-bg: #0F172B;
+    --ui-bg-muted: #1D293D;
+    --ui-bg-accented: #314158;
+    --ui-bg-inverted: #FFFFFF;
+    --ui-border: #1D293D;
+    --ui-border-accented: #314158;
+    --ui-border-inverted: #FFFFFF;
+    --ui-bg-elevated: #1D293D;
+    --ui-border-muted: #314158;
+    --ui-text-inverted: #0F172B;
+    --ui-neutral: #FFFFFF;
+}

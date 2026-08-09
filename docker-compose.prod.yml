@@ -1,0 +1,74 @@
+# Production docker-compose for the sc-boilerplate
+# Deploy to any VM with: docker compose -f docker-compose.prod.yml up -d --build
+#
+# Services:
+#   postgres  - PostgreSQL 17 database
+#   redis     - Redis 7 cache
+#   api       - NestJS backend (port 3002)
+#   web       - Vue SPA via nginx (port 3500, proxies /api to the backend)
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-postgres}
+      POSTGRES_DB: ${DATABASE_NAME:-sc_boilerplate}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: bp-backend/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: "5432"
+      DATABASE_USER: ${DATABASE_USER:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-postgres}
+      DATABASE_NAME: ${DATABASE_NAME:-sc_boilerplate}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      APP_PORT: "3002"
+      APP_PREFIX: api
+      LOG_LEVEL: log
+      ITEM_CACHE_TTL: "300"
+      NODE_ENV: production
+    ports:
+      - "3002:3002"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: bp-frontend/Dockerfile
+      args:
+        API_URL: ${API_URL:-http://localhost:3002/api}
+    depends_on:
+      - api
+    ports:
+      - "3500:3500"
+    restart: unless-stopped
+
+volumes:
+  pg-data:

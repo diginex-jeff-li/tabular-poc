@@ -1,0 +1,68 @@
+import 'reflect-metadata';
+import { DataSource } from 'typeorm';
+import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { ItemEntity } from './item/entities/item.entity.js';
+
+const envPath = join(process.cwd(), '.env');
+try {
+  const envContent = readFileSync(envPath, 'utf-8');
+  for (const line of envContent.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const idx = trimmed.indexOf('=');
+    if (idx === -1) continue;
+    const key = trimmed.slice(0, idx).trim();
+    const value = trimmed.slice(idx + 1).trim();
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
+  }
+} catch {
+}
+
+const dataSource = new DataSource({
+  type: 'postgres',
+  host: process.env.DATABASE_HOST || 'localhost',
+  port: parseInt(process.env.DATABASE_PORT || '5432', 10),
+  username: process.env.DATABASE_USER || 'postgres',
+  password: process.env.DATABASE_PASSWORD || 'postgres',
+  database: process.env.DATABASE_NAME || 'sc_boilerplate',
+  entities: [ItemEntity],
+  synchronize: false,
+  logging: false,
+});
+
+async function main() {
+  await dataSource.initialize();
+  const itemRepo = dataSource.getRepository(ItemEntity);
+
+  const existing = await itemRepo.count();
+  if (existing > 0) {
+    console.log('Seed data already exists, skipping');
+    await dataSource.destroy();
+    return;
+  }
+
+  const items = itemRepo.create([
+    {
+      name: 'Sample Item Alpha',
+      description: 'The first sample item for demonstration',
+      status: 'active' as const,
+    },
+    {
+      name: 'Sample Item Beta',
+      description: 'The second sample item for demonstration',
+      status: 'inactive' as const,
+    },
+  ]);
+
+  await itemRepo.save(items);
+  console.log(`Seeded ${items.length} items`);
+  await dataSource.destroy();
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
