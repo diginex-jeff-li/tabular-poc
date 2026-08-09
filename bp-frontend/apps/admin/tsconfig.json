@@ -27,9 +27,11 @@
     "paths": {
       "apis/*": ["src/apis/*"],
       "components/*": ["src/components/*"],
+      "composables/*": ["src/composables/*"],
       "config/*": ["src/config/*"],
       "pages/*": ["src/pages/*"],
       "styles/*": ["src/styles/*"],
+      "utils/*": ["src/utils/*"],
       "src/*": ["src/*"]
     }
   },
