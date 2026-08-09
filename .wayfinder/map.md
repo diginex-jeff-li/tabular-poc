@@ -31,7 +31,7 @@ A full spec for a reusable admin-grid pattern: replace the download-Excel / popu
 
 ## Decisions so far
 
-*(none yet — charting is this session's work)*
+- [Entity/key model](01-entity-key-model.md) — UUID PK, no uniqueness constraint, all 8 columns editable, `closureTiming` and `topic` as `z.enum` (closed sets), full Zod shape locked
 
 ## Not yet specified
 
