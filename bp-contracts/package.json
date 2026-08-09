@@ -31,6 +31,26 @@
       "types": "./dist/types/item/schemas/index.d.ts",
       "import": "./dist/esm/item/schemas/index.js"
     },
+    "./compliance-library": {
+      "types": "./dist/types/compliance-library/index.d.ts",
+      "import": "./dist/esm/compliance-library/index.js"
+    },
+    "./compliance-library/routes": {
+      "types": "./dist/types/compliance-library/routes/index.d.ts",
+      "import": "./dist/esm/compliance-library/routes/index.js"
+    },
+    "./compliance-library/requests": {
+      "types": "./dist/types/compliance-library/requests/index.d.ts",
+      "import": "./dist/esm/compliance-library/requests/index.js"
+    },
+    "./compliance-library/responses": {
+      "types": "./dist/types/compliance-library/responses/index.d.ts",
+      "import": "./dist/esm/compliance-library/responses/index.js"
+    },
+    "./compliance-library/schemas": {
+      "types": "./dist/types/compliance-library/schemas/index.d.ts",
+      "import": "./dist/esm/compliance-library/schemas/index.js"
+    },
     "./common": {
       "types": "./dist/types/common/index.d.ts",
       "import": "./dist/esm/common/index.js"
@@ -47,7 +67,9 @@
     "build:types": "tsc -p tsconfig.build.json --emitDeclarationOnly",
     "build": "pnpm run clean && pnpm run build:esm && pnpm run build:types",
     "fmt": "oxfmt --write \"src/**/*.ts\"",
-    "lint": "oxlint src"
+    "lint": "oxlint src",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@orpc/contract": "catalog:",
@@ -58,6 +80,7 @@
     "@swc/core": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

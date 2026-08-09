@@ -72,4 +72,6 @@ catalog:
   vitest: 4.1.9
   vue: 3.5.38
   vue-router: 5.1.0
+  tabulator-tables: 6.5.2
+  '@types/tabulator-tables': 6.3.6
   zod: 3.25.76
