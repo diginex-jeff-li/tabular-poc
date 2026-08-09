@@ -26,7 +26,7 @@ async function createTestApp(): Promise<{
 
 async function cleanupItems(dataSource: DataSource): Promise<void> {
   const repo = dataSource.getRepository(ItemEntity);
-  await repo.delete({});
+  await repo.createQueryBuilder().delete().execute();
 }
 
 describe('Item oRPC routes (E2e)', () => {
