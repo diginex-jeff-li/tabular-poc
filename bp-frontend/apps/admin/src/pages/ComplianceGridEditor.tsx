@@ -58,7 +58,28 @@ const UpsertSchema = ComplianceLibrarySchema.omit({ createdAt: true, updatedAt: 
 type BackendError = { row: number; field: string; message: string };
 type SaveResponse = { errors: BackendError[]; saved: number };
 
-// ── Mock backend ──
+// ── Mock backend with in-memory persistence (Ticket 10) ──
+
+const SEED_ROWS: Record<string, unknown>[] = [
+  { id: crypto.randomUUID(), categoryCode: 'A', complianceCategory: 'Governance', topic: 'Key Compliance Requirements', riskLevel: 'High', issue: 'Facility operating without valid business license', closureTiming: '30', evidenceExpectation: 'Evidence within 30 days', bestPractice: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: crypto.randomUUID(), categoryCode: 'A', complianceCategory: 'Governance', topic: 'Key Compliance Requirements', riskLevel: 'Medium', issue: 'Legally required labor contracts missing for >10% of sampled workers', closureTiming: '60', evidenceExpectation: 'Evidence within 60 days', bestPractice: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: crypto.randomUUID(), categoryCode: 'B', complianceCategory: 'Social', topic: 'Zero Tolerance Policy', riskLevel: 'High', issue: 'Child labor observed on premises', closureTiming: '30', evidenceExpectation: 'Evidence within 30 days', bestPractice: 'Verify age documentation for all workers', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: crypto.randomUUID(), categoryCode: 'C', complianceCategory: 'Social', topic: 'Freedom of Association', riskLevel: 'High', issue: 'Evidence of prison labor', closureTiming: '30', evidenceExpectation: 'Evidence within 30 days', bestPractice: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: crypto.randomUUID(), categoryCode: 'F', complianceCategory: 'Social', topic: 'Wages & Benefits', riskLevel: 'High', issue: 'Non-payment of wages exceeding 1 month', closureTiming: '30', evidenceExpectation: 'Evidence within 30 days', bestPractice: 'Maintain proper records; provide clear pay slips', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: crypto.randomUUID(), categoryCode: 'H', complianceCategory: 'Social', topic: 'Occupational Safety & Health', riskLevel: 'High', issue: 'Conditions presenting imminent threat of injury (locked exits/no fire equipment)', closureTiming: '30', evidenceExpectation: 'Evidence within 30 days', bestPractice: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: crypto.randomUUID(), categoryCode: 'I', complianceCategory: 'Environment', topic: 'Environmental Responsibility', riskLevel: 'High', issue: 'Illegal wastewater discharge', closureTiming: '30', evidenceExpectation: 'Evidence within 30 days', bestPractice: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: crypto.randomUUID(), categoryCode: 'M', complianceCategory: 'Governance', topic: 'Compliance Requirements', riskLevel: 'High', issue: 'Full denial of audit access', closureTiming: '7', evidenceExpectation: 'Immediate notification required', bestPractice: 'Never deny access to facility/documents/workers', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: crypto.randomUUID(), categoryCode: 'P', complianceCategory: 'Social', topic: 'Recruitment & Fees', riskLevel: 'High', issue: 'Workers charged recruitment fees by employer or agents', closureTiming: '30', evidenceExpectation: 'Evidence within 30 days', bestPractice: 'No worker should pay for a job; all fees borne by employer', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: crypto.randomUUID(), categoryCode: 'Q', complianceCategory: 'Social', topic: 'Forced & Compulsory Labour', riskLevel: 'High', issue: 'Physical or sexual violence against workers', closureTiming: '30', evidenceExpectation: 'Evidence within 30 days', bestPractice: 'ILO indicators: abuse of vulnerability; deception; restriction of movement', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+];
+
+// In-memory store — persists across saves, seeded on first load
+let store: Record<string, unknown>[] = [...SEED_ROWS];
+
+function mockList(): Record<string, unknown>[] {
+  return [...store];
+}
+
 async function mockBulkSave(payload: {
   upserts: Record<string, unknown>[];
   deletes: string[];
@@ -81,6 +102,22 @@ async function mockBulkSave(payload: {
   }
 
   if (errors.length > 0) return { errors, saved: 0 };
+
+  // Apply deletes
+  const deleteSet = new Set(payload.deletes);
+  store = store.filter((r) => !deleteSet.has(r.id as string));
+
+  // Apply upserts (insert or update by id)
+  for (const upsert of payload.upserts) {
+    const idx = store.findIndex((r) => r.id === upsert.id);
+    const now = new Date().toISOString();
+    if (idx >= 0) {
+      store[idx] = { ...upsert, createdAt: store[idx].createdAt, updatedAt: now };
+    } else {
+      store.push({ ...upsert, createdAt: now, updatedAt: now });
+    }
+  }
+
   return { errors: [], saved: payload.upserts.length + payload.deletes.length };
 }
 
@@ -123,7 +160,7 @@ export default defineComponent({
       if (!tableEl.value) return;
 
       const opts = {
-        data: [],
+        data: mockList(), // seed 10 sample rows on load
         reactiveData: true,
         columns,
         clipboard: true,
