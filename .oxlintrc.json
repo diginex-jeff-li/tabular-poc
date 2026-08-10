@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "complexity": ["warn", { "max": 15 }],
+    "import/no-cycle": "error",
+    "import/no-dynamic-require": "error",
+    "import/no-commonjs": "error"
+  },
+  "env": {
+    "builtin": true
+  }
+}

@@ -41,7 +41,7 @@ describe('ComplianceGridEditor — empty-state paste overlay', () => {
   });
 
   it('empty state hides when rows exist', () => {
-    const rowCount = 10;
+    const rowCount: number = 10;
     const showPasteOverlay = rowCount === 0;
     expect(showPasteOverlay).toBe(false);
   });

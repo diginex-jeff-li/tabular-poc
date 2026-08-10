@@ -70,24 +70,3 @@ export function buildComplianceColumns(): Record<string, unknown>[] {
 
   return [checkboxColumn, ...dataColumns];
 }
-
-/**
- * Simulate Tabulator's table paste parser to verify column mapping.
- * Splits clipboard text by \n (rows) and \t (cells), then maps each cell
- * to a column by visible column order, skipping columns with clipboard: false.
- */
-export function simulatePaste(
-  clipboardText: string,
-  columns: Record<string, unknown>[],
-): Record<string, string>[] {
-  const pasteColumns = columns.filter((c) => c.clipboard !== false && c.visible !== false);
-  const rows = clipboardText.split('\n').filter((r) => r.trim());
-  return rows.map((row) => {
-    const cells = row.split('\t');
-    const mapped: Record<string, string> = {};
-    for (let i = 0; i < cells.length && i < pasteColumns.length; i++) {
-      mapped[pasteColumns[i].field as string] = cells[i];
-    }
-    return mapped;
-  });
-}

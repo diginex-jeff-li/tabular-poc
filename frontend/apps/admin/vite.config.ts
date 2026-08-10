@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import vue from '@vitejs/plugin-vue';
@@ -60,6 +61,12 @@ export default defineConfig(({ mode }) => {
     ],
     build: {
       target: 'esnext',
+    },
+    test: {
+      globals: true,
+      environment: 'happy-dom',
+      include: ['src/**/*.test.ts'],
+      setupFiles: ['../../setup-localstorage.ts'],
     },
   };
 });

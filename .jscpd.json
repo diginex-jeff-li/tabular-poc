@@ -1,0 +1,17 @@
+{
+  "threshold": 5,
+  "reporters": ["console", "html"],
+  "output": "./reports/jscpd",
+  "format": ["typescript", "tsx"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/*.test.ts",
+    "**/*.d.ts",
+    "**/auto-imports.d.ts",
+    "**/.wayfinder/**",
+    "**/reports/**"
+  ],
+  "min-lines": 5,
+  "min-tokens": 50
+}

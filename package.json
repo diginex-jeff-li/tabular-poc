@@ -13,10 +13,20 @@
     "typecheck": "pnpm --filter contracts build && pnpm --filter @sc/admin typecheck",
     "test": "pnpm --filter contracts test && pnpm --filter @sc/admin test",
     "knip": "knip",
+    "jscpd": "jscpd --pattern '**/*.{ts,tsx}' --ignore '**/node_modules/**,**/dist/**,**/*.test.ts,**/*.d.ts'",
+    "agents:check": "node scripts/check-agents-md.mjs",
+    "prepare": "husky",
     "validate": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run knip"
   },
+  "lint-staged": {
+    "*.{ts,tsx}": ["oxlint", "oxfmt --check"],
+    "*.md": ["pnpm run agents:check"]
+  },
   "devDependencies": {
+    "husky": "^9.1.7",
+    "jscpd": "^5.0.14",
     "knip": "6.32.0",
+    "lint-staged": "^17.3.0",
     "oxfmt": "0.56.0",
     "oxlint": "1.71.0"
   },

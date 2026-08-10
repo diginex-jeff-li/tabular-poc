@@ -23,6 +23,8 @@ pnpm lint             # oxlint across all packages + root
 pnpm fmt              # oxfmt across all packages
 pnpm typecheck        # tsc --noEmit (contracts build first)
 pnpm knip             # dead code detection
+pnpm jscpd            # duplicate code detection
+pnpm agents:check     # validate AGENTS.md documents essential commands
 pnpm validate         # lint + typecheck + test + knip (full gate)
 ```
 
@@ -63,7 +65,7 @@ folders under `src/`: `schemas/`, `requests/`, `responses/`. Each exports a barr
 Vue 3.5 + Vite 8 + TSX (NOT SFCs) + Nuxt UI v4 + Tailwind v4.
 
 - All components are `.tsx` using `defineComponent({ setup() { return (): VNode =>
-  <.../> } })` with render functions. No SFCs, no `<script setup>`.
+<.../> } })` with render functions. No SFCs, no `<script setup>`.
 - Nuxt UI v4 components imported explicitly with `U` prefix (no auto-registration).
 - AutoImport configured for Vue + vue-router APIs only.
 - Vite resolve aliases: `src`, `components`, `composables`, `config`, `pages`,
@@ -75,7 +77,20 @@ Vue 3.5 + Vite 8 + TSX (NOT SFCs) + Nuxt UI v4 + Tailwind v4.
 under `catalog:`. Each `package.json` references with `"<dep>": "catalog:"`.
 
 **Guardrails** — oxlint (lint), oxfmt (format), vitest (tests), tsc (typecheck),
-knip (dead code). Run `pnpm validate` before committing.
+knip (dead code), jscpd (duplicate code). Run `pnpm validate` before committing.
+
+**Pre-commit hooks** — husky + lint-staged run oxlint and oxfmt on staged files.
+AGENTS.md is validated for documented commands on every commit via
+`pnpm agents:check`.
+
+**Naming conventions** — use camelCase for functions and variables, PascalCase
+for components and types, kebab-case for file names of non-component modules.
+oxlint `unicorn/filename-case` rule enforces file naming. Cyclomatic complexity
+is capped at 15 via the oxlint `complexity` rule.
+
+**Module boundaries** — `import/no-cycle` prevents circular dependencies.
+Contracts must not import from frontend. Frontend imports contracts via the
+`contracts` workspace dependency only.
 
 **Tabulator** — MIT licensed, all features free. No paid tier. The prototype
 proves: clipboard paste, validation, filtering, sorting, CSV export, checkbox
@@ -83,11 +98,12 @@ selection — all in the free core.
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `frontend/apps/admin/src/pages/ComplianceGridEditor.tsx` | Main grid editor page |
-| `frontend/apps/admin/src/utils/zodToTabulatorColumns.ts` | Derive Tabulator column defs from Zod schema |
+| File                                                      | Purpose                                               |
+| --------------------------------------------------------- | ----------------------------------------------------- |
+| `frontend/apps/admin/src/pages/ComplianceGridEditor.tsx`  | Main grid editor page                                 |
+| `frontend/apps/admin/src/utils/zodToTabulatorColumns.ts`  | Derive Tabulator column defs from Zod schema          |
 | `frontend/apps/admin/src/composables/useDirtyTracking.ts` | Track added/modified/deleted rows for diff-based save |
-| `contracts/src/compliance-library/schemas/index.ts` | Zod schema for compliance library entity |
-| `.wayfinder/map.md` | Wayfinder decision map |
-| `knip.json` | Dead code detection config |
+| `contracts/src/compliance-library/schemas/index.ts`       | Zod schema for compliance library entity              |
+| `.wayfinder/map.md`                                       | Wayfinder decision map                                |
+| `knip.json`                                               | Dead code detection config                            |
+| `.jscpd.json`                                             | Duplicate code detection config                       |

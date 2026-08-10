@@ -5,6 +5,7 @@ dist/
 .DS_Store
 coverage/
 test-results/
+reports/
 *.tsbuildinfo
 
 # jj

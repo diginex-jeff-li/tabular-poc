@@ -44,5 +44,6 @@ export default defineConfig({
     globals: true,
     environment: 'happy-dom',
     include: ['apps/**/src/**/*.test.ts'],
+    setupFiles: ['./setup-localstorage.ts'],
   },
 });

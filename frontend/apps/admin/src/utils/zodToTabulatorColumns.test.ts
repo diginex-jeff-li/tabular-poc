@@ -111,7 +111,7 @@ describe('zodToTabulatorColumns', () => {
     expect(columns[7].validator).toBeUndefined();
 
     // Hidden fields should not appear in the output
-    const fieldNames = columns.map((c: { field: string }) => c.field);
+    const fieldNames = columns.map((c) => c.field);
     expect(fieldNames).not.toContain('id');
     expect(fieldNames).not.toContain('createdAt');
     expect(fieldNames).not.toContain('updatedAt');
