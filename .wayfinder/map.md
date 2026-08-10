@@ -57,7 +57,10 @@ A full spec for a reusable admin-grid pattern: replace the download-Excel / popu
 
 ## Open tickets (frontier)
 
-- [Add Row button](08-add-row-button.md) — "Add Row" button in toolbar, inserts blank row with UUID, marked as dirty
-- [Checkbox column](09-checkbox-column.md) — dedicated checkbox column for row selection, replaces click-to-highlight
-- [View saved rows](10-view-saved-rows.md) — load saved rows from backend on page open (in-memory or real NestJS)
-- [Remove spike + cleanup](11-remove-spike-cleanup.md) — delete ComplianceGridSpike.tsx, remove /compliance-spike route, remove debug exposure
+- [Add Row button](08-add-row-button.md) — ✅ Closed (commit ad8a894a)
+- [Checkbox column](09-checkbox-column.md) — ✅ Closed (commit ad8a894a)
+- [View saved rows](10-view-saved-rows.md) — ✅ Closed (commit 0ab00a41)
+- [Remove spike + cleanup](11-remove-spike-cleanup.md) — ✅ Closed (commit ad8a894a)
+- [Filtering + sorting showcase](12-filtering-sorting.md) — Column header filters + multi-column sort. Free in Tabulator, paid in RevoGrid Pro.
+- [CSV/Excel export showcase](13-csv-export.md) — Export button. Free in Tabulator, Enterprise-only in AG Grid, Pro in RevoGrid.
+- [Licensing comparison panel](14-licensing-panel.md) — Collapsible info panel showing the ✅/❌ feature comparison across Tabulator / AG Grid / RevoGrid.
