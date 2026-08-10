@@ -54,3 +54,10 @@ A full spec for a reusable admin-grid pattern: replace the download-Excel / popu
 - **Authentication/authorization** — boilerplate has it; prototype doesn't need to re-prove it.
 - **Production deployment** — prototype is local-only.
 - **Other admin tables** — this is the first instance of the pattern. Reuse comes after the spec is proven.
+
+## Open tickets (frontier)
+
+- [Add Row button](08-add-row-button.md) — "Add Row" button in toolbar, inserts blank row with UUID, marked as dirty
+- [Checkbox column](09-checkbox-column.md) — dedicated checkbox column for row selection, replaces click-to-highlight
+- [View saved rows](10-view-saved-rows.md) — load saved rows from backend on page open (in-memory or real NestJS)
+- [Remove spike + cleanup](11-remove-spike-cleanup.md) — delete ComplianceGridSpike.tsx, remove /compliance-spike route, remove debug exposure
