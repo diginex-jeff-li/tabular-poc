@@ -1,16 +1,24 @@
 {
-  "name": "sc-boilerplate",
+  "name": "sc-tabulator",
   "version": "0.1.0",
   "private": true,
-  "description": "Fullstack boilerplate for SC1.5 tech stack demos",
+  "description": "Tabulator grid editor prototype — compliance library admin grid",
   "type": "module",
   "scripts": {
-    "setup": "cd bp-backend && docker compose up -d postgres redis && pnpm install --recursive && pnpm --filter bp-contracts build && pnpm --filter bp-backend migration:run && pnpm --filter bp-backend seed",
-    "dev": "pnpm -r --parallel run dev",
-    "build": "pnpm --filter bp-contracts build && pnpm --filter bp-backend build && pnpm --filter bp-frontend build",
-    "lint": "pnpm -r run lint",
-    "fmt": "pnpm -r run fmt",
-    "test": "pnpm -r run test"
+    "dev": "pnpm --filter @sc/admin dev",
+    "build": "pnpm --filter contracts build && pnpm --filter @sc/admin build",
+    "lint": "pnpm -r run lint && oxlint .",
+    "fmt": "pnpm -r run fmt && oxfmt --write .",
+    "fmt:check": "oxfmt --check .",
+    "typecheck": "pnpm --filter contracts build && pnpm --filter @sc/admin typecheck",
+    "test": "pnpm --filter contracts test && pnpm --filter @sc/admin test",
+    "knip": "knip",
+    "validate": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run knip"
+  },
+  "devDependencies": {
+    "knip": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:"
   },
   "packageManager": "pnpm@11.7.0"
 }
