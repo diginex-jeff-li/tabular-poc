@@ -52,14 +52,14 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "zod": "catalog:"
+    "zod": "3.25.76"
   },
   "devDependencies": {
-    "@swc/cli": "catalog:",
-    "@swc/core": "catalog:",
-    "oxfmt": "catalog:",
-    "oxlint": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "@swc/cli": "0.8.1",
+    "@swc/core": "1.7.36",
+    "oxfmt": "0.56.0",
+    "oxlint": "1.71.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.9"
   }
 }

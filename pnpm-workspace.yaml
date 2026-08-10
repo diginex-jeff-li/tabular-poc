@@ -8,26 +8,3 @@ allowBuilds:
   '@swc/core': true
   esbuild: true
   vue-demi: true
-
-catalog:
-  '@nuxt/ui': 4.9.0
-  '@swc/cli': 0.8.1
-  '@swc/core': 1.7.36
-  '@types/node': 26.0.0
-  '@types/tabulator-tables': 6.3.6
-  '@vitejs/plugin-vue': 6.0.7
-  '@vitejs/plugin-vue-jsx': 5.1.6
-  happy-dom: 20.10.6
-  knip: 6.32.0
-  oxfmt: 0.56.0
-  oxlint: 1.71.0
-  sass: 1.101.0
-  tabulator-tables: 6.5.2
-  tailwindcss: 4.3.1
-  typescript: 6.0.3
-  unplugin-auto-import: 21.0.0
-  vite: 8.1.0
-  vitest: 4.1.9
-  vue: 3.5.38
-  vue-router: 5.1.0
-  zod: 3.25.76

@@ -14,15 +14,15 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "@types/node": "catalog:",
-    "@vitejs/plugin-vue": "catalog:",
-    "@vitejs/plugin-vue-jsx": "catalog:",
-    "happy-dom": "catalog:",
-    "oxfmt": "catalog:",
-    "oxlint": "catalog:",
-    "typescript": "catalog:",
-    "unplugin-auto-import": "catalog:",
-    "vite": "catalog:",
-    "vitest": "catalog:"
+    "@types/node": "26.0.0",
+    "@vitejs/plugin-vue": "6.0.7",
+    "@vitejs/plugin-vue-jsx": "5.1.6",
+    "happy-dom": "20.10.6",
+    "oxfmt": "0.56.0",
+    "oxlint": "1.71.0",
+    "typescript": "6.0.3",
+    "unplugin-auto-import": "21.0.0",
+    "vite": "8.1.0",
+    "vitest": "4.1.9"
   }
 }
