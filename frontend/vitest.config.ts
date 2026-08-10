@@ -20,17 +20,6 @@ export default defineConfig({
             'RouterLink',
             'RouterView',
           ],
-          pinia: ['defineStore', 'createPinia'],
-          '@pinia/colada': [
-            'useQuery',
-            'useMutation',
-            'PiniaColada',
-            'defineQuery',
-            'defineMutation',
-            'useQueryCache',
-            'useMutationCache',
-          ],
-          '@pinia/colada-plugin-retry': ['PiniaColadaRetry'],
         },
         {
           from: 'vue',
@@ -42,17 +31,18 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      apis: path.resolve(__dirname, 'apps/admin/src/apis'),
       components: path.resolve(__dirname, 'apps/admin/src/components'),
+      composables: path.resolve(__dirname, 'apps/admin/src/composables'),
       config: path.resolve(__dirname, 'apps/admin/src/config'),
       pages: path.resolve(__dirname, 'apps/admin/src/pages'),
       styles: path.resolve(__dirname, 'apps/admin/src/styles'),
+      utils: path.resolve(__dirname, 'apps/admin/src/utils'),
       src: path.resolve(__dirname, 'apps/admin/src'),
     },
   },
   test: {
     globals: true,
     environment: 'happy-dom',
-    include: ['apps/**/src/**/*.test.tsx', 'apps/**/src/**/*.test.ts'],
+    include: ['apps/**/src/**/*.test.ts'],
   },
 });

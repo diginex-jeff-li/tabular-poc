@@ -1,20 +1,17 @@
 /**
  * PROTOTYPE — Compliance Library Grid Editor
  *
- * Tickets 06, 08, 09, 10, 12, 13, 14: The full admin grid editor.
- * - Paste from Excel, Add Row, checkbox select, Save with Zod validation,
- *   per-cell error highlighting, error sidebar, Delete Selected, Clear.
- * - Column header filters + multi-column sorting (Ticket 12).
- * - CSV export (Ticket 13).
- * - Licensing comparison panel (Ticket 14).
+ * Tickets 06, 08, 09, 10, 12, 13, 14 + paste bug fix + UX improvements.
  *
  * NOT PRODUCTION — throwaway prototype code.
  */
 import UButton from '@nuxt/ui/components/Button.vue';
 import UBadge from '@nuxt/ui/components/Badge.vue';
+import UModal from '@nuxt/ui/components/Modal.vue';
 import {
   computed,
   defineComponent,
+  onBeforeUnmount,
   onMounted,
   ref,
   shallowRef,
@@ -22,7 +19,7 @@ import {
 } from 'vue';
 import { TabulatorFull as Tabulator } from 'tabulator-tables';
 import { z } from 'zod';
-import { zodToTabulatorColumns } from 'utils/zodToTabulatorColumns';
+import { buildComplianceColumns } from 'composables/buildComplianceColumns';
 import { useDirtyTracking } from 'composables/useDirtyTracking';
 
 // ── Inline Zod schema ──
@@ -121,7 +118,7 @@ async function mockBulkSave(payload: {
   return { errors: [], saved: payload.upserts.length + payload.deletes.length };
 }
 
-// ── Licensing comparison data (Ticket 14) ──
+// ── Licensing comparison data ──
 
 const LICENSE_COMPARISON = [
   { feature: 'Clipboard paste from Excel', tabulator: '✅ Free', agGrid: '❌ Enterprise ($/dev/yr)', revoGrid: '✅ Free' },
@@ -144,50 +141,29 @@ export default defineComponent({
     const saveResult = ref<SaveResponse | null>(null);
     const errorList = ref<BackendError[]>([]);
     const showLicensePanel = ref(false);
+    const showClearConfirm = ref(false);
+    const rowCount = ref(0);
 
-    // Derive columns from Zod schema (id/createdAt/updatedAt are hidden)
-    const dataColumns = zodToTabulatorColumns(ComplianceLibrarySchema);
-
-    // Add header filters to each data column (Ticket 12)
-    // For enum columns: list filter (dropdown). For text columns: input filter.
-    const enumFields = new Set(['categoryCode', 'complianceCategory', 'topic', 'riskLevel', 'closureTiming']);
-    for (const col of dataColumns) {
-      const colDef = col as unknown as Record<string, unknown>;
-      const field = colDef.field as string;
-      if (enumFields.has(field)) {
-        const enumValues = (colDef.editorParams as { values: string[] }).values;
-        colDef.headerFilter = 'list';
-        colDef.headerFilterParams = { values: enumValues, clearable: true };
-      } else {
-        colDef.headerFilter = 'input';
-        colDef.headerFilterPlaceholder = 'Filter...';
-      }
-    }
-
-    // Checkbox column for row selection (Ticket 09)
-    const checkboxColumn = {
-      title: '',
-      field: '__select',
-      width: 45,
-      hozAlign: 'center',
-      headerSort: false,
-      headerFilter: false,
-      formatter: 'rowSelection',
-      titleFormatter: 'rowSelection',
-      cellClick: (e: Event, cell: { getRow: () => { toggleSelect: () => void } }) => {
-        cell.getRow().toggleSelect();
-      },
-    } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
-
-    const columns = [checkboxColumn, ...dataColumns];
+    // Use extracted column builder (testable, includes clipboard: false fix)
+    const columns = buildComplianceColumns();
 
     // Dirty tracking
     const { dirtyCount, markDirty, buildSavePayload, clearDirty, markDeleted } =
       useDirtyTracking(tabulator);
 
     const errorCount = computed(() => errorList.value.length);
+    const hasUnsavedChanges = computed(() => dirtyCount.value > 0);
+
+    // ── beforeunload: warn on navigation with unsaved changes ──
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges.value) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
 
     onMounted(() => {
+      window.addEventListener('beforeunload', handleBeforeUnload);
       if (!tableEl.value) return;
 
       const opts = {
@@ -195,7 +171,23 @@ export default defineComponent({
         reactiveData: true,
         columns,
         clipboard: true,
-        clipboardPasteParser: 'table',
+        clipboardPasteParser: function(clipboard: string) {
+          // Custom parser: skip the checkbox column when mapping paste data.
+          // Split into rows (\n) and cells (\t), map to data columns only
+          // (excluding __select).
+          const dataColumns = columns.filter((c: Record<string, unknown>) =>
+            c.field !== '__select' && c.visible !== false
+          );
+          const rows = clipboard.split('\n').filter((r: string) => r.trim());
+          return rows.map((row: string) => {
+            const cells = row.split('\t');
+            const obj: Record<string, unknown> = {};
+            for (let i = 0; i < cells.length && i < dataColumns.length; i++) {
+              obj[dataColumns[i].field as string] = cells[i];
+            }
+            return obj;
+          });
+        },
         clipboardPasteAction: 'insert',
         clipboardCopyConfig: { columnHeaders: false },
         validationMode: 'highlight',
@@ -205,13 +197,17 @@ export default defineComponent({
         autoColumns: false,
         selectable: true,
         headerSortClickElement: 'icon',
-        // Multi-column sort: shift+click adds secondary sort
-        // (enabled by default — Tabulator supports it natively)
       } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
       tabulator.value = new Tabulator(tableEl.value, opts);
+      rowCount.value = tabulator.value.getDataCount();
 
-      // After paste, add UUIDs and mark dirty
+      // Track row count changes
+      tabulator.value.on('dataProcessed', () => {
+        rowCount.value = tabulator.value.getDataCount();
+      });
+
+      // After paste, add UUIDs and mark only NEW rows dirty
       tabulator.value.on('clipboardPasted', () => {
         const data = tabulator.value.getData();
         let needsUpdate = false;
@@ -225,23 +221,30 @@ export default defineComponent({
         if (needsUpdate) {
           tabulator.value.replaceData(updated);
         }
+        // Only mark rows that got a new UUID (were newly pasted)
         for (const row of updated) {
-          if (row.id) {
+          if (row.id && !data.find((r: Record<string, unknown>) => r.id === row.id)) {
             markDirty(row.id as string, 'added');
           }
         }
+        rowCount.value = tabulator.value.getDataCount();
       });
     });
 
-    // ── Add Row (Ticket 08) ──
+    onBeforeUnmount(() => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    });
+
+    // ── Add Row ──
     const handleAddRow = () => {
       if (!tabulator.value) return;
       const newRow = { id: crypto.randomUUID() };
       tabulator.value.addRow(newRow, true);
       markDirty(newRow.id, 'added');
+      rowCount.value = tabulator.value.getDataCount();
     };
 
-    // ── Export CSV (Ticket 13) ──
+    // ── Export CSV ──
     const handleExportCSV = () => {
       if (!tabulator.value) return;
       tabulator.value.download('csv', 'compliance-library.csv', {
@@ -249,7 +252,7 @@ export default defineComponent({
       });
     };
 
-    // ── Save loop (Ticket 06) ──
+    // ── Save loop ──
     const handleSave = async () => {
       if (!tabulator.value || isSaving.value) return;
       isSaving.value = true;
@@ -319,12 +322,14 @@ export default defineComponent({
       }
     };
 
-    const clearGrid = () => {
+    const doClearGrid = () => {
       tabulator.value?.clearData();
       clearDirty();
       clearErrorHighlights();
       errorList.value = [];
       saveResult.value = null;
+      rowCount.value = 0;
+      showClearConfirm.value = false;
     };
 
     const handleDeleteSelected = () => {
@@ -336,13 +341,15 @@ export default defineComponent({
         markDeleted(rowId);
         row.delete();
       }
+      rowCount.value = tabulator.value.getDataCount();
     };
 
     return (): VNode => (
       <div class="mx-auto max-w-[1600px] p-6">
-        <div class="mb-4">
+        {/* ── Header ── */}
+        <div class="mb-6">
           <h1 class="text-2xl font-bold text-highlighted">
-            Compliance Library Editor — Prototype
+            Compliance Library Editor
           </h1>
           <p class="mt-1 text-sm text-muted">
             Paste from Excel (Ctrl+V), click Add Row to create manually, or edit cells
@@ -350,8 +357,52 @@ export default defineComponent({
           </p>
         </div>
 
-        {/* Toolbar */}
-        <div class="mb-4 flex flex-wrap items-center gap-2">
+        {/* ── Status bar ── */}
+        <div
+          class="mb-4 flex items-center justify-between rounded-lg border border-default bg-muted px-4 py-2"
+          role="status"
+          aria-live="polite"
+        >
+          <div class="flex items-center gap-4 text-sm">
+            <span class="text-muted">
+              <strong class="text-default font-semibold">{rowCount.value}</strong> rows
+            </span>
+            <span class="text-muted">
+              <strong
+                class={hasUnsavedChanges.value
+                  ? 'text-warning font-semibold'
+                  : 'text-default font-semibold'}
+              >
+                {dirtyCount.value}
+              </strong>{' '}
+              {dirtyCount.value === 1 ? 'change' : 'changes'}
+            </span>
+            {errorCount.value > 0 && (
+              <span class="text-error">
+                <strong class="font-semibold">{errorCount.value}</strong> errors
+              </span>
+            )}
+          </div>
+          <div class="flex items-center gap-2">
+            {saveResult.value && saveResult.value.saved > 0 && (
+              <UBadge
+                color="success"
+                label={`Saved ${saveResult.value.saved} rows`}
+                variant="soft"
+              />
+            )}
+            {hasUnsavedChanges.value && (
+              <UBadge
+                color="warning"
+                label="Unsaved changes"
+                variant="soft"
+              />
+            )}
+          </div>
+        </div>
+
+        {/* ── Toolbar: primary actions ── */}
+        <div class="mb-2 flex flex-wrap items-center gap-2">
           <UButton
             label="Add Row"
             color="primary"
@@ -359,10 +410,10 @@ export default defineComponent({
             onClick={handleAddRow}
           />
           <UButton
-            label="Save"
+            label="Save Changes"
             color="primary"
             loading={isSaving.value}
-            disabled={dirtyCount.value === 0 && !errorList.value.length}
+            disabled={!hasUnsavedChanges.value}
             onClick={handleSave}
           />
           <UButton
@@ -371,6 +422,10 @@ export default defineComponent({
             variant="ghost"
             onClick={handleDeleteSelected}
           />
+        </div>
+
+        {/* ── Toolbar: secondary actions ── */}
+        <div class="mb-4 flex flex-wrap items-center gap-2">
           <UButton
             label="Export CSV"
             color="neutral"
@@ -378,10 +433,10 @@ export default defineComponent({
             onClick={handleExportCSV}
           />
           <UButton
-            label="Clear"
+            label="Clear All"
             color="neutral"
             variant="ghost"
-            onClick={clearGrid}
+            onClick={() => { showClearConfirm.value = true; }}
           />
           <UButton
             label={showLicensePanel.value ? 'Hide Licensing' : 'Why Tabulator?'}
@@ -389,26 +444,9 @@ export default defineComponent({
             variant="ghost"
             onClick={() => { showLicensePanel.value = !showLicensePanel.value; }}
           />
-          <div class="ml-4 flex items-center gap-4 text-sm text-muted">
-            <span>
-              Dirty: <strong class="text-default">{dirtyCount.value}</strong>
-            </span>
-            <span>
-              Errors: <strong class={errorCount.value > 0 ? 'text-error' : 'text-default'}>
-                {errorCount.value}
-              </strong>
-            </span>
-            {saveResult.value && saveResult.value.saved > 0 && (
-              <UBadge
-                color="success"
-                label={`Saved ${saveResult.value.saved} rows`}
-                variant="soft"
-              />
-            )}
-          </div>
         </div>
 
-        {/* Grid + Error sidebar */}
+        {/* ── Grid + Error sidebar ── */}
         <div class="flex gap-4">
           <div class="flex-1 overflow-hidden rounded-lg border border-default">
             <div ref={tableEl} />
@@ -421,23 +459,34 @@ export default defineComponent({
               </h2>
               <div class="max-h-[460px] space-y-2 overflow-auto">
                 {errorList.value.map((err, i) => (
-                  <div
+                  <button
                     key={i}
-                    class="cursor-pointer rounded border border-default bg-muted p-3 text-xs hover:bg-default"
+                    type="button"
+                    class="block w-full cursor-pointer rounded border border-default bg-muted p-3 text-left text-xs hover:bg-default focus-visible:ring-2 focus-visible:ring-primary"
                     onClick={() => scrollToError(err)}
                   >
                     <div class="font-semibold text-error">
                       Row {err.row + 1}: {err.field}
                     </div>
                     <div class="mt-1 text-muted">{err.message}</div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
           )}
         </div>
 
-        {/* Licensing comparison panel (Ticket 14) */}
+        {/* ── Empty state ── */}
+        {rowCount.value === 0 && !isSaving.value && (
+          <div class="mt-4 rounded-lg border border-default p-8 text-center">
+            <p class="text-muted">
+              No rows in the grid. Click <strong class="text-default">Add Row</strong> to
+              create one, or paste data from Excel (Ctrl+V).
+            </p>
+          </div>
+        )}
+
+        {/* ── Licensing comparison panel ── */}
         {showLicensePanel.value && (
           <div class="mt-4 overflow-hidden rounded-lg border border-default">
             <div class="bg-muted px-4 py-2">
@@ -452,10 +501,10 @@ export default defineComponent({
             <table class="w-full text-sm">
               <thead class="bg-muted">
                 <tr>
-                  <th class="px-4 py-2 text-left font-medium text-muted">Feature</th>
-                  <th class="px-4 py-2 text-left font-medium text-success">Tabulator (MIT)</th>
-                  <th class="px-4 py-2 text-left font-medium text-error">AG Grid</th>
-                  <th class="px-4 py-2 text-left font-medium text-error">RevoGrid</th>
+                  <th scope="col" class="px-4 py-2 text-left font-medium text-muted">Feature</th>
+                  <th scope="col" class="px-4 py-2 text-left font-medium text-success">Tabulator (MIT)</th>
+                  <th scope="col" class="px-4 py-2 text-left font-medium text-error">AG Grid</th>
+                  <th scope="col" class="px-4 py-2 text-left font-medium text-error">RevoGrid</th>
                 </tr>
               </thead>
               <tbody>
@@ -470,6 +519,32 @@ export default defineComponent({
               </tbody>
             </table>
           </div>
+        )}
+
+        {/* ── Clear confirmation modal ── */}
+        {showClearConfirm.value && (
+          <UModal open={showClearConfirm.value} onUpdate:open={(v: boolean) => { showClearConfirm.value = v; }}>
+            <div class="p-6">
+              <h3 class="text-lg font-semibold text-highlighted">Clear all rows?</h3>
+              <p class="mt-2 text-sm text-muted">
+                This will remove all {rowCount.value} rows from the grid. Unsaved changes
+                will be lost. Saved rows will remain in the backend store.
+              </p>
+              <div class="mt-4 flex justify-end gap-2">
+                <UButton
+                  label="Cancel"
+                  color="neutral"
+                  variant="ghost"
+                  onClick={() => { showClearConfirm.value = false; }}
+                />
+                <UButton
+                  label="Clear All"
+                  color="error"
+                  onClick={doClearGrid}
+                />
+              </div>
+            </div>
+          </UModal>
         )}
 
         <style>{`

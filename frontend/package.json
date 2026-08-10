@@ -21,6 +21,7 @@
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "typescript": "catalog:",
+    "unplugin-auto-import": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"
   }

@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
-    "lint": "oxlint apps",
+    "lint": "oxlint src",
     "fmt": "oxfmt --write \"apps/**/src/**/*.{ts,tsx}\"",
     "test": "vitest run",
     "test:watch": "vitest"
