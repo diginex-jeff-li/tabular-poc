@@ -191,7 +191,7 @@ export default defineComponent({
         clipboardPasteAction: 'insert',
         clipboardCopyConfig: { columnHeaders: false },
         validationMode: 'highlight',
-        height: '500px',
+        height: 'calc(100vh - 48px)',
         layout: 'fitDataFill',
         movableColumns: false,
         autoColumns: false,
@@ -345,119 +345,106 @@ export default defineComponent({
     };
 
     return (): VNode => (
-      <div class="mx-auto max-w-[1600px] p-6">
-        {/* ── Header ── */}
-        <div class="mb-6">
-          <h1 class="text-2xl font-bold text-highlighted">
+      <div class="flex h-screen flex-col overflow-hidden">
+        {/* ── Floating toolbar ── */}
+        <div class="flex h-12 items-center gap-2 border-b border-default bg-muted px-4">
+          <h1 class="mr-4 text-sm font-semibold text-highlighted">
             Compliance Library Editor
           </h1>
-          <p class="mt-1 text-sm text-muted">
-            Paste from Excel (Ctrl+V), click Add Row to create manually, or edit cells
-            directly. Use column header filters to search. Check rows to delete, then Save.
-          </p>
-        </div>
-
-        {/* ── Status bar ── */}
-        <div
-          class="mb-4 flex items-center justify-between rounded-lg border border-default bg-muted px-4 py-2"
-          role="status"
-          aria-live="polite"
-        >
-          <div class="flex items-center gap-4 text-sm">
-            <span class="text-muted">
-              <strong class="text-default font-semibold">{rowCount.value}</strong> rows
-            </span>
-            <span class="text-muted">
-              <strong
-                class={hasUnsavedChanges.value
-                  ? 'text-warning font-semibold'
-                  : 'text-default font-semibold'}
-              >
-                {dirtyCount.value}
-              </strong>{' '}
-              {dirtyCount.value === 1 ? 'change' : 'changes'}
-            </span>
-            {errorCount.value > 0 && (
-              <span class="text-error">
-                <strong class="font-semibold">{errorCount.value}</strong> errors
-              </span>
-            )}
-          </div>
-          <div class="flex items-center gap-2">
-            {saveResult.value && saveResult.value.saved > 0 && (
-              <UBadge
-                color="success"
-                label={`Saved ${saveResult.value.saved} rows`}
-                variant="soft"
-              />
-            )}
-            {hasUnsavedChanges.value && (
-              <UBadge
-                color="warning"
-                label="Unsaved changes"
-                variant="soft"
-              />
-            )}
-          </div>
-        </div>
-
-        {/* ── Toolbar: primary actions ── */}
-        <div class="mb-2 flex flex-wrap items-center gap-2">
           <UButton
             label="Add Row"
             color="primary"
             variant="outline"
+            size="xs"
             onClick={handleAddRow}
           />
           <UButton
-            label="Save Changes"
+            label="Save"
             color="primary"
+            size="xs"
             loading={isSaving.value}
             disabled={!hasUnsavedChanges.value}
             onClick={handleSave}
           />
           <UButton
-            label="Delete Selected"
+            label="Delete"
             color="error"
             variant="ghost"
+            size="xs"
             onClick={handleDeleteSelected}
           />
-        </div>
-
-        {/* ── Toolbar: secondary actions ── */}
-        <div class="mb-4 flex flex-wrap items-center gap-2">
+          <div class="mx-1 h-5 w-px bg-default" />
           <UButton
-            label="Export CSV"
+            label="Export"
             color="neutral"
             variant="outline"
+            size="xs"
             onClick={handleExportCSV}
           />
           <UButton
-            label="Clear All"
+            label="Clear"
             color="neutral"
             variant="ghost"
+            size="xs"
             onClick={() => { showClearConfirm.value = true; }}
           />
           <UButton
-            label={showLicensePanel.value ? 'Hide Licensing' : 'Why Tabulator?'}
+            label="Why Tabulator?"
             color="info"
             variant="ghost"
+            size="xs"
             onClick={() => { showLicensePanel.value = !showLicensePanel.value; }}
           />
+
+          {/* ── Status chips ── */}
+          <div class="ml-auto flex items-center gap-3 text-xs" role="status" aria-live="polite">
+            <span class="text-muted">
+              <strong class="text-default font-semibold">{rowCount.value}</strong> rows
+            </span>
+            {hasUnsavedChanges.value && (
+              <span class="text-warning">
+                <strong class="font-semibold">{dirtyCount.value}</strong>{' '}
+                {dirtyCount.value === 1 ? 'change' : 'changes'}
+              </span>
+            )}
+            {errorCount.value > 0 && (
+              <span class="text-error">
+                <strong class="font-semibold">{errorCount.value}</strong> errors
+              </span>
+            )}
+            {saveResult.value && saveResult.value.saved > 0 && (
+              <UBadge color="success" label={`Saved ${saveResult.value.saved}`} variant="soft" size="sm" />
+            )}
+          </div>
         </div>
 
-        {/* ── Grid + Error sidebar ── */}
-        <div class="flex gap-4">
-          <div class="flex-1 overflow-hidden rounded-lg border border-default">
-            <div ref={tableEl} />
-          </div>
+        {/* ── Grid (fills remaining viewport) ── */}
+        <div class="relative flex-1 overflow-hidden">
+          <div ref={tableEl} class="h-full w-full" />
 
+          {/* ── Empty-state paste overlay ── */}
+          {rowCount.value === 0 && !isSaving.value && (
+            <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-muted/80 backdrop-blur-sm">
+              <div class="text-4xl text-muted">📋</div>
+              <p class="text-lg font-medium text-default">
+                Paste your Excel data here
+              </p>
+              <p class="text-sm text-muted">
+                Click any cell in the grid below, then press <kbd class="rounded border border-default bg-default px-1.5 py-0.5 text-xs font-mono">Ctrl+V</kbd>
+              </p>
+              <p class="text-xs text-muted">or click "Add Row" to create manually</p>
+            </div>
+          )}
+
+          {/* ── Error sidebar (slides in from right) ── */}
           {errorList.value.length > 0 && (
-            <div class="w-80 flex-shrink-0">
-              <h2 class="mb-2 text-sm font-semibold text-error">
-                Validation Errors ({errorList.value.length})
-              </h2>
-              <div class="max-h-[460px] space-y-2 overflow-auto">
+            <div class="absolute right-0 top-0 z-10 w-80 max-h-full overflow-auto border-l border-default bg-default shadow-lg">
+              <div class="sticky top-0 bg-error/10 px-3 py-2 border-b border-default">
+                <h2 class="text-sm font-semibold text-error">
+                  Validation Errors ({errorList.value.length})
+                </h2>
+              </div>
+              <div class="space-y-2 p-3">
                 {errorList.value.map((err, i) => (
                   <button
                     key={i}
@@ -476,48 +463,53 @@ export default defineComponent({
           )}
         </div>
 
-        {/* ── Empty state ── */}
-        {rowCount.value === 0 && !isSaving.value && (
-          <div class="mt-4 rounded-lg border border-default p-8 text-center">
-            <p class="text-muted">
-              No rows in the grid. Click <strong class="text-default">Add Row</strong> to
-              create one, or paste data from Excel (Ctrl+V).
-            </p>
-          </div>
-        )}
-
-        {/* ── Licensing comparison panel ── */}
+        {/* ── Licensing slide-over (from bottom) ── */}
         {showLicensePanel.value && (
-          <div class="mt-4 overflow-hidden rounded-lg border border-default">
-            <div class="bg-muted px-4 py-2">
-              <h2 class="text-sm font-semibold text-highlighted">
-                Why Tabulator? — Feature & Licensing Comparison
-              </h2>
-              <p class="mt-1 text-xs text-muted">
-                All features below are free in Tabulator (MIT). AG Grid and RevoGrid
-                gate key features behind paid tiers. Source: ag-grid.com, rv-grid.com (verified Aug 2026).
-              </p>
+          <div class="absolute inset-0 z-20 flex items-end" onClick={() => { showLicensePanel.value = false; }}>
+            <div class="absolute inset-0 bg-black/20" />
+            <div
+              class="relative max-h-[60vh] w-full overflow-auto rounded-t-lg border-t border-default bg-default shadow-2xl"
+              onClick={(e: Event) => e.stopPropagation()}
+            >
+              <div class="sticky top-0 flex items-center justify-between border-b border-default bg-muted px-4 py-3">
+                <h2 class="text-sm font-semibold text-highlighted">
+                  Why Tabulator? — Feature & Licensing Comparison
+                </h2>
+                <UButton
+                  label="✕"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => { showLicensePanel.value = false; }}
+                />
+              </div>
+              <div class="p-4">
+                <p class="mb-3 text-xs text-muted">
+                  All features below are free in Tabulator (MIT). AG Grid and RevoGrid
+                  gate key features behind paid tiers. Source: ag-grid.com, rv-grid.com (verified Aug 2026).
+                </p>
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-default">
+                      <th scope="col" class="px-3 py-2 text-left font-medium text-muted">Feature</th>
+                      <th scope="col" class="px-3 py-2 text-left font-medium text-success">Tabulator</th>
+                      <th scope="col" class="px-3 py-2 text-left font-medium text-error">AG Grid</th>
+                      <th scope="col" class="px-3 py-2 text-left font-medium text-error">RevoGrid</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {LICENSE_COMPARISON.map((row, i) => (
+                      <tr key={i} class="border-b border-default">
+                        <td class="px-3 py-2 text-default font-medium">{row.feature}</td>
+                        <td class="px-3 py-2 text-success">{row.tabulator}</td>
+                        <td class="px-3 py-2 text-error">{row.agGrid}</td>
+                        <td class="px-3 py-2 text-error">{row.revoGrid}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <table class="w-full text-sm">
-              <thead class="bg-muted">
-                <tr>
-                  <th scope="col" class="px-4 py-2 text-left font-medium text-muted">Feature</th>
-                  <th scope="col" class="px-4 py-2 text-left font-medium text-success">Tabulator (MIT)</th>
-                  <th scope="col" class="px-4 py-2 text-left font-medium text-error">AG Grid</th>
-                  <th scope="col" class="px-4 py-2 text-left font-medium text-error">RevoGrid</th>
-                </tr>
-              </thead>
-              <tbody>
-                {LICENSE_COMPARISON.map((row, i) => (
-                  <tr key={i} class="border-t border-default">
-                    <td class="px-4 py-2 text-default font-medium">{row.feature}</td>
-                    <td class="px-4 py-2 text-success">{row.tabulator}</td>
-                    <td class="px-4 py-2 text-error">{row.agGrid}</td>
-                    <td class="px-4 py-2 text-error">{row.revoGrid}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         )}
 
@@ -554,6 +546,9 @@ export default defineComponent({
           }
           .tabulator-validation-fail {
             border: 2px solid #ef4444 !important;
+          }
+          .tabulator {
+            height: 100% !important;
           }
         `}</style>
       </div>
