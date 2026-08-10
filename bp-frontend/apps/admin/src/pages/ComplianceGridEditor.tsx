@@ -108,11 +108,11 @@ export default defineComponent({
     const saveResult = ref<SaveResponse | null>(null);
     const errorList = ref<BackendError[]>([]);
 
-    // Derive columns from Zod schema
+    // Derive columns from Zod schema (id/createdAt/updatedAt are hidden)
     const columns = zodToTabulatorColumns(ComplianceLibrarySchema);
 
     // Dirty tracking
-    const { dirtyCount, buildSavePayload, clearDirty, markDeleted } =
+    const { dirtyCount, markDirty, buildSavePayload, clearDirty, markDeleted } =
       useDirtyTracking(tabulator);
 
     // ── Error display state ──
@@ -121,7 +121,7 @@ export default defineComponent({
     onMounted(() => {
       if (!tableEl.value) return;
 
-      tabulator.value = new Tabulator(tableEl.value, {
+      const opts = {
         data: [],
         reactiveData: true,
         columns: columns as any, // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -134,6 +134,40 @@ export default defineComponent({
         layout: 'fitDataFill',
         movableColumns: true,
         autoColumns: false,
+        selectable: true, // enable row selection for Delete Selected
+        // Generate UUIDs for rows that don't have one (pasted rows)
+        dataMutator: (data: Record<string, unknown>[]) => {
+          return data.map((row) => {
+            if (!row.id) {
+              row.id = crypto.randomUUID();
+            }
+            return row;
+          });
+        },
+      } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+      tabulator.value = new Tabulator(tableEl.value, opts);
+
+      // After paste, ensure all rows have UUIDs and mark them dirty
+      tabulator.value.on('clipboardPasted', () => {
+        const data = tabulator.value.getData();
+        let needsUpdate = false;
+        const updated = data.map((row: Record<string, unknown>) => {
+          if (!row.id) {
+            needsUpdate = true;
+            return { ...row, id: crypto.randomUUID() };
+          }
+          return row;
+        });
+        if (needsUpdate) {
+          tabulator.value.replaceData(updated);
+        }
+        // Mark all pasted rows as 'added' in dirty tracking
+        for (const row of updated) {
+          if (row.id) {
+            markDirty(row.id as string, 'added');
+          }
+        }
       });
 
       // Expose for debugging — PROTOTYPE ONLY

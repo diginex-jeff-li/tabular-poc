@@ -110,6 +110,7 @@ export function useDirtyTracking(tabulatorRef: Ref<TabulatorFull | null>) {
   return {
     dirtyMap,
     dirtyCount,
+    markDirty,
     markDeleted,
     buildSavePayload,
     clearDirty,
