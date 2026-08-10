@@ -1,14 +1,9 @@
 /**
- * PROTOTYPE — Ticket 06: Validation error display loop
+ * PROTOTYPE — Compliance Library Grid Editor
  *
- * The culmination of the prototype. Proves the full save loop:
- * 1. Admin pastes from Excel into the grid (Ticket 02)
- * 2. Grid columns derived from Zod schema (Ticket 05)
- * 3. Dirty tracking marks changed rows (Ticket 07)
- * 4. Admin clicks Save → POST to backend (Ticket 04)
- * 5. Backend validates with Zod, returns row-level errors
- * 6. Errors displayed per-cell + error sidebar
- * 7. Admin fixes errors → re-save → success
+ * Tickets 06, 08, 09: The full admin grid editor.
+ * - Paste from Excel, Add Row, checkbox select, Save with Zod validation,
+ *   per-cell error highlighting, error sidebar, Delete Selected, Clear.
  *
  * NOT PRODUCTION — throwaway prototype code.
  */
@@ -20,7 +15,6 @@ import {
   onMounted,
   ref,
   shallowRef,
-  watch,
   type VNode,
 } from 'vue';
 import { TabulatorFull as Tabulator } from 'tabulator-tables';
@@ -29,8 +23,6 @@ import { zodToTabulatorColumns } from 'utils/zodToTabulatorColumns';
 import { useDirtyTracking } from 'composables/useDirtyTracking';
 
 // ── Inline Zod schema (matches bp-contracts ComplianceLibrarySchema) ──
-// In production this would import from 'bp-contracts'. For the prototype,
-// we define it inline so the page is self-contained.
 
 const CategoryCodeEnum = z.enum([
   'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
@@ -61,20 +53,17 @@ const ComplianceLibrarySchema = z.object({
   updatedAt: z.string().datetime(),
 });
 
-// Schema for upsert rows (no timestamps, backend assigns them)
 const UpsertSchema = ComplianceLibrarySchema.omit({ createdAt: true, updatedAt: true });
 
 type BackendError = { row: number; field: string; message: string };
 type SaveResponse = { errors: BackendError[]; saved: number };
 
-// ── Mock backend (simulates Ticket 04's PUT /compliance-library/bulk) ──
+// ── Mock backend ──
 async function mockBulkSave(payload: {
   upserts: Record<string, unknown>[];
   deletes: string[];
 }): Promise<SaveResponse> {
-  // Simulate network delay
   await new Promise((r) => setTimeout(r, 300));
-
   const errors: BackendError[] = [];
 
   for (let i = 0; i < payload.upserts.length; i++) {
@@ -91,10 +80,7 @@ async function mockBulkSave(payload: {
     }
   }
 
-  if (errors.length > 0) {
-    return { errors, saved: 0 };
-  }
-
+  if (errors.length > 0) return { errors, saved: 0 };
   return { errors: [], saved: payload.upserts.length + payload.deletes.length };
 }
 
@@ -109,13 +95,28 @@ export default defineComponent({
     const errorList = ref<BackendError[]>([]);
 
     // Derive columns from Zod schema (id/createdAt/updatedAt are hidden)
-    const columns = zodToTabulatorColumns(ComplianceLibrarySchema);
+    const dataColumns = zodToTabulatorColumns(ComplianceLibrarySchema);
+
+    // Checkbox column for row selection (Ticket 09) — first column, like Excel
+    const checkboxColumn = {
+      title: '',
+      field: '__select',
+      width: 45,
+      hozAlign: 'center',
+      headerSort: false,
+      formatter: 'rowSelection',
+      titleFormatter: 'rowSelection',
+      cellClick: (e: Event, cell: { getRow: () => { toggleSelect: () => void } }) => {
+        cell.getRow().toggleSelect();
+      },
+    } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+    const columns = [checkboxColumn, ...dataColumns];
 
     // Dirty tracking
     const { dirtyCount, markDirty, buildSavePayload, clearDirty, markDeleted } =
       useDirtyTracking(tabulator);
 
-    // ── Error display state ──
     const errorCount = computed(() => errorList.value.length);
 
     onMounted(() => {
@@ -124,7 +125,7 @@ export default defineComponent({
       const opts = {
         data: [],
         reactiveData: true,
-        columns: columns as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+        columns,
         clipboard: true,
         clipboardPasteParser: 'table',
         clipboardPasteAction: 'insert',
@@ -132,23 +133,14 @@ export default defineComponent({
         validationMode: 'highlight',
         height: '500px',
         layout: 'fitDataFill',
-        movableColumns: true,
+        movableColumns: false, // checkbox column should stay first
         autoColumns: false,
-        selectable: true, // enable row selection for Delete Selected
-        // Generate UUIDs for rows that don't have one (pasted rows)
-        dataMutator: (data: Record<string, unknown>[]) => {
-          return data.map((row) => {
-            if (!row.id) {
-              row.id = crypto.randomUUID();
-            }
-            return row;
-          });
-        },
+        selectable: true,
       } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
       tabulator.value = new Tabulator(tableEl.value, opts);
 
-      // After paste, ensure all rows have UUIDs and mark them dirty
+      // After paste, add UUIDs and mark dirty
       tabulator.value.on('clipboardPasted', () => {
         const data = tabulator.value.getData();
         let needsUpdate = false;
@@ -162,26 +154,29 @@ export default defineComponent({
         if (needsUpdate) {
           tabulator.value.replaceData(updated);
         }
-        // Mark all pasted rows as 'added' in dirty tracking
         for (const row of updated) {
           if (row.id) {
             markDirty(row.id as string, 'added');
           }
         }
       });
-
-      // Expose for debugging — PROTOTYPE ONLY
-      (window as any).__tabulator = tabulator.value; // eslint-disable-line @typescript-eslint/no-explicit-any
     });
 
-    // ── Save loop ──
+    // ── Add Row (Ticket 08) ──
+    const handleAddRow = () => {
+      if (!tabulator.value) return;
+      const newRow = { id: crypto.randomUUID() };
+      tabulator.value.addRow(newRow, true); // true = add at top
+      markDirty(newRow.id, 'added');
+    };
+
+    // ── Save loop (Ticket 06) ──
     const handleSave = async () => {
       if (!tabulator.value || isSaving.value) return;
       isSaving.value = true;
       errorList.value = [];
       saveResult.value = null;
 
-      // Build diff payload from dirty tracking
       const payload = buildSavePayload();
 
       if (payload.upserts.length === 0 && payload.deletes.length === 0) {
@@ -195,11 +190,9 @@ export default defineComponent({
         saveResult.value = result;
 
         if (result.errors.length > 0) {
-          // Display errors per-cell + sidebar
           errorList.value = result.errors;
           applyErrorHighlights(result.errors);
         } else {
-          // Success — clear dirty tracking
           clearDirty();
           clearErrorHighlights();
         }
@@ -210,22 +203,15 @@ export default defineComponent({
       }
     };
 
-    // ── Apply backend validation errors to grid cells ──
     function applyErrorHighlights(errors: BackendError[]) {
       if (!tabulator.value) return;
-
-      // Clear previous highlights first
       clearErrorHighlights();
-
       const rows = tabulator.value.getRows();
       for (const err of errors) {
         const row = rows[err.row];
         if (!row) continue;
-
         const cell = row.getCell(err.field);
         if (!cell) continue;
-
-        // Add CSS class for visual highlight
         const el = cell.getElement() as HTMLElement;
         el.classList.add('backend-validation-error');
       }
@@ -239,7 +225,6 @@ export default defineComponent({
       }
     }
 
-    // ── Click error to scroll to cell ──
     const scrollToError = (err: BackendError) => {
       if (!tabulator.value) return;
       const rows = tabulator.value.getRows();
@@ -250,9 +235,7 @@ export default defineComponent({
         if (cell) {
           const el = cell.getElement() as HTMLElement;
           el.style.outline = '3px solid #ef4444';
-          setTimeout(() => {
-            el.style.outline = '';
-          }, 2000);
+          setTimeout(() => { el.style.outline = ''; }, 2000);
         }
       }
     };
@@ -265,7 +248,8 @@ export default defineComponent({
       saveResult.value = null;
     };
 
-    const handleDeleteRow = () => {
+    // ── Delete Selected (Ticket 09) ──
+    const handleDeleteSelected = () => {
       if (!tabulator.value) return;
       const selectedRows = tabulator.value.getSelectedRows();
       for (const row of selectedRows) {
@@ -278,19 +262,23 @@ export default defineComponent({
 
     return (): VNode => (
       <div class="mx-auto max-w-[1600px] p-6">
-        {/* Header */}
         <div class="mb-4">
           <h1 class="text-2xl font-bold text-highlighted">
             Compliance Library Editor — Prototype
           </h1>
           <p class="mt-1 text-sm text-muted">
-            Paste from Excel (Ctrl+V) — body rows only. Edit cells, then Save.
-            Validation errors show as red borders + sidebar. Fix and re-save.
+            Paste from Excel (Ctrl+V), click Add Row to create manually, or edit cells
+            directly. Check rows to delete, then Save.
           </p>
         </div>
 
-        {/* Toolbar */}
         <div class="mb-4 flex items-center gap-2">
+          <UButton
+            label="Add Row"
+            color="primary"
+            variant="outline"
+            onClick={handleAddRow}
+          />
           <UButton
             label="Save"
             color="primary"
@@ -302,7 +290,7 @@ export default defineComponent({
             label="Delete Selected"
             color="error"
             variant="ghost"
-            onClick={handleDeleteRow}
+            onClick={handleDeleteSelected}
           />
           <UButton
             label="Clear"
@@ -315,22 +303,25 @@ export default defineComponent({
               Dirty: <strong class="text-default">{dirtyCount.value}</strong>
             </span>
             <span>
-              Errors: <strong class={errorCount.value > 0 ? 'text-error' : 'text-default'}>{errorCount.value}</strong>
+              Errors: <strong class={errorCount.value > 0 ? 'text-error' : 'text-default'}>
+                {errorCount.value}
+              </strong>
             </span>
             {saveResult.value && saveResult.value.saved > 0 && (
-              <UBadge color="success" label={`Saved ${saveResult.value.saved} rows`} variant="soft" />
+              <UBadge
+                color="success"
+                label={`Saved ${saveResult.value.saved} rows`}
+                variant="soft"
+              />
             )}
           </div>
         </div>
 
-        {/* Grid + Error sidebar layout */}
         <div class="flex gap-4">
-          {/* Grid */}
           <div class="flex-1 overflow-hidden rounded-lg border border-default">
             <div ref={tableEl} />
           </div>
 
-          {/* Error sidebar */}
           {errorList.value.length > 0 && (
             <div class="w-80 flex-shrink-0">
               <h2 class="mb-2 text-sm font-semibold text-error">
@@ -354,7 +345,6 @@ export default defineComponent({
           )}
         </div>
 
-        {/* Inline styles for backend error highlighting */}
         <style>{`
           .backend-validation-error {
             background-color: #fee2e2 !important;
