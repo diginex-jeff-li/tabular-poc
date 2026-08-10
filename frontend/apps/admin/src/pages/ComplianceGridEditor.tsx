@@ -55,7 +55,7 @@ const ComplianceLibrarySchema = z.object({
 
 const UpsertSchema = ComplianceLibrarySchema.omit({ createdAt: true, updatedAt: true });
 
-type BackendError = { row: number; field: string; message: string };
+type BackendError = { row: number; rowId: string; field: string; message: string };
 type SaveResponse = { errors: BackendError[]; saved: number };
 
 // ── Mock backend with in-memory persistence ──
@@ -93,6 +93,7 @@ async function mockBulkSave(payload: {
       for (const issue of result.error.issues) {
         errors.push({
           row: i,
+          rowId: row.id as string,
           field: issue.path[0]?.toString() ?? '?',
           message: issue.message,
         });
@@ -279,7 +280,7 @@ export default defineComponent({
           clearErrorHighlights();
         }
       } catch {
-        saveResult.value = { errors: [{ row: 0, field: 'network', message: 'Save failed' }], saved: 0 };
+        saveResult.value = { errors: [{ row: 0, rowId: '', field: 'network', message: 'Save failed' }], saved: 0 };
       } finally {
         isSaving.value = false;
       }
@@ -290,7 +291,10 @@ export default defineComponent({
       clearErrorHighlights();
       const rows = tabulator.value.getRows();
       for (const err of errors) {
-        const row = rows[err.row];
+        // Look up row by ID, not by upsert array index
+        const row = rows.find((r: { getData: () => Record<string, unknown> }) =>
+          r.getData().id === err.rowId
+        );
         if (!row) continue;
         const cell = row.getCell(err.field);
         if (!cell) continue;
@@ -310,7 +314,9 @@ export default defineComponent({
     const scrollToError = (err: BackendError) => {
       if (!tabulator.value) return;
       const rows = tabulator.value.getRows();
-      const row = rows[err.row];
+      const row = rows.find((r: { getData: () => Record<string, unknown> }) =>
+        r.getData().id === err.rowId
+      );
       if (row) {
         row.scrollTo();
         const cell = row.getCell(err.field);
