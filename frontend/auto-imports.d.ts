@@ -7,21 +7,15 @@
 export {}
 declare global {
   const EffectScope: typeof import('vue').EffectScope
-  const PiniaColada: typeof import('@pinia/colada').PiniaColada
-  const PiniaColadaRetry: typeof import('@pinia/colada-plugin-retry').PiniaColadaRetry
   const RouterLink: typeof import('vue-router').RouterLink
   const RouterView: typeof import('vue-router').RouterView
   const computed: typeof import('vue').computed
   const createApp: typeof import('vue').createApp
-  const createPinia: typeof import('pinia').createPinia
   const createRouter: typeof import('vue-router').createRouter
   const createWebHistory: typeof import('vue-router').createWebHistory
   const customRef: typeof import('vue').customRef
   const defineAsyncComponent: typeof import('vue').defineAsyncComponent
   const defineComponent: typeof import('vue').defineComponent
-  const defineMutation: typeof import('@pinia/colada').defineMutation
-  const defineQuery: typeof import('@pinia/colada').defineQuery
-  const defineStore: typeof import('pinia').defineStore
   const effectScope: typeof import('vue').effectScope
   const getCurrentInstance: typeof import('vue').getCurrentInstance
   const getCurrentScope: typeof import('vue').getCurrentScope
@@ -68,10 +62,6 @@ declare global {
   const useCssVars: typeof import('vue').useCssVars
   const useId: typeof import('vue').useId
   const useModel: typeof import('vue').useModel
-  const useMutation: typeof import('@pinia/colada').useMutation
-  const useMutationCache: typeof import('@pinia/colada').useMutationCache
-  const useQuery: typeof import('@pinia/colada').useQuery
-  const useQueryCache: typeof import('@pinia/colada').useQueryCache
   const useRoute: typeof import('vue-router').useRoute
   const useRouter: typeof import('vue-router').useRouter
   const useSlots: typeof import('vue').useSlots

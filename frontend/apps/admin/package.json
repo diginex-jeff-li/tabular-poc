@@ -26,7 +26,6 @@
     "@types/tabulator-tables": "catalog:",
     "@vitejs/plugin-vue": "catalog:",
     "@vitejs/plugin-vue-jsx": "catalog:",
-    "autoprefixer": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "sass": "catalog:",
