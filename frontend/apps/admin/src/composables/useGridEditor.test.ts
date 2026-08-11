@@ -39,6 +39,7 @@ interface MockRow {
   delete: ReturnType<typeof vi.fn>;
   getCell: (field: string) => { getElement: () => MockCellElement };
   scrollTo: ReturnType<typeof vi.fn>;
+  validate: ReturnType<typeof vi.fn>;
   _cellElements: Record<string, MockCellElement>;
 }
 
@@ -64,6 +65,7 @@ function createMockRow(d: Record<string, unknown>, index: number): MockRow {
       return { getElement: () => cellElements[field] };
     }),
     scrollTo: vi.fn(),
+    validate: vi.fn(() => true),
     _cellElements: cellElements,
   };
 }
@@ -428,6 +430,56 @@ describe('useGridEditor', () => {
     expect(parsed[0].riskLevel).toBe('High');
     // Checkbox column skipped
     expect(parsed[0].__select).toBeUndefined();
+  });
+
+  // ── VAL-CUSTOM-005: pasting a value outside a dropdown column's choices ──
+  // triggers the .tabulator-validation-fail highlight on the offending cell.
+  // Tabulator only runs column validators on cell edit events, not on data
+  // load or paste. The clipboardPasted handler must therefore explicitly
+  // call row.validate() (or equivalent) on each pasted row so that cells
+  // carrying a value the column's 'in' validator rejects get the visual
+  // highlight. This is required by the custom-table contract; the compliance
+  // grid's enum validator is programmatic-only (GRID-007), but custom tables
+  // require the in-cell highlight on paste.
+
+  it('clipboardPasted calls row.validate() on each row so invalid cells get highlighted', async () => {
+    const initialData: Record<string, unknown>[] = [
+      { status: 'Critical' }, // outside the choices ['Open', 'Closed']
+    ];
+    const { mockTab, tableEl } = setupGridEditor({
+      initialData,
+      columns: TEST_COLUMNS,
+    });
+
+    tableEl.value = document.createElement('div');
+    await nextTick();
+
+    mockTab._emit('clipboardPasted');
+    await nextTick();
+
+    // Every row should have had validate() called on it
+    const rows = mockTab._getRows();
+    for (const row of rows) {
+      expect(row.validate).toHaveBeenCalled();
+    }
+  });
+
+  it('clipboardPasted does not call validate when there are no rows', async () => {
+    const initialData: Record<string, unknown>[] = [];
+    const { mockTab, tableEl } = setupGridEditor({
+      initialData,
+      columns: TEST_COLUMNS,
+    });
+
+    tableEl.value = document.createElement('div');
+    await nextTick();
+
+    mockTab._emit('clipboardPasted');
+    await nextTick();
+
+    // No rows → no validate calls (and no crash)
+    const rows = mockTab._getRows();
+    expect(rows).toHaveLength(0);
   });
 
   // ── Save loop ──
@@ -797,6 +849,122 @@ describe('useGridEditor', () => {
     expect(mockTab._getData()).toHaveLength(1);
     expect(result.rowCount.value).toBe(1);
     expect(result.dirtyCount.value).toBe(0);
+  });
+
+  // ── VAL-CUSTOM-018: deleting a row with an active error removes ──
+  // its sidebar entry and decrements the error count.
+  // handleDeleteSelected must filter errorList.value to remove entries
+  // whose rowId matches any of the deleted row ids, so the sidebar and
+  // the toolbar error chip stay consistent with the visible grid.
+
+  it('handleDeleteSelected removes error sidebar entries for deleted rows', async () => {
+    const errors = [
+      { row: 0, rowId: 'r1', field: 'issue', message: 'issue is required' },
+      { row: 1, rowId: 'r2', field: 'issue', message: 'issue is required' },
+    ];
+    const onSave = vi.fn().mockResolvedValue({ errors, saved: 0 });
+    const initialData = [
+      { id: 'r1', issue: '' },
+      { id: 'r2', issue: '' },
+      { id: 'r3', issue: 'ok' },
+    ];
+    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+
+    tableEl.value = document.createElement('div');
+    await nextTick();
+
+    // Make rows dirty so save proceeds and populates errorList
+    const cell1 = createMockCell({ id: 'r1', issue: '' }, 0);
+    const cell2 = createMockCell({ id: 'r2', issue: '' }, 1);
+    mockTab._emit('cellEdited', cell1);
+    mockTab._emit('cellEdited', cell2);
+    await nextTick();
+
+    await result.handleSave();
+    expect(result.errorList.value).toHaveLength(2);
+
+    // Delete r1 — its error sidebar entry must be removed
+    mockTab._setSelectedByRowIds(['r1']);
+    result.handleDeleteSelected();
+    await nextTick();
+
+    expect(result.errorList.value).toHaveLength(1);
+    expect(result.errorList.value[0].rowId).toBe('r2');
+  });
+
+  it('handleDeleteSelected removes all matching error entries when multiple errored rows are deleted', async () => {
+    const errors = [
+      { row: 0, rowId: 'r1', field: 'issue', message: 'required' },
+      { row: 1, rowId: 'r2', field: 'issue', message: 'required' },
+    ];
+    const onSave = vi.fn().mockResolvedValue({ errors, saved: 0 });
+    const initialData = [
+      { id: 'r1', issue: '' },
+      { id: 'r2', issue: '' },
+    ];
+    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+
+    tableEl.value = document.createElement('div');
+    await nextTick();
+
+    const cell1 = createMockCell({ id: 'r1', issue: '' }, 0);
+    const cell2 = createMockCell({ id: 'r2', issue: '' }, 1);
+    mockTab._emit('cellEdited', cell1);
+    mockTab._emit('cellEdited', cell2);
+    await nextTick();
+
+    await result.handleSave();
+    expect(result.errorList.value).toHaveLength(2);
+
+    // Delete both errored rows — errorList should be empty, sidebar gone
+    mockTab._setSelectedByRowIds(['r1', 'r2']);
+    result.handleDeleteSelected();
+    await nextTick();
+
+    expect(result.errorList.value).toEqual([]);
+  });
+
+  it('handleDeleteSelected leaves non-deleted rows error entries intact', async () => {
+    const errors = [
+      { row: 0, rowId: 'r1', field: 'issue', message: 'required' },
+      { row: 1, rowId: 'r2', field: 'issue', message: 'required' },
+    ];
+    const onSave = vi.fn().mockResolvedValue({ errors, saved: 0 });
+    const initialData = [
+      { id: 'r1', issue: '' },
+      { id: 'r2', issue: '' },
+    ];
+    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+
+    tableEl.value = document.createElement('div');
+    await nextTick();
+
+    const cell1 = createMockCell({ id: 'r1', issue: '' }, 0);
+    const cell2 = createMockCell({ id: 'r2', issue: '' }, 1);
+    mockTab._emit('cellEdited', cell1);
+    mockTab._emit('cellEdited', cell2);
+    await nextTick();
+
+    await result.handleSave();
+    expect(result.errorList.value).toHaveLength(2);
+
+    // Delete a row with NO error (r3) — error entries for r1 and r2 must remain
+    const initialDataWithR3 = [
+      { id: 'r1', issue: '' },
+      { id: 'r2', issue: '' },
+      { id: 'r3', issue: 'ok' },
+    ];
+    // Rebuild with r3 present
+    mockTab._setSelectedByRowIds(['r3']);
+    // Manually add r3 to the mock data since setupGridEditor already ran
+    mockTab.replaceData(initialDataWithR3);
+    result.handleDeleteSelected();
+    await nextTick();
+
+    expect(result.errorList.value).toHaveLength(2);
+    const rowIds = result.errorList.value.map((e) => e.rowId);
+    expect(rowIds).toContain('r1');
+    expect(rowIds).toContain('r2');
   });
 
   // ── Clear grid ──

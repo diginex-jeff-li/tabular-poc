@@ -161,6 +161,24 @@ export function useGridEditor(opts: UseGridEditorOptions) {
             markDirty(row.id as string, 'added');
           }
         }
+        // VAL-CUSTOM-005: Tabulator only runs column validators on cell edit
+        // events, not on data load or paste. Explicitly validate every row
+        // so that cells carrying a value a column's 'in' (or 'required')
+        // validator rejects get the .tabulator-validation-fail highlight.
+        // validationMode is 'highlight' (not 'manual'), so row.validate()
+        // adds the class to failing cells. This is required by the custom-
+        // table contract; the compliance grid's enum validator is
+        // programmatic-only (GRID-007), but custom tables require the
+        // in-cell highlight on paste.
+        const rowsToValidate = tab.getRows();
+        for (const row of rowsToValidate) {
+          // row.validate() is a Tabulator RowComponent method that runs
+          // each cell's validators and adds .tabulator-validation-fail to
+          // failing cells. It returns true or an array of invalid cells.
+          if (typeof row.validate === 'function') {
+            row.validate();
+          }
+        }
         rowCount.value = tab.getDataCount();
       };
       tab.on('clipboardPasted', onClipboardPasted);
@@ -326,14 +344,25 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   }
 
   // ── Delete selected ──
+  // VAL-CUSTOM-018: after deleting rows, filter errorList to remove entries
+  // whose rowId matches any of the deleted row ids. Without this the error
+  // sidebar would keep showing entries for rows that no longer exist in the
+  // grid, and the toolbar error chip would over-count.
   function handleDeleteSelected() {
     if (!tabulator.value) return;
     const selectedRows = tabulator.value.getSelectedRows();
+    const deletedRowIds = new Set<string>();
     for (const row of selectedRows) {
       const rowData = row.getData();
       const rowId = rowData.id as string;
       markDeleted(rowId);
+      deletedRowIds.add(rowId);
       row.delete();
+    }
+    if (deletedRowIds.size > 0 && errorList.value.length > 0) {
+      errorList.value = errorList.value.filter(
+        (err) => !deletedRowIds.has(err.rowId),
+      );
     }
     rowCount.value = tabulator.value.getDataCount();
   }
