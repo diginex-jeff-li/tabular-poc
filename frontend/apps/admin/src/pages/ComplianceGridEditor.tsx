@@ -1,30 +1,24 @@
 /**
  * PROTOTYPE — Compliance Library Grid Editor
  *
- * Tickets 06, 08, 09, 10, 12, 13, 14 + paste bug fix + UX improvements.
+ * Thin wrapper over useGridEditor (the shared grid engine behaviour) plus a
+ * render function. All grid behaviour lives in the composable; this page owns
+ * only compliance-specific material: the contracts schema, the in-memory mock
+ * store, buildComplianceColumns(), and the JSX.
  *
  * NOT PRODUCTION — throwaway prototype code.
  */
 import UButton from '@nuxt/ui/components/Button.vue';
 import UBadge from '@nuxt/ui/components/Badge.vue';
 import UModal from '@nuxt/ui/components/Modal.vue';
-import {
-  computed,
-  defineComponent,
-  onBeforeUnmount,
-  onMounted,
-  ref,
-  shallowRef,
-  type VNode,
-} from 'vue';
-import { TabulatorFull as Tabulator } from 'tabulator-tables';
+import { computed, defineComponent, ref, type VNode } from 'vue';
 import {
   ComplianceLibrarySchema,
   type BulkSaveErrorType,
   type BulkSaveResponseType,
 } from 'contracts';
 import { buildComplianceColumns } from 'composables/buildComplianceColumns';
-import { useDirtyTracking } from 'composables/useDirtyTracking';
+import { useGridEditor } from 'composables/useGridEditor';
 
 // ── Derived from the shared contracts schema ──
 
@@ -111,219 +105,35 @@ export default defineComponent({
   name: 'ComplianceGridEditor',
   setup() {
     const tableEl = ref<HTMLDivElement | null>(null);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tabulator = shallowRef<any>(null);
-    const isSaving = ref(false);
-    const saveResult = ref<SaveResponse | null>(null);
-    const errorList = ref<BackendError[]>([]);
     const showLicensePanel = ref(false);
     const showClearConfirm = ref(false);
-    const rowCount = ref(0);
 
     // Use extracted column builder (testable, includes clipboard: false fix)
     const columns = buildComplianceColumns();
 
-    // Dirty tracking
-    const { dirtyCount, markDirty, buildSavePayload, clearDirty, markDeleted } =
-      useDirtyTracking(tabulator);
+    // Grid behaviour lives in the composable — the page keeps only its render.
+    const {
+      rowCount,
+      dirtyCount,
+      isSaving,
+      errorList,
+      saveResult,
+      handleAddRow,
+      handleSave,
+      handleDeleteSelected,
+      handleExportCSV,
+      clearGrid,
+      scrollToError,
+    } = useGridEditor({
+      tableEl,
+      columns: ref(columns),
+      data: ref(mockList()),
+      onSave: mockBulkSave,
+      exportFilename: 'compliance-library.csv',
+    });
 
     const errorCount = computed(() => errorList.value.length);
     const hasUnsavedChanges = computed(() => dirtyCount.value > 0);
-
-    // ── beforeunload: warn on navigation with unsaved changes ──
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges.value) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-
-    onMounted(() => {
-      window.addEventListener('beforeunload', handleBeforeUnload);
-      if (!tableEl.value) return;
-
-      const opts = {
-        data: mockList(),
-        reactiveData: true,
-        columns,
-        clipboard: true,
-        clipboardPasteParser: function(clipboard: string) {
-          // Custom parser: skip the checkbox column when mapping paste data.
-          // Split into rows (\n) and cells (\t), map to data columns only
-          // (excluding __select).
-          const dataColumns = columns.filter((c: Record<string, unknown>) =>
-            c.field !== '__select' && c.visible !== false
-          );
-          const rows = clipboard.split('\n').filter((r: string) => r.trim());
-          return rows.map((row: string) => {
-            const cells = row.split('\t');
-            const obj: Record<string, unknown> = {};
-            for (let i = 0; i < cells.length && i < dataColumns.length; i++) {
-              obj[dataColumns[i].field as string] = cells[i];
-            }
-            return obj;
-          });
-        },
-        clipboardPasteAction: 'insert',
-        clipboardCopyConfig: { columnHeaders: false },
-        validationMode: 'highlight',
-        height: 'calc(100vh - 48px)',
-        layout: 'fitDataFill',
-        movableColumns: false,
-        autoColumns: false,
-        selectable: true,
-        headerSortClickElement: 'icon',
-      } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
-
-      tabulator.value = new Tabulator(tableEl.value, opts);
-      rowCount.value = tabulator.value.getDataCount();
-
-      // Track row count changes
-      tabulator.value.on('dataProcessed', () => {
-        rowCount.value = tabulator.value.getDataCount();
-      });
-
-      // After paste, add UUIDs and mark only NEW rows dirty
-      tabulator.value.on('clipboardPasted', () => {
-        const data = tabulator.value.getData();
-        let needsUpdate = false;
-        const updated = data.map((row: Record<string, unknown>) => {
-          if (!row.id) {
-            needsUpdate = true;
-            return { ...row, id: crypto.randomUUID() };
-          }
-          return row;
-        });
-        if (needsUpdate) {
-          tabulator.value.replaceData(updated);
-        }
-        // Only mark rows that got a new UUID (were newly pasted)
-        for (const row of updated) {
-          if (row.id && !data.find((r: Record<string, unknown>) => r.id === row.id)) {
-            markDirty(row.id as string, 'added');
-          }
-        }
-        rowCount.value = tabulator.value.getDataCount();
-      });
-    });
-
-    onBeforeUnmount(() => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    });
-
-    // ── Add Row ──
-    const handleAddRow = () => {
-      if (!tabulator.value) return;
-      const newRow = { id: crypto.randomUUID() };
-      tabulator.value.addRow(newRow, true);
-      markDirty(newRow.id, 'added');
-      rowCount.value = tabulator.value.getDataCount();
-    };
-
-    // ── Export CSV ──
-    const handleExportCSV = () => {
-      if (!tabulator.value) return;
-      tabulator.value.download('csv', 'compliance-library.csv', {
-        delimiter: ',',
-      });
-    };
-
-    // ── Save loop ──
-    const handleSave = async () => {
-      if (!tabulator.value || isSaving.value) return;
-      isSaving.value = true;
-      errorList.value = [];
-      saveResult.value = null;
-
-      const payload = buildSavePayload();
-
-      if (payload.upserts.length === 0 && payload.deletes.length === 0) {
-        isSaving.value = false;
-        saveResult.value = { errors: [], saved: 0 };
-        return;
-      }
-
-      try {
-        const result = await mockBulkSave(payload);
-        saveResult.value = result;
-
-        if (result.errors.length > 0) {
-          errorList.value = result.errors;
-          applyErrorHighlights(result.errors);
-        } else {
-          clearDirty();
-          clearErrorHighlights();
-        }
-      } catch {
-        saveResult.value = { errors: [{ row: 0, rowId: '', field: 'network', message: 'Save failed' }], saved: 0 };
-      } finally {
-        isSaving.value = false;
-      }
-    };
-
-    function applyErrorHighlights(errors: BackendError[]) {
-      if (!tabulator.value) return;
-      clearErrorHighlights();
-      const rows = tabulator.value.getRows();
-      for (const err of errors) {
-        // Look up row by ID, not by upsert array index
-        const row = rows.find((r: { getData: () => Record<string, unknown> }) =>
-          r.getData().id === err.rowId
-        );
-        if (!row) continue;
-        const cell = row.getCell(err.field);
-        if (!cell) continue;
-        const el = cell.getElement() as HTMLElement;
-        el.classList.add('backend-validation-error');
-      }
-    }
-
-    function clearErrorHighlights() {
-      if (!tabulator.value) return;
-      const cells = tabulator.value.element?.querySelectorAll('.backend-validation-error');
-      if (cells) {
-        cells.forEach((c: Element) => c.classList.remove('backend-validation-error'));
-      }
-    }
-
-    const scrollToError = (err: BackendError) => {
-      if (!tabulator.value) return;
-      const rows = tabulator.value.getRows();
-      const row = rows.find((r: { getData: () => Record<string, unknown> }) =>
-        r.getData().id === err.rowId
-      );
-      if (row) {
-        row.scrollTo();
-        const cell = row.getCell(err.field);
-        if (cell) {
-          const el = cell.getElement() as HTMLElement;
-          el.style.outline = '3px solid #ef4444';
-          setTimeout(() => { el.style.outline = ''; }, 2000);
-        }
-      }
-    };
-
-    const doClearGrid = () => {
-      tabulator.value?.clearData();
-      clearDirty();
-      clearErrorHighlights();
-      errorList.value = [];
-      saveResult.value = null;
-      rowCount.value = 0;
-      showClearConfirm.value = false;
-    };
-
-    const handleDeleteSelected = () => {
-      if (!tabulator.value) return;
-      const selectedRows = tabulator.value.getSelectedRows();
-      for (const row of selectedRows) {
-        const rowData = row.getData();
-        const rowId = rowData.id as string;
-        markDeleted(rowId);
-        row.delete();
-      }
-      rowCount.value = tabulator.value.getDataCount();
-    };
 
     return (): VNode => (
       <div class="flex h-screen flex-col overflow-hidden">
@@ -513,7 +323,7 @@ export default defineComponent({
                 <UButton
                   label="Clear All"
                   color="error"
-                  onClick={doClearGrid}
+                  onClick={() => { clearGrid(); showClearConfirm.value = false; }}
                 />
               </div>
             </div>
