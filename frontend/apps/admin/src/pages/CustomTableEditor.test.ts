@@ -10,7 +10,12 @@ import CustomTableEditor from './CustomTableEditor';
 // The real GridEditor imports Tabulator, which must never be loaded in a unit
 // test. The stub surfaces the props the page passes (title, columns, data,
 // exportFilename) as data attributes so the tests can assert on them without
-// driving the real grid engine.
+// driving the real grid engine. It also stashes the onSave callback into the
+// hoisted `saveCapture` object on mount, so save-path tests can invoke the
+// handler directly.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const saveCapture = vi.hoisted(() => ({ onSave: null as any }));
+
 vi.mock('components/GridEditor', () => ({
   default: defineComponent({
     name: 'GridEditor',
@@ -23,6 +28,8 @@ vi.mock('components/GridEditor', () => ({
       toolbarActions: { type: Function, default: undefined },
     },
     setup(props) {
+      // Stash the onSave callback so save-path tests can call it directly.
+      saveCapture.onSave = props.onSave as typeof saveCapture.onSave;
       return (): VNode =>
         h(
           'div',
@@ -318,6 +325,302 @@ describe('CustomTableEditor', () => {
         .text()
         .split(',');
       expect(fieldsB).toEqual(['__select', 'X', 'Y', 'Z']);
+    });
+  });
+
+  // ── Save path (feature c2) ──
+  // The onSave handler validates every upsert with the runtime Zod schema via
+  // safeParse, converts issues into the engine's error shape
+  // { row, rowId, field, message } and returns { errors, saved }. ALL-OR-
+  // NOTHING: only when there are zero errors does it merge upserts, apply
+  // deletes, stamp updatedAt, and write to sc-table-data-{id}.
+
+  describe('save path — validation', () => {
+    it('a required text column empty produces a validation error naming that field', async () => {
+      seedDef(makeDef());
+      await mountEditor(VALID_UUID_A);
+      const onSave = saveCapture.onSave!;
+      const newRowId = crypto.randomUUID();
+      // Add Row only sets { id } — the handler must not surface metadata
+      // errors for the missing createdAt/updatedAt; it must surface the
+      // user-data error: Title is required.
+      const result = await onSave({
+        upserts: [{ id: newRowId, Title: '', Score: 42, Status: 'Open' }],
+        deletes: [],
+      });
+      expect(result.errors.length).toBeGreaterThanOrEqual(1);
+      expect(result.errors[0]).toMatchObject({ field: 'Title', rowId: newRowId });
+      expect(result.saved).toBe(0);
+    });
+
+    it('a number column with non-numeric text produces a validation error', async () => {
+      seedDef(makeDef());
+      await mountEditor(VALID_UUID_A);
+      const onSave = saveCapture.onSave!;
+      const newRowId = crypto.randomUUID();
+      const result = await onSave({
+        upserts: [{ id: newRowId, Title: 'Hi', Score: 'abc', Status: 'Open' }],
+        deletes: [],
+      });
+      expect(result.errors.length).toBeGreaterThanOrEqual(1);
+      expect(result.errors[0]).toMatchObject({ field: 'Score', rowId: newRowId });
+      expect(result.saved).toBe(0);
+    });
+
+    it('a dropdown value outside its defined choices produces a validation error', async () => {
+      seedDef(makeDef());
+      await mountEditor(VALID_UUID_A);
+      const onSave = saveCapture.onSave!;
+      const newRowId = crypto.randomUUID();
+      const result = await onSave({
+        upserts: [{ id: newRowId, Title: 'Hi', Score: 42, Status: 'Critical' }],
+        deletes: [],
+      });
+      expect(result.errors.length).toBeGreaterThanOrEqual(1);
+      expect(result.errors[0]).toMatchObject({ field: 'Status', rowId: newRowId });
+      expect(result.saved).toBe(0);
+    });
+
+    it('leaving an optional column empty produces no error', async () => {
+      // Score is optional in the default fixture
+      seedDef(makeDef());
+      await mountEditor(VALID_UUID_A);
+      const onSave = saveCapture.onSave!;
+      const newRowId = crypto.randomUUID();
+      const result = await onSave({
+        upserts: [{ id: newRowId, Title: 'Hi', Status: 'Open' }],
+        deletes: [],
+      });
+      expect(result.errors).toEqual([]);
+      expect(result.saved).toBe(1);
+    });
+
+    it('a new row with only an id and valid data saves cleanly (no metadata errors)', async () => {
+      // Add Row sets only { id }. The handler must validate user columns
+      // only — not createdAt/updatedAt — and succeed.
+      seedDef(makeDef());
+      await mountEditor(VALID_UUID_A);
+      const onSave = saveCapture.onSave!;
+      const newRowId = crypto.randomUUID();
+      const result = await onSave({
+        upserts: [{ id: newRowId, Title: 'Hi', Score: 10, Status: 'Open' }],
+        deletes: [],
+      });
+      expect(result.errors).toEqual([]);
+      expect(result.saved).toBe(1);
+      const stored = JSON.parse(
+        localStorage.getItem(`sc-table-data-${VALID_UUID_A}`) || '[]',
+      );
+      expect(stored).toHaveLength(1);
+      expect(stored[0].Title).toBe('Hi');
+      expect(stored[0].id).toBe(newRowId);
+    });
+
+    it('multiple validation errors across multiple rows all appear', async () => {
+      seedDef(makeDef());
+      await mountEditor(VALID_UUID_A);
+      const onSave = saveCapture.onSave!;
+      const row1Id = crypto.randomUUID();
+      const row2Id = crypto.randomUUID();
+      const result = await onSave({
+        upserts: [
+          { id: row1Id, Title: '', Score: 42, Status: 'Open' },
+          { id: row2Id, Title: 'Hi', Score: 99, Status: 'Nope' },
+        ],
+        deletes: [],
+      });
+      expect(result.errors).toHaveLength(2);
+      expect(result.errors[0]).toMatchObject({ field: 'Title', rowId: row1Id });
+      expect(result.errors[1]).toMatchObject({ field: 'Status', rowId: row2Id });
+    });
+  });
+
+  describe('save path — all-or-nothing persistence', () => {
+    it('when any row fails, nothing is written to localStorage', async () => {
+      seedDef(makeDef());
+      seedRows(VALID_UUID_A, [
+        makeRow({ Title: 'Existing', Score: 1, Status: 'Open' }),
+      ]);
+      await mountEditor(VALID_UUID_A);
+      const before = localStorage.getItem(`sc-table-data-${VALID_UUID_A}`);
+      const onSave = saveCapture.onSave!;
+      await onSave({
+        upserts: [{ id: crypto.randomUUID(), Title: '', Score: 2, Status: 'Open' }],
+        deletes: [],
+      });
+      expect(localStorage.getItem(`sc-table-data-${VALID_UUID_A}`)).toBe(before);
+    });
+
+    it('a fully valid set of rows saves cleanly and persists', async () => {
+      seedDef(makeDef());
+      await mountEditor(VALID_UUID_A);
+      const onSave = saveCapture.onSave!;
+      const rowId = crypto.randomUUID();
+      const result = await onSave({
+        upserts: [{ id: rowId, Title: 'Hello', Score: 42, Status: 'Open' }],
+        deletes: [],
+      });
+      expect(result.errors).toEqual([]);
+      expect(result.saved).toBe(1);
+      const stored = JSON.parse(
+        localStorage.getItem(`sc-table-data-${VALID_UUID_A}`) || '[]',
+      );
+      expect(stored).toHaveLength(1);
+    });
+
+    it('saving rows does not alter the table definition', async () => {
+      seedDef(makeDef({ name: 'My Table' }));
+      await mountEditor(VALID_UUID_A);
+      const onSave = saveCapture.onSave!;
+      await onSave({
+        upserts: [{ id: crypto.randomUUID(), Title: 'Hi', Score: 1, Status: 'Open' }],
+        deletes: [],
+      });
+      const defs = JSON.parse(
+        localStorage.getItem('sc-table-defs') || '[]',
+      ) as TableDefinition[];
+      expect(defs).toHaveLength(1);
+      expect(defs[0].name).toBe('My Table');
+      expect(defs[0].columns).toEqual(makeDef().columns);
+    });
+  });
+
+  describe('save path — row metadata', () => {
+    it('new rows get a uuid id, createdAt and updatedAt', async () => {
+      seedDef(makeDef());
+      await mountEditor(VALID_UUID_A);
+      const onSave = saveCapture.onSave!;
+      const rowId = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d';
+      await onSave({
+        upserts: [{ id: rowId, Title: 'Hi', Score: 1, Status: 'Open' }],
+        deletes: [],
+      });
+      const stored = JSON.parse(
+        localStorage.getItem(`sc-table-data-${VALID_UUID_A}`) || '[]',
+      );
+      expect(stored).toHaveLength(1);
+      expect(stored[0].id).toBe(rowId);
+      expect(stored[0].createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      expect(stored[0].updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    });
+
+    it('updatedAt changes when an existing row is edited', async () => {
+      seedDef(makeDef());
+      const existingId = crypto.randomUUID();
+      const oldUpdated = '2020-01-01T00:00:00.000Z';
+      seedRows(VALID_UUID_A, [
+        makeRow({
+          id: existingId,
+          updatedAt: oldUpdated,
+          Title: 'Old',
+          Score: 1,
+          Status: 'Open',
+        }),
+      ]);
+      await mountEditor(VALID_UUID_A);
+      const onSave = saveCapture.onSave!;
+      await onSave({
+        upserts: [
+          {
+            id: existingId,
+            createdAt: VALID_ISO,
+            updatedAt: oldUpdated,
+            Title: 'New',
+            Score: 1,
+            Status: 'Open',
+          },
+        ],
+        deletes: [],
+      });
+      const stored = JSON.parse(
+        localStorage.getItem(`sc-table-data-${VALID_UUID_A}`) || '[]',
+      );
+      expect(stored).toHaveLength(1);
+      expect(stored[0].Title).toBe('New');
+      expect(stored[0].updatedAt).not.toBe(oldUpdated);
+      expect(stored[0].createdAt).toBe(VALID_ISO);
+    });
+  });
+
+  describe('save path — deletes', () => {
+    it('deletes are applied and removed rows stay gone', async () => {
+      seedDef(makeDef());
+      const keepId = crypto.randomUUID();
+      const deleteId = crypto.randomUUID();
+      seedRows(VALID_UUID_A, [
+        makeRow({ id: keepId, Title: 'Keep', Score: 1, Status: 'Open' }),
+        makeRow({ id: deleteId, Title: 'Delete', Score: 2, Status: 'Open' }),
+      ]);
+      await mountEditor(VALID_UUID_A);
+      const onSave = saveCapture.onSave!;
+      const result = await onSave({ upserts: [], deletes: [deleteId] });
+      expect(result.errors).toEqual([]);
+      expect(result.saved).toBe(1);
+      const stored = JSON.parse(
+        localStorage.getItem(`sc-table-data-${VALID_UUID_A}`) || '[]',
+      );
+      expect(stored).toHaveLength(1);
+      expect(stored[0].id).toBe(keepId);
+    });
+  });
+
+  describe('save path — number coercion', () => {
+    it('a numeric string is stored as a number, not a string', async () => {
+      seedDef(makeDef());
+      await mountEditor(VALID_UUID_A);
+      const onSave = saveCapture.onSave!;
+      const rowId = crypto.randomUUID();
+      await onSave({
+        upserts: [{ id: rowId, Title: 'Hi', Score: '42', Status: 'Open' }],
+        deletes: [],
+      });
+      const stored = JSON.parse(
+        localStorage.getItem(`sc-table-data-${VALID_UUID_A}`) || '[]',
+      );
+      expect(stored).toHaveLength(1);
+      expect(stored[0].Score).toBe(42);
+      expect(typeof stored[0].Score).toBe('number');
+    });
+  });
+
+  describe('save path — table isolation', () => {
+    it('saving rows in one table does not alter the other table rows or definition', async () => {
+      const defA = makeDef({
+        id: VALID_UUID_A,
+        name: 'Table A',
+        columns: [
+          { id: COL_UUID_1, name: 'Foo', type: 'text', required: true, choices: [] },
+        ],
+      });
+      const defB = makeDef({
+        id: VALID_UUID_B,
+        name: 'Table B',
+        columns: [
+          { id: COL_UUID_2, name: 'X', type: 'text', required: true, choices: [] },
+        ],
+      });
+      seedDef(defA);
+      seedDef(defB);
+      seedRows(VALID_UUID_B, [
+        makeRow({ id: crypto.randomUUID(), X: 'BRow' }),
+      ]);
+      const defBBefore = localStorage.getItem('sc-table-defs');
+      const dataBBefore = localStorage.getItem(`sc-table-data-${VALID_UUID_B}`);
+
+      await mountEditor(VALID_UUID_A);
+      const onSave = saveCapture.onSave!;
+      await onSave({
+        upserts: [{ id: crypto.randomUUID(), Foo: 'ARow' }],
+        deletes: [],
+      });
+
+      expect(localStorage.getItem('sc-table-defs')).toBe(defBBefore);
+      expect(localStorage.getItem(`sc-table-data-${VALID_UUID_B}`)).toBe(dataBBefore);
+      const dataA = JSON.parse(
+        localStorage.getItem(`sc-table-data-${VALID_UUID_A}`) || '[]',
+      );
+      expect(dataA).toHaveLength(1);
+      expect(dataA[0].Foo).toBe('ARow');
     });
   });
 });

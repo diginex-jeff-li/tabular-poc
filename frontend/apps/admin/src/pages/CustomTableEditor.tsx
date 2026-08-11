@@ -86,8 +86,22 @@ export default defineComponent({
     // Build the runtime schema once per definition. It is used by the save
     // handler to validate upserts. The schema is built from the definition's
     // columns, so it captures the table's current column set.
-    const schema = computed(() =>
-      definition.value ? buildRuntimeSchema(definition.value.columns) : null,
+    //
+    // The validation schema omits the row metadata fields (id, createdAt,
+    // updatedAt) because new rows added via "Add Row" or paste arrive with
+    // only an id and user-entered column values — the save handler stamps
+    // createdAt/updatedAt itself. Validating against the metadata fields
+    // would surface meaningless errors ("createdAt is required") instead of
+    // the real user-data errors. The compliance path uses the same pattern
+    // (ComplianceLibrarySchema.omit({ createdAt, updatedAt })).
+    const validationSchema = computed(() =>
+      definition.value
+        ? buildRuntimeSchema(definition.value.columns).omit({
+            id: true,
+            createdAt: true,
+            updatedAt: true,
+          })
+        : null,
     );
 
     // ── Save handler ──
@@ -103,7 +117,7 @@ export default defineComponent({
       deletes: string[];
     }): Promise<GridSaveResponse> {
       const def = definition.value;
-      const currentSchema = schema.value;
+      const currentSchema = validationSchema.value;
       if (!def || !currentSchema) {
         return { errors: [], saved: 0 };
       }
@@ -111,7 +125,14 @@ export default defineComponent({
       // Validate every upsert with the runtime schema via safeParse. Each
       // issue becomes a GridSaveError with `field` from the issue path and
       // `rowId` from the row.
+      //
+      // The validation schema omits id/createdAt/updatedAt (see above), so
+      // safeParse validates only user-entered column values. Crucially,
+      // z.coerce.number() in the schema coerces numeric strings to numbers
+      // during parsing — we keep the parsed data (result.data) so the coerced
+      // values are what gets persisted, not the raw string input.
       const errors: GridSaveError[] = [];
+      const validatedRows: Record<string, unknown>[] = [];
       for (let i = 0; i < payload.upserts.length; i++) {
         const row = payload.upserts[i];
         const result = currentSchema.safeParse(row);
@@ -124,6 +145,10 @@ export default defineComponent({
               message: issue.message,
             });
           }
+        } else {
+          // Carry the id through (it's not in the validation schema) and
+          // merge the coerced/validated column values from result.data.
+          validatedRows.push({ ...row, ...result.data });
         }
       }
 
@@ -138,7 +163,7 @@ export default defineComponent({
       const now = new Date().toISOString();
       const surviving = existing.filter((r) => !deleteSet.has(r.id));
 
-      for (const upsert of payload.upserts) {
+      for (const upsert of validatedRows) {
         const idx = surviving.findIndex((r) => r.id === upsert.id);
         if (idx >= 0) {
           // Preserve the original createdAt; stamp a fresh updatedAt.
