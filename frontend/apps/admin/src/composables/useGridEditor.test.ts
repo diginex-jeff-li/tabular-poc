@@ -785,5 +785,6 @@ describe('useGridEditor', () => {
     expect(opts.headerSortClickElement).toBe('icon');
     expect(opts.selectable).toBe(true);
     expect(opts.reactiveData).toBe(true);
+    expect(opts.height).toBe('100%');
   });
 });

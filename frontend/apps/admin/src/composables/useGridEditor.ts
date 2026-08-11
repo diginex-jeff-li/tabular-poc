@@ -120,7 +120,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
         clipboardPasteAction: 'insert',
         clipboardCopyConfig: { columnHeaders: false },
         validationMode: 'highlight',
-        height: 'calc(100vh - 48px)',
+        height: '100%',
         layout: 'fitDataFill',
         movableColumns: false,
         autoColumns: false,

@@ -6,7 +6,7 @@ export default defineComponent({
     return (): VNode => (
       <UApp>
         <div class="flex h-screen flex-col">
-          <div class="flex-1 overflow-hidden">
+          <div class="min-h-0 flex-1 overflow-hidden">
             <RouterView />
           </div>
         </div>
