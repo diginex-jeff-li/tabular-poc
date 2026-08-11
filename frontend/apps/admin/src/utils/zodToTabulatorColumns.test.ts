@@ -197,4 +197,43 @@ describe('zodToTabulatorColumns', () => {
     expect(columns[0].title).toBeDefined();
     expect(typeof columns[0].title).toBe('string');
   });
+
+  // ── VAL-GRID-021: tristate sort (asc → desc → none on third click) ──
+
+  it('sets headerSortTristate true on every derived (sortable) column', () => {
+    const schema = z.object({
+      categoryCode: z.enum(['A', 'B']),
+      issue: z.string(),
+      notes: z.string().nullable(),
+    });
+
+    const columns = zodToTabulatorColumns(schema);
+
+    expect(columns).toHaveLength(3);
+    for (const col of columns) {
+      expect(col.headerSortTristate).toBe(true);
+    }
+  });
+
+  it('sets headerSortTristate true on enum columns', () => {
+    const schema = z.object({
+      color: z.enum(['Red', 'Green', 'Blue']),
+    });
+
+    const columns = zodToTabulatorColumns(schema);
+
+    expect(columns[0].headerSortTristate).toBe(true);
+  });
+
+  it('sets headerSortTristate true on required and nullable string columns', () => {
+    const schema = z.object({
+      required: z.string(),
+      optional: z.string().nullable(),
+    });
+
+    const columns = zodToTabulatorColumns(schema);
+
+    expect(columns[0].headerSortTristate).toBe(true);
+    expect(columns[1].headerSortTristate).toBe(true);
+  });
 });

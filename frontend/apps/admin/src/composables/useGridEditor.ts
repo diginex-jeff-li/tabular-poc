@@ -183,13 +183,16 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   }
 
   // ── Export CSV ──
+  // VAL-GRID-022: pass 'all' as the row range (4th arg) so the export includes
+  // every row regardless of active column filters. Tabulator's default range
+  // is 'active', which honours filters and would omit filtered-out rows.
   function handleExportCSV() {
     if (!tabulator.value) return;
     const filename =
       typeof exportFilename === 'object' && 'value' in exportFilename
         ? exportFilename.value
         : exportFilename;
-    tabulator.value.download('csv', filename, { delimiter: ',' });
+    tabulator.value.download('csv', filename, { delimiter: ',' }, 'all');
   }
 
   // ── Error highlighting ──
@@ -281,6 +284,17 @@ export function useGridEditor(opts: UseGridEditorOptions) {
       }
     }
   }
+
+  // ── VAL-GRID-029: clear the "Saved N" badge when a new change occurs ──
+  // The save loop only resets saveResult at the start of handleSave, so the
+  // success badge would persist after edits made post-save. Watching
+  // dirtyCount clears the badge the moment a new edit/add/delete makes the
+  // grid dirty again, so the dirty-count chip reappears in its place.
+  watch(dirtyCount, (count) => {
+    if (count > 0 && saveResult.value !== null) {
+      saveResult.value = null;
+    }
+  });
 
   // ── Clear grid ──
   function clearGrid() {

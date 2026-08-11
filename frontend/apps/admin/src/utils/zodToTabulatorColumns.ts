@@ -54,6 +54,8 @@ function deriveColumn(
       field,
       editor: 'list',
       editorParams: { values },
+      // VAL-GRID-021: tristate sort cycle asc → desc → none (clears on 3rd click)
+      headerSortTristate: true,
       validator: [
         'required',
         { type: 'in', parameters: values.join('|') },
@@ -75,6 +77,8 @@ function deriveColumn(
       title: fieldToTitle(field),
       field,
       editor: 'input',
+      // VAL-GRID-021: tristate sort cycle asc → desc → none (clears on 3rd click)
+      headerSortTristate: true,
     };
 
     if (!isNullable) {

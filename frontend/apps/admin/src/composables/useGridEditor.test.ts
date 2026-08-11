@@ -573,6 +573,75 @@ describe('useGridEditor', () => {
     expect(result.isSaving.value).toBe(false);
   });
 
+  // ── VAL-GRID-029: "Saved N" badge clears when a new change occurs ──
+
+  it('clears saveResult when dirtyCount becomes > 0 after a successful save (cell edit)', async () => {
+    const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 1 });
+    const initialData = [{ id: 'r1', issue: 'old' }];
+    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+
+    tableEl.value = document.createElement('div');
+    await nextTick();
+
+    // First edit + save → saveResult set to the success response
+    const cell1 = createMockCell({ id: 'r1', issue: 'first' }, 0);
+    mockTab._emit('cellEdited', cell1);
+    await nextTick();
+    await result.handleSave();
+    expect(result.saveResult.value).toEqual({ errors: [], saved: 1 });
+    expect(result.dirtyCount.value).toBe(0);
+
+    // A new edit after the save → dirtyCount becomes 1, saveResult must clear
+    const cell2 = createMockCell({ id: 'r1', issue: 'second' }, 0);
+    mockTab._emit('cellEdited', cell2);
+    await nextTick();
+
+    expect(result.dirtyCount.value).toBe(1);
+    expect(result.saveResult.value).toBeNull();
+  });
+
+  it('clears saveResult when a new row is added after a successful save', async () => {
+    const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 1 });
+    const initialData = [{ id: 'r1', issue: 'old' }];
+    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+
+    tableEl.value = document.createElement('div');
+    await nextTick();
+
+    // Edit + save → success badge
+    const cell = createMockCell({ id: 'r1', issue: 'updated' }, 0);
+    mockTab._emit('cellEdited', cell);
+    await nextTick();
+    await result.handleSave();
+    expect(result.saveResult.value).toEqual({ errors: [], saved: 1 });
+
+    // Add a row → dirtyCount increments, saveResult clears
+    result.handleAddRow();
+    await nextTick();
+
+    expect(result.dirtyCount.value).toBe(1);
+    expect(result.saveResult.value).toBeNull();
+  });
+
+  it('does not clear saveResult when dirtyCount stays at 0 (no spurious clear)', async () => {
+    const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 1 });
+    const initialData = [{ id: 'r1', issue: 'old' }];
+    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+
+    tableEl.value = document.createElement('div');
+    await nextTick();
+
+    const cell = createMockCell({ id: 'r1', issue: 'updated' }, 0);
+    mockTab._emit('cellEdited', cell);
+    await nextTick();
+    await result.handleSave();
+    expect(result.saveResult.value).toEqual({ errors: [], saved: 1 });
+
+    // No further edits — the badge must persist
+    await nextTick();
+    expect(result.saveResult.value).toEqual({ errors: [], saved: 1 });
+  });
+
   // ── Error highlighting by rowId (regression guard for f7bd853) ──
 
   it('error highlighting locates rows by rowId, not by upserts-array index', async () => {
@@ -766,7 +835,60 @@ describe('useGridEditor', () => {
 
     expect(mockTab.download).toHaveBeenCalledWith('csv', 'test-export.csv', {
       delimiter: ',',
+    }, 'all');
+  });
+
+  // ── VAL-GRID-022: CSV export includes ALL rows regardless of active filters ──
+
+  it('handleExportCSV passes "all" as the row range so filtered rows are exported', async () => {
+    const { result, mockTab, tableEl } = setupGridEditor({});
+
+    tableEl.value = document.createElement('div');
+    await nextTick();
+
+    result.handleExportCSV();
+
+    // Tabulator's download(type, filename, options, range) 4th arg controls
+    // which rows are exported. The default ("active") honours column filters;
+    // "all" exports every row regardless of filters.
+    expect(mockTab.download).toHaveBeenCalledWith(
+      'csv',
+      'test-export.csv',
+      { delimiter: ',' },
+      'all',
+    );
+  });
+
+  it('handleExportCSV unwraps a ref exportFilename and still passes "all" range', async () => {
+    const mockTab = createMockTabulator([], []);
+    mockState.instance = mockTab;
+    mockState.ctorCalls = [];
+
+    const tableEl = ref<HTMLElement | null>(null);
+    const cols = ref<Record<string, unknown>[]>([{ field: 'issue', editor: 'input' }]);
+    const data = ref<Record<string, unknown>[]>([]);
+    const filenameRef = ref('dynamic-name.csv');
+    const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 0 });
+
+    const result = useGridEditor({
+      tableEl,
+      columns: cols,
+      data,
+      onSave: onSave as any,
+      exportFilename: filenameRef,
     });
+
+    tableEl.value = document.createElement('div');
+    await nextTick();
+
+    result.handleExportCSV();
+
+    expect(mockTab.download).toHaveBeenCalledWith(
+      'csv',
+      'dynamic-name.csv',
+      { delimiter: ',' },
+      'all',
+    );
   });
 
   // ── Tabulator options ──
