@@ -156,11 +156,11 @@ describe('BulkSaveResponseSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('parses an error response with row-level errors', () => {
+  it('parses an error response with row-level errors including rowId', () => {
     const result = BulkSaveResponseSchema.safeParse({
       errors: [
-        { row: 0, field: 'riskLevel', message: 'Invalid enum value' },
-        { row: 2, field: 'issue', message: 'Required' },
+        { row: 0, rowId: '550e8400-e29b-41d4-a716-446655440000', field: 'riskLevel', message: 'Invalid enum value' },
+        { row: 2, rowId: '550e8400-e29b-41d4-a716-446655440001', field: 'issue', message: 'Required' },
       ],
       saved: 0,
     });
@@ -169,17 +169,44 @@ describe('BulkSaveResponseSchema', () => {
 });
 
 describe('BulkSaveErrorSchema', () => {
-  it('parses a valid error entry', () => {
+  it('parses a valid error entry with rowId', () => {
+    const result = BulkSaveErrorSchema.safeParse({
+      row: 0,
+      rowId: '550e8400-e29b-41d4-a716-446655440000',
+      field: 'riskLevel',
+      message: 'Invalid enum value',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.rowId).toBe('550e8400-e29b-41d4-a716-446655440000');
+    }
+  });
+
+  it('rejects missing message', () => {
+    const result = BulkSaveErrorSchema.safeParse({
+      row: 0,
+      rowId: '550e8400-e29b-41d4-a716-446655440000',
+      field: 'riskLevel',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects missing rowId (rowId is required)', () => {
     const result = BulkSaveErrorSchema.safeParse({
       row: 0,
       field: 'riskLevel',
       message: 'Invalid enum value',
     });
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
   });
 
-  it('rejects missing message', () => {
-    const result = BulkSaveErrorSchema.safeParse({ row: 0, field: 'riskLevel' });
+  it('rejects non-string rowId', () => {
+    const result = BulkSaveErrorSchema.safeParse({
+      row: 0,
+      rowId: 42,
+      field: 'riskLevel',
+      message: 'Invalid enum value',
+    });
     expect(result.success).toBe(false);
   });
 });

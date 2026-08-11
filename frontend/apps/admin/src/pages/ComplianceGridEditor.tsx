@@ -18,45 +18,20 @@ import {
   type VNode,
 } from 'vue';
 import { TabulatorFull as Tabulator } from 'tabulator-tables';
-import { z } from 'zod';
+import {
+  ComplianceLibrarySchema,
+  type BulkSaveErrorType,
+  type BulkSaveResponseType,
+} from 'contracts';
 import { buildComplianceColumns } from 'composables/buildComplianceColumns';
 import { useDirtyTracking } from 'composables/useDirtyTracking';
 
-// ── Inline Zod schema ──
-
-const CategoryCodeEnum = z.enum([
-  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
-  'K', 'L', 'M', 'N', 'O', 'P', 'Q',
-]);
-const ComplianceCategoryEnum = z.enum(['Governance', 'Social', 'Environment']);
-const TopicEnum = z.enum([
-  'Key Compliance Requirements', 'Zero Tolerance Policy', 'Freedom of Association',
-  'Recruitment & Fees', 'Forced & Compulsory Labour', 'Wages & Benefits',
-  'Working Hours', 'Occupational Safety & Health', 'Environmental Responsibility',
-  'Grievance Mechanisms', 'Discrimination', 'Business Integrity',
-  'Compliance Requirements', 'Community & Environment',
-]);
-const RiskLevelEnum = z.enum(['High', 'Medium', 'Low']);
-const ClosureTimingEnum = z.enum(['7', '30', '60', '90', 'Next assessment']);
-
-const ComplianceLibrarySchema = z.object({
-  id: z.string().uuid(),
-  categoryCode: CategoryCodeEnum,
-  complianceCategory: ComplianceCategoryEnum,
-  topic: TopicEnum,
-  riskLevel: RiskLevelEnum,
-  issue: z.string(),
-  closureTiming: ClosureTimingEnum,
-  evidenceExpectation: z.string().nullable(),
-  bestPractice: z.string().nullable(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-});
+// ── Derived from the shared contracts schema ──
 
 const UpsertSchema = ComplianceLibrarySchema.omit({ createdAt: true, updatedAt: true });
 
-type BackendError = { row: number; rowId: string; field: string; message: string };
-type SaveResponse = { errors: BackendError[]; saved: number };
+type BackendError = BulkSaveErrorType;
+type SaveResponse = BulkSaveResponseType;
 
 // ── Mock backend with in-memory persistence ──
 

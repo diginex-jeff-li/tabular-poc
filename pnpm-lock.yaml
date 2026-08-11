@@ -93,6 +93,9 @@ importers:
       '@vueuse/core':
         specifier: 14.4.0
         version: 14.4.0(vue@3.5.38(typescript@6.0.3))
+      contracts:
+        specifier: workspace:*
+        version: link:../../../contracts
       tabulator-tables:
         specifier: 6.5.2
         version: 6.5.2

@@ -13,6 +13,7 @@ export type ListComplianceLibraryResponseType = z.infer<
 
 export const BulkSaveErrorSchema = z.object({
   row: z.number().int().min(0),
+  rowId: z.string(),
   field: z.string(),
   message: z.string(),
 });
