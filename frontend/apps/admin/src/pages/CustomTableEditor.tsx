@@ -1,8 +1,8 @@
 /**
  * PROTOTYPE — Custom Table Editor (/custom/:tableId)
  *
- * Per architecture.md section 4.4. This page owns the load/render path and
- * the save handler for a custom table:
+ * Per architecture.md section 4.4. This page owns the load/render path, the
+ * save handler, and the post-creation Add Column flow for a custom table:
  *
  *   1. Look up the definition by id (via `useTableDefinitions`).
  *   2. If absent, render a not-found state with a link back to /custom —
@@ -22,24 +22,49 @@
  *      writes the rows back to localStorage. Because the error shape carries
  *      `rowId`, the shared engine's existing sidebar, cell highlighting and
  *      scroll-to-row all work unchanged.
+ *   5. The `toolbarActions` render prop supplies an "Add Column" button that
+ *      opens a modal with the same single-row UI as the builder (name, type,
+ *      required, choices — choices only for Dropdown). The modal enforces the
+ *      same validation rules, including uniqueness against the table's
+ *      EXISTING columns (case-insensitive, trimmed) and the reserved-name
+ *      list. On confirm the new column is appended as the last column, the
+ *      definition's `updatedAt` is stamped (via `updateDefinition`), and
+ *      existing rows gain the field with value `null`. Adding a REQUIRED
+ *      column to a table that already has rows is explicitly allowed — those
+ *      rows then fail validation on the next save with sidebar entries naming
+ *      the new column, until the user fills them in. Rename, delete and
+ *      type-change of existing columns are NOT offered. Cancelling the modal
+ *      changes nothing.
  *
- * The `key` on <GridEditor> is the table id so navigating between two
- * different custom tables remounts the engine with fresh `data` (the
- * engine treats `data` as initial data — see useGridEditor's reactivity
- * semantics in architecture.md section 3.2).
+ * The `key` on <GridEditor> combines the table id and the column count so the
+ * engine remounts (with fresh `data` and `columns`) both when navigating
+ * between two different custom tables AND when a column is added to the
+ * current table. The engine treats `data` and `columns` as initial values
+ * (see useGridEditor's reactivity semantics in architecture.md section 3.2),
+ * so a remount is required for a newly added column to appear in the grid.
  *
  * NOT PRODUCTION — throwaway prototype code.
  */
 import UButton from '@nuxt/ui/components/Button.vue';
-import { computed, defineComponent, type VNode } from 'vue';
+import UInput from '@nuxt/ui/components/Input.vue';
+import USelect from '@nuxt/ui/components/Select.vue';
+import UCheckbox from '@nuxt/ui/components/Checkbox.vue';
+import UModal from '@nuxt/ui/components/Modal.vue';
+import { computed, defineComponent, ref, type VNode } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import GridEditor from 'components/GridEditor';
 import { useTableDefinitions } from 'composables/useTableDefinitions';
 import { definitionToColumns } from 'utils/definitionToColumns';
 import { buildRuntimeSchema } from 'utils/buildRuntimeSchema';
 import { readTableRows, writeTableRows } from 'utils/tableStorage';
+import {
+  parseChoices,
+  isReservedName,
+  isDuplicateName,
+  hasValidChoices,
+} from 'utils/columnValidation';
 import type { GridSaveError, GridSaveResponse } from 'composables/useGridEditor';
-import type { TableRow } from 'src/types/customTable';
+import type { ColumnDef, TableRow } from 'src/types/customTable';
 
 /**
  * Derive a CSV export filename from a table name. Lowercases, replaces runs
@@ -59,16 +84,23 @@ function slugifyFilename(name: string): string {
   return `${slug || 'table'}.csv`;
 }
 
+const TYPE_ITEMS: { label: string; value: ColumnDef['type'] }[] = [
+  { label: 'Text', value: 'text' },
+  { label: 'Dropdown', value: 'dropdown' },
+  { label: 'Number', value: 'number' },
+];
+
 export default defineComponent({
   name: 'CustomTableEditor',
   setup() {
     const route = useRoute();
     const router = useRouter();
-    const { getDefinition } = useTableDefinitions();
+    const { getDefinition, updateDefinition } = useTableDefinitions();
 
     // The tableId is a route param. It is reactive in principle, but the
-    // <GridEditor :key={tableId}> below remounts the engine on any id change,
-    // so a plain read of the current value is sufficient here.
+    // <GridEditor :key={gridKey}> below remounts the engine on any id or
+    // column-count change, so a plain read of the current value is sufficient
+    // here.
     const tableId = computed(() => String(route.params.tableId ?? ''));
     const definition = computed(() => getDefinition(tableId.value));
 
@@ -81,6 +113,18 @@ export default defineComponent({
     );
     const exportFilename = computed(() =>
       definition.value ? slugifyFilename(definition.value.name) : 'table.csv',
+    );
+
+    // The grid key combines the table id and the column count. The engine
+    // treats `data` and `columns` as initial values (it does not watch them
+    // for changes — see architecture.md section 3.2), so a remount is
+    // required when a column is added. Including the column count in the key
+    // means the grid remounts with fresh columns and row data the moment a
+    // column is appended, while still remounting on a table-id change.
+    const gridKey = computed(() =>
+      definition.value
+        ? `${definition.value.id}:${definition.value.columns.length}`
+        : '',
     );
 
     // Build the runtime schema once per definition. It is used by the save
@@ -197,6 +241,155 @@ export default defineComponent({
       router.push('/custom');
     }
 
+    // ── Add Column modal state ──
+    // The modal reuses the builder's single-row UI (name / type / required /
+    // choices) with the same validation rules, including uniqueness against
+    // the table's EXISTING columns. `choicesText` holds the raw
+    // comma-separated string; it is parsed into `choices` only at confirm
+    // time, so the value survives a type round-trip without being lost.
+    const showAddColumnModal = ref(false);
+    const newColumnName = ref('');
+    const newColumnType = ref<ColumnDef['type']>('text');
+    const newColumnRequired = ref(false);
+    const newColumnChoicesText = ref('');
+    const addColumnErrors = ref<string[]>([]);
+
+    function openAddColumnModal(): void {
+      // Reset to blank defaults each time the modal opens.
+      newColumnName.value = '';
+      newColumnType.value = 'text';
+      newColumnRequired.value = false;
+      newColumnChoicesText.value = '';
+      addColumnErrors.value = [];
+      showAddColumnModal.value = true;
+    }
+
+    function closeAddColumnModal(): void {
+      showAddColumnModal.value = false;
+      addColumnErrors.value = [];
+    }
+
+    function updateNewColumnName(value: string): void {
+      newColumnName.value = value;
+      addColumnErrors.value = [];
+    }
+
+    function updateNewColumnType(value: ColumnDef['type']): void {
+      newColumnType.value = value;
+      addColumnErrors.value = [];
+    }
+
+    function updateNewColumnRequired(value: boolean): void {
+      newColumnRequired.value = value;
+      addColumnErrors.value = [];
+    }
+
+    function updateNewColumnChoices(value: string): void {
+      newColumnChoicesText.value = value;
+      addColumnErrors.value = [];
+    }
+
+    /**
+     * Validate the new column against the same rules as the builder, plus
+     * uniqueness against the table's EXISTING columns (case-insensitive,
+     * trimmed). Returns an array of error messages; empty means valid.
+     */
+    function validateNewColumn(): string[] {
+      const errors: string[] = [];
+      const def = definition.value;
+      if (!def) return errors;
+
+      const trimmedName = newColumnName.value.trim();
+
+      if (!trimmedName) {
+        errors.push('Column name is required.');
+        return errors;
+      }
+
+      if (isReservedName(trimmedName)) {
+        errors.push(`"${trimmedName}" is a reserved name.`);
+      }
+
+      const existingNames = def.columns.map((c) => c.name);
+      if (isDuplicateName(trimmedName, existingNames)) {
+        errors.push(`Duplicate column name "${trimmedName}". Names must be unique.`);
+      }
+
+      if (newColumnType.value === 'dropdown' && !hasValidChoices(newColumnChoicesText.value)) {
+        errors.push('Dropdown column needs at least one choice.');
+      }
+
+      return errors;
+    }
+
+    /**
+     * Confirm the Add Column modal. Validates, and on success appends the
+     * new column to the definition (via `updateDefinition`, which stamps
+     * `updatedAt`), adds the new field with value `null` to every existing
+     * row in storage, and closes the modal. The grid remounts via the
+     * `gridKey` change (column count incremented) so the new column appears
+     * immediately.
+     */
+    function confirmAddColumn(): void {
+      const def = definition.value;
+      if (!def) return;
+
+      const errors = validateNewColumn();
+      if (errors.length > 0) {
+        addColumnErrors.value = errors;
+        return;
+      }
+
+      const newColumn: ColumnDef = {
+        id: crypto.randomUUID(),
+        name: newColumnName.value.trim(),
+        type: newColumnType.value,
+        required: newColumnRequired.value,
+        choices:
+          newColumnType.value === 'dropdown'
+            ? parseChoices(newColumnChoicesText.value)
+            : [],
+      };
+
+      // Append the new column to the definition. updateDefinition stamps
+      // updatedAt on the definition.
+      updateDefinition(def.id, {
+        columns: [...def.columns, newColumn],
+      });
+
+      // Add the new field with value null to every existing row. Existing
+      // row data must not be lost — only the new field is added.
+      const existingRows = readTableRows(def.id);
+      const updatedRows: TableRow[] = existingRows.map(
+        (row): TableRow => ({
+          ...row,
+          [newColumn.name]: null,
+        }),
+      );
+      writeTableRows(def.id, updatedRows);
+
+      // Close the modal. The grid remounts via the gridKey change (column
+      // count incremented) so the new column appears immediately.
+      showAddColumnModal.value = false;
+      addColumnErrors.value = [];
+    }
+
+    // ── toolbarActions render prop ──
+    // Supplies the Add Column button in the shared toolbar. TSX cannot use
+    // SFC named slots, so the extension point is a render prop (see
+    // architecture.md section 3.1).
+    function renderToolbarActions(): VNode {
+      return (
+        <UButton
+          label="Add Column"
+          color="neutral"
+          variant="outline"
+          size="xs"
+          onClick={openAddColumnModal}
+        />
+      );
+    }
+
     return (): VNode => {
       const def = definition.value;
 
@@ -227,17 +420,124 @@ export default defineComponent({
       }
 
       // ── Editor ──
-      // The `key` is the table id so the engine remounts (with fresh initial
-      // data) when navigating between two different custom tables.
+      // The `key` combines the table id and the column count so the engine
+      // remounts (with fresh initial data and columns) both when navigating
+      // between two different custom tables AND when a column is added.
       return (
-        <GridEditor
-          key={def.id}
-          columns={columns.value}
-          data={rows.value}
-          onSave={onSave}
-          title={def.name}
-          exportFilename={exportFilename.value}
-        />
+        <div class="flex h-full flex-col overflow-hidden">
+          <GridEditor
+            key={gridKey.value}
+            columns={columns.value}
+            data={rows.value}
+            onSave={onSave}
+            title={def.name}
+            exportFilename={exportFilename.value}
+            toolbarActions={renderToolbarActions}
+          />
+
+          {/* ── Add Column modal ── */}
+          {/* Reuses the builder's single-row UI with the same validation rules.
+              The Nuxt UI Modal uses named slots: `body` for the form content and
+              `footer` for the action buttons. TSX passes named slots as an object
+              child with the slot name as the key. */}
+          <UModal
+            open={showAddColumnModal.value}
+            title="Add Column"
+            description="The new column will be appended as the last column. Existing rows will have an empty value for it."
+            onUpdate:open={(v: boolean) => {
+              if (!v) closeAddColumnModal();
+            }}
+          >
+            {{
+              body: (): VNode => (
+                <div class="space-y-4">
+                  {/* Name */}
+                  <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-default" for="new-col-name">
+                      Column name
+                    </label>
+                    <UInput
+                      id="new-col-name"
+                      modelValue={newColumnName.value}
+                      placeholder="Column name"
+                      onUpdate:modelValue={(v: string) => updateNewColumnName(v)}
+                    />
+                  </div>
+
+                  {/* Type */}
+                  <div class="flex flex-col gap-1">
+                    <label class="text-sm font-medium text-default">Type</label>
+                    <USelect
+                      modelValue={newColumnType.value}
+                      items={TYPE_ITEMS}
+                      onUpdate:modelValue={(v) =>
+                        updateNewColumnType(v as ColumnDef['type'])
+                      }
+                    />
+                  </div>
+
+                  {/* Required */}
+                  <div class="flex items-center gap-2">
+                    <UCheckbox
+                      modelValue={newColumnRequired.value}
+                      onUpdate:modelValue={(v) =>
+                        updateNewColumnRequired(v === true)
+                      }
+                    />
+                    <label class="text-sm text-default">Required</label>
+                  </div>
+
+                  {/* Choices — only visible for Dropdown */}
+                  {newColumnType.value === 'dropdown' ? (
+                    <div class="flex flex-col gap-1">
+                      <label class="text-sm font-medium text-default" for="new-col-choices">
+                        Choices
+                      </label>
+                      <UInput
+                        id="new-col-choices"
+                        modelValue={newColumnChoicesText.value}
+                        placeholder="Comma-separated, e.g. Low, Medium, High"
+                        onUpdate:modelValue={(v: string) =>
+                          updateNewColumnChoices(v)
+                        }
+                      />
+                    </div>
+                  ) : null}
+
+                  {/* ── Validation errors ── */}
+                  {addColumnErrors.value.length > 0 ? (
+                    <div
+                      data-testid="add-column-errors"
+                      class="rounded-lg border border-error bg-error/10 p-4"
+                      role="alert"
+                    >
+                      <ul class="list-disc space-y-1 pl-5 text-sm text-error">
+                        {addColumnErrors.value.map((msg, i) => (
+                          <li key={i}>{msg}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              ),
+              footer: (): VNode => (
+                <div class="flex justify-end gap-2">
+                  <UButton
+                    label="Cancel"
+                    color="neutral"
+                    variant="ghost"
+                    onClick={closeAddColumnModal}
+                  />
+                  <UButton
+                    label="Add Column"
+                    color="primary"
+                    onClick={confirmAddColumn}
+                  />
+                </div>
+              ),
+            }}
+          </UModal>
+        </div>
       );
     };
   },

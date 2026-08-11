@@ -12,7 +12,8 @@ import CustomTableEditor from './CustomTableEditor';
 // exportFilename) as data attributes so the tests can assert on them without
 // driving the real grid engine. It also stashes the onSave callback into the
 // hoisted `saveCapture` object on mount, so save-path tests can invoke the
-// handler directly.
+// handler directly. It renders the toolbarActions render prop so the Add
+// Column button (supplied by the editor page) is present in the test tree.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const saveCapture = vi.hoisted(() => ({ onSave: null as any }));
 
@@ -47,13 +48,16 @@ vi.mock('components/GridEditor', () => ({
                 .map((c) => String(c.field))
                 .join(','),
             ),
+            // Render the toolbarActions render prop so the Add Column button
+            // supplied by the editor page is present in the test tree.
+            props.toolbarActions ? props.toolbarActions() : null,
           ],
         );
     },
   }),
 }));
 
-// ── Stub UButton (used in the not-found state) ──
+// ── Stub Nuxt UI components ──
 // The real UButton injects a vue-router route location under vitest that
 // does not resolve. Mock it with a plain button that forwards clicks.
 vi.mock('@nuxt/ui/components/Button.vue', () => ({
@@ -77,6 +81,109 @@ vi.mock('@nuxt/ui/components/Button.vue', () => ({
           },
           props.label,
         );
+    },
+  }),
+}));
+
+vi.mock('@nuxt/ui/components/Input.vue', () => ({
+  default: defineComponent({
+    name: 'UInput',
+    props: {
+      modelValue: { type: String, default: '' },
+      placeholder: { type: String, default: '' },
+      type: { type: String, default: 'text' },
+    },
+    emits: ['update:modelValue'],
+    setup(props, { emit }) {
+      return (): VNode =>
+        h('input', {
+          class: 'u-input',
+          type: props.type,
+          value: props.modelValue,
+          placeholder: props.placeholder,
+          'data-model': props.modelValue,
+          onInput: (e: Event) =>
+            emit('update:modelValue', (e.target as HTMLInputElement).value),
+        });
+    },
+  }),
+}));
+
+vi.mock('@nuxt/ui/components/Select.vue', () => ({
+  default: defineComponent({
+    name: 'USelect',
+    props: {
+      modelValue: { type: [String, Number, Boolean], default: '' },
+      items: { type: Array as () => unknown[], default: (): unknown[] => [] },
+      placeholder: { type: String, default: '' },
+    },
+    emits: ['update:modelValue'],
+    setup(props, { emit }) {
+      return (): VNode => {
+        const items = (props.items as unknown[]).map((item) => {
+          if (typeof item === 'object' && item !== null) {
+            return {
+              label: (item as Record<string, unknown>).label as string,
+              value: (item as Record<string, unknown>).value as string,
+            };
+          }
+          return { label: String(item), value: String(item) };
+        });
+        return h(
+          'select',
+          {
+            class: 'u-select',
+            value: props.modelValue,
+            'data-model': String(props.modelValue),
+            onChange: (e: Event) =>
+              emit('update:modelValue', (e.target as HTMLSelectElement).value),
+          },
+          items.map((item) => h('option', { value: item.value }, item.label)),
+        );
+      };
+    },
+  }),
+}));
+
+vi.mock('@nuxt/ui/components/Checkbox.vue', () => ({
+  default: defineComponent({
+    name: 'UCheckbox',
+    props: {
+      modelValue: { type: [Boolean, String], default: false },
+    },
+    emits: ['update:modelValue'],
+    setup(props, { emit }) {
+      return (): VNode =>
+        h('input', {
+          class: 'u-checkbox',
+          type: 'checkbox',
+          checked: !!props.modelValue,
+          'data-model': String(props.modelValue),
+          onChange: (e: Event) =>
+            emit('update:modelValue', (e.target as HTMLInputElement).checked),
+        });
+    },
+  }),
+}));
+
+vi.mock('@nuxt/ui/components/Modal.vue', () => ({
+  default: defineComponent({
+    name: 'UModal',
+    props: {
+      open: { type: Boolean, default: false },
+      title: { type: String, default: '' },
+      description: { type: String, default: '' },
+    },
+    emits: ['update:open'],
+    setup(props, { slots }) {
+      return (): VNode =>
+        props.open
+          ? h('div', { class: 'u-modal', 'data-test': 'add-column-modal' }, [
+              h('h3', {}, props.title),
+              slots.body ? slots.body() : null,
+              slots.footer ? slots.footer() : null,
+            ])
+          : h('div', { class: 'u-modal u-modal--closed' });
     },
   }),
 }));
@@ -665,6 +772,392 @@ describe('CustomTableEditor', () => {
       const result = await onSave({ upserts: [], deletes: [] });
       expect(result.errors).toEqual([]);
       expect(result.saved).toBe(0);
+    });
+  });
+
+  // ── Add Column after creation (feature c4) ──
+  // Per architecture.md section 4.4: a toolbar action opens a modal reusing
+  // the builder's single-row UI (name / type / required / choices) with the
+  // same validation rules, including uniqueness against the existing columns.
+  // On confirm the column is appended to the definition, updatedAt is stamped,
+  // and existing rows gain the field with value null. Rename, delete and
+  // type-change are not offered. Cancelling changes nothing.
+
+  describe('add column — toolbar button and modal', () => {
+    it('renders an Add Column button in the toolbar via the toolbarActions render prop', async () => {
+      seedDef(makeDef());
+      const { wrapper } = await mountEditor(VALID_UUID_A);
+      const addColBtn = wrapper.find('[data-label="Add Column"]');
+      expect(addColBtn.exists()).toBe(true);
+    });
+
+    it('clicking Add Column opens a modal with name, type, required and choices fields', async () => {
+      seedDef(makeDef());
+      const { wrapper } = await mountEditor(VALID_UUID_A);
+      await wrapper.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      const modal = wrapper.find('[data-test="add-column-modal"]');
+      expect(modal.exists()).toBe(true);
+      // Name input
+      expect(modal.find('.u-input[data-model=""]').exists()).toBe(true);
+      // Type select defaults to text
+      const select = modal.find('.u-select');
+      expect(select.exists()).toBe(true);
+      expect(select.attributes('value')).toBe('text');
+      // Required checkbox unchecked
+      const checkbox = modal.find('.u-checkbox');
+      expect(checkbox.exists()).toBe(true);
+      expect(checkbox.attributes('checked')).toBeFalsy();
+      // Choices input not visible (only for dropdown)
+      expect(modal.findAll('.u-input')).toHaveLength(1);
+    });
+
+    it('choices input appears only when type is Dropdown', async () => {
+      seedDef(makeDef());
+      const { wrapper } = await mountEditor(VALID_UUID_A);
+      await wrapper.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      const modal = wrapper.find('[data-test="add-column-modal"]');
+      // Initially text — no choices input
+      expect(modal.findAll('.u-input')).toHaveLength(1);
+      // Change to dropdown
+      await modal.find('.u-select').setValue('dropdown');
+      await flushPromises();
+      const modalAfter = wrapper.find('[data-test="add-column-modal"]');
+      expect(modalAfter.findAll('.u-input')).toHaveLength(2); // name + choices
+      // Change back to text
+      await modalAfter.find('.u-select').setValue('text');
+      await flushPromises();
+      const modalFinal = wrapper.find('[data-test="add-column-modal"]');
+      expect(modalFinal.findAll('.u-input')).toHaveLength(1);
+    });
+
+    it('the modal offers no way to rename, delete, or change the type of an existing column', async () => {
+      seedDef(makeDef());
+      const { wrapper } = await mountEditor(VALID_UUID_A);
+      await wrapper.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      const modal = wrapper.find('[data-test="add-column-modal"]');
+      // The modal has exactly one name input, one type select, one required
+      // checkbox — for the NEW column only. No list of existing columns, no
+      // remove buttons, no per-existing-column type selects.
+      expect(modal.findAll('.u-input')).toHaveLength(1);
+      expect(modal.findAll('.u-select')).toHaveLength(1);
+      expect(modal.findAll('.u-checkbox')).toHaveLength(1);
+      expect(modal.findAll('[data-label="Remove"]')).toHaveLength(0);
+    });
+  });
+
+  describe('add column — validation', () => {
+    async function openModal() {
+      seedDef(makeDef());
+      const { wrapper } = await mountEditor(VALID_UUID_A);
+      await wrapper.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      return wrapper;
+    }
+
+    it('rejects an empty name with a validation error and keeps the modal open', async () => {
+      const wrapper = await openModal();
+      const modal = wrapper.find('[data-test="add-column-modal"]');
+      // Leave name empty, click Add Column (confirm)
+      await modal.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      const errorBox = wrapper.find('[data-testid="add-column-errors"]');
+      expect(errorBox.exists()).toBe(true);
+      expect(errorBox.text().toLowerCase()).toContain('name');
+      // Modal stays open
+      expect(wrapper.find('[data-test="add-column-modal"]').exists()).toBe(true);
+    });
+
+    it('rejects a whitespace-only name', async () => {
+      const wrapper = await openModal();
+      const modal = wrapper.find('[data-test="add-column-modal"]');
+      const nameInput = modal.findAll('.u-input')[0];
+      await nameInput.setValue('   ');
+      await flushPromises();
+      await wrapper.find('[data-test="add-column-modal"] [data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      const errorBox = wrapper.find('[data-testid="add-column-errors"]');
+      expect(errorBox.exists()).toBe(true);
+    });
+
+    it('rejects a duplicate name case-insensitively', async () => {
+      const wrapper = await openModal();
+      const modal = wrapper.find('[data-test="add-column-modal"]');
+      const nameInput = modal.findAll('.u-input')[0];
+      // "title" collides with existing "Title" case-insensitively
+      await nameInput.setValue('title');
+      await flushPromises();
+      await wrapper.find('[data-test="add-column-modal"] [data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      const errorBox = wrapper.find('[data-testid="add-column-errors"]');
+      expect(errorBox.exists()).toBe(true);
+      expect(errorBox.text().toLowerCase()).toContain('duplicate');
+    });
+
+    it('rejects a name with trailing whitespace that collides case-insensitively', async () => {
+      const wrapper = await openModal();
+      const modal = wrapper.find('[data-test="add-column-modal"]');
+      const nameInput = modal.findAll('.u-input')[0];
+      // "Status " collides with existing "Status" after trimming
+      await nameInput.setValue('Status ');
+      await flushPromises();
+      await wrapper.find('[data-test="add-column-modal"] [data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      const errorBox = wrapper.find('[data-testid="add-column-errors"]');
+      expect(errorBox.exists()).toBe(true);
+      expect(errorBox.text().toLowerCase()).toContain('duplicate');
+    });
+
+    it('rejects a reserved name case-insensitively', async () => {
+      const wrapper = await openModal();
+      const modal = wrapper.find('[data-test="add-column-modal"]');
+      const nameInput = modal.findAll('.u-input')[0];
+      await nameInput.setValue('id');
+      await flushPromises();
+      await wrapper.find('[data-test="add-column-modal"] [data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      const errorBox = wrapper.find('[data-testid="add-column-errors"]');
+      expect(errorBox.exists()).toBe(true);
+      expect(errorBox.text().toLowerCase()).toContain('reserved');
+    });
+
+    it('rejects a Dropdown with zero parseable choices', async () => {
+      const wrapper = await openModal();
+      const modal = wrapper.find('[data-test="add-column-modal"]');
+      const nameInput = modal.findAll('.u-input')[0];
+      await nameInput.setValue('Priority');
+      await modal.find('.u-select').setValue('dropdown');
+      await flushPromises();
+      // Leave choices empty
+      await wrapper.find('[data-test="add-column-modal"] [data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      const errorBox = wrapper.find('[data-testid="add-column-errors"]');
+      expect(errorBox.exists()).toBe(true);
+      expect(errorBox.text().toLowerCase()).toContain('choice');
+    });
+
+    it('rejects a Dropdown with only commas and spaces as choices', async () => {
+      const wrapper = await openModal();
+      const modal = wrapper.find('[data-test="add-column-modal"]');
+      const nameInput = modal.findAll('.u-input')[0];
+      await nameInput.setValue('Priority');
+      await modal.find('.u-select').setValue('dropdown');
+      await flushPromises();
+      const modalAfter = wrapper.find('[data-test="add-column-modal"]');
+      const choicesInput = modalAfter.findAll('.u-input')[1];
+      await choicesInput.setValue(', , ,');
+      await flushPromises();
+      await wrapper.find('[data-test="add-column-modal"] [data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      const errorBox = wrapper.find('[data-testid="add-column-errors"]');
+      expect(errorBox.exists()).toBe(true);
+    });
+  });
+
+  describe('add column — confirm appends and stamps updatedAt', () => {
+    it('appends the new column as the last column in the grid', async () => {
+      seedDef(makeDef());
+      const { wrapper } = await mountEditor(VALID_UUID_A);
+      // Initial columns: __select, Title, Score, Status
+      let fields = wrapper.find('[data-test="column-fields"]').text().split(',');
+      expect(fields).toEqual(['__select', 'Title', 'Score', 'Status']);
+
+      await wrapper.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      const modal = wrapper.find('[data-test="add-column-modal"]');
+      const nameInput = modal.findAll('.u-input')[0];
+      await nameInput.setValue('Notes');
+      await flushPromises();
+      // Click the confirm button (labelled "Add Column" inside the modal)
+      await modal.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+
+      // The grid remounts with the new column appended
+      fields = wrapper.find('[data-test="column-fields"]').text().split(',');
+      expect(fields).toEqual(['__select', 'Title', 'Score', 'Status', 'Notes']);
+    });
+
+    it('stamps the definition updatedAt', async () => {
+      seedDef(makeDef({ updatedAt: '2020-01-01T00:00:00.000Z' }));
+      const { wrapper } = await mountEditor(VALID_UUID_A);
+      await wrapper.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      const modal = wrapper.find('[data-test="add-column-modal"]');
+      const nameInput = modal.findAll('.u-input')[0];
+      await nameInput.setValue('Notes');
+      await flushPromises();
+      await modal.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+
+      const defs = JSON.parse(
+        localStorage.getItem('sc-table-defs') || '[]',
+      ) as TableDefinition[];
+      expect(defs).toHaveLength(1);
+      expect(defs[0].updatedAt).not.toBe('2020-01-01T00:00:00.000Z');
+      expect(defs[0].updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    });
+
+    it('the new column is persisted in the definition with correct type, required and choices', async () => {
+      seedDef(makeDef());
+      const { wrapper } = await mountEditor(VALID_UUID_A);
+      await wrapper.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      const modal = wrapper.find('[data-test="add-column-modal"]');
+      const nameInput = modal.findAll('.u-input')[0];
+      await nameInput.setValue('Category');
+      await modal.find('.u-select').setValue('dropdown');
+      await flushPromises();
+      const modalAfter = wrapper.find('[data-test="add-column-modal"]');
+      const choicesInput = modalAfter.findAll('.u-input')[1];
+      await choicesInput.setValue('A, B, C');
+      const checkbox = modalAfter.find('.u-checkbox');
+      await checkbox.setValue(true);
+      await flushPromises();
+      await modalAfter.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+
+      const defs = JSON.parse(
+        localStorage.getItem('sc-table-defs') || '[]',
+      ) as TableDefinition[];
+      const cols = defs[0].columns;
+      expect(cols).toHaveLength(4);
+      const newCol = cols[3];
+      expect(newCol.name).toBe('Category');
+      expect(newCol.type).toBe('dropdown');
+      expect(newCol.required).toBe(true);
+      expect(newCol.choices).toEqual(['A', 'B', 'C']);
+      expect(newCol.id).toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/);
+    });
+  });
+
+  describe('add column — existing rows get null, data not lost', () => {
+    it('existing rows gain the new field with value null and retain all pre-existing values', async () => {
+      seedDef(makeDef());
+      const row1Id = crypto.randomUUID();
+      const row2Id = crypto.randomUUID();
+      seedRows(VALID_UUID_A, [
+        makeRow({ id: row1Id, Title: 'First', Score: 1, Status: 'Open' }),
+        makeRow({ id: row2Id, Title: 'Second', Score: 2, Status: 'Closed' }),
+      ]);
+      const { wrapper } = await mountEditor(VALID_UUID_A);
+      await wrapper.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      const modal = wrapper.find('[data-test="add-column-modal"]');
+      const nameInput = modal.findAll('.u-input')[0];
+      await nameInput.setValue('Notes');
+      await flushPromises();
+      await modal.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+
+      const stored = JSON.parse(
+        localStorage.getItem(`sc-table-data-${VALID_UUID_A}`) || '[]',
+      );
+      expect(stored).toHaveLength(2);
+      // Pre-existing values retained
+      expect(stored[0].Title).toBe('First');
+      expect(stored[0].Score).toBe(1);
+      expect(stored[0].Status).toBe('Open');
+      expect(stored[1].Title).toBe('Second');
+      expect(stored[1].Score).toBe(2);
+      expect(stored[1].Status).toBe('Closed');
+      // New field is null on both rows
+      expect(stored[0].Notes).toBeNull();
+      expect(stored[1].Notes).toBeNull();
+    });
+  });
+
+  describe('add column — required column on a table with rows', () => {
+    it('adding a required column is allowed; saving then fails naming the new column on each existing row', async () => {
+      seedDef(makeDef());
+      const row1Id = crypto.randomUUID();
+      const row2Id = crypto.randomUUID();
+      seedRows(VALID_UUID_A, [
+        makeRow({ id: row1Id, Title: 'First', Score: 1, Status: 'Open' }),
+        makeRow({ id: row2Id, Title: 'Second', Score: 2, Status: 'Closed' }),
+      ]);
+      const { wrapper } = await mountEditor(VALID_UUID_A);
+      await wrapper.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      const modal = wrapper.find('[data-test="add-column-modal"]');
+      const nameInput = modal.findAll('.u-input')[0];
+      await nameInput.setValue('Mandatory');
+      const checkbox = modal.find('.u-checkbox');
+      await checkbox.setValue(true);
+      await flushPromises();
+      await modal.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+
+      // Now save — both rows should fail validation for the new required
+      // column "Mandatory" because it is null on both.
+      const onSave = saveCapture.onSave!;
+      const result = await onSave({
+        upserts: [
+          { id: row1Id, Title: 'First', Score: 1, Status: 'Open', Mandatory: null },
+          { id: row2Id, Title: 'Second', Score: 2, Status: 'Closed', Mandatory: null },
+        ],
+        deletes: [],
+      });
+      expect(result.errors.length).toBeGreaterThanOrEqual(2);
+      const fields = result.errors.map((e: { field: string }) => e.field);
+      expect(fields.filter((f: string) => f === 'Mandatory')).toHaveLength(2);
+    });
+
+    it('filling the new required column for every row makes the save succeed', async () => {
+      seedDef(makeDef());
+      const row1Id = crypto.randomUUID();
+      const row2Id = crypto.randomUUID();
+      seedRows(VALID_UUID_A, [
+        makeRow({ id: row1Id, Title: 'First', Score: 1, Status: 'Open' }),
+        makeRow({ id: row2Id, Title: 'Second', Score: 2, Status: 'Closed' }),
+      ]);
+      const { wrapper } = await mountEditor(VALID_UUID_A);
+      await wrapper.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      const modal = wrapper.find('[data-test="add-column-modal"]');
+      const nameInput = modal.findAll('.u-input')[0];
+      await nameInput.setValue('Mandatory');
+      const checkbox = modal.find('.u-checkbox');
+      await checkbox.setValue(true);
+      await flushPromises();
+      await modal.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+
+      const onSave = saveCapture.onSave!;
+      const result = await onSave({
+        upserts: [
+          { id: row1Id, Title: 'First', Score: 1, Status: 'Open', Mandatory: 'yes' },
+          { id: row2Id, Title: 'Second', Score: 2, Status: 'Closed', Mandatory: 'yes' },
+        ],
+        deletes: [],
+      });
+      expect(result.errors).toEqual([]);
+      expect(result.saved).toBe(2);
+    });
+  });
+
+  describe('add column — cancel changes nothing', () => {
+    it('cancelling the modal changes neither the grid columns nor the definition nor storage', async () => {
+      seedDef(makeDef({ updatedAt: '2020-01-01T00:00:00.000Z' }));
+      const defBefore = localStorage.getItem('sc-table-defs');
+      const { wrapper } = await mountEditor(VALID_UUID_A);
+      await wrapper.find('[data-label="Add Column"]').trigger('click');
+      await flushPromises();
+      const modal = wrapper.find('[data-test="add-column-modal"]');
+      const nameInput = modal.findAll('.u-input')[0];
+      await nameInput.setValue('Notes');
+      await flushPromises();
+      // Click Cancel
+      await modal.find('[data-label="Cancel"]').trigger('click');
+      await flushPromises();
+      // Modal closed
+      expect(wrapper.find('[data-test="add-column-modal"]').exists()).toBe(false);
+      // Columns unchanged
+      const fields = wrapper.find('[data-test="column-fields"]').text().split(',');
+      expect(fields).toEqual(['__select', 'Title', 'Score', 'Status']);
+      // Definition unchanged
+      expect(localStorage.getItem('sc-table-defs')).toBe(defBefore);
     });
   });
 });

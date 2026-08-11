@@ -38,7 +38,11 @@ import UCheckbox from '@nuxt/ui/components/Checkbox.vue';
 import { defineComponent, ref, type VNode } from 'vue';
 import { useRouter } from 'vue-router';
 import { useTableDefinitions } from 'composables/useTableDefinitions';
-import { RESERVED_COLUMN_NAMES } from 'src/types/customTable';
+import {
+  parseChoices,
+  isReservedName,
+  hasValidChoices,
+} from 'utils/columnValidation';
 import type { ColumnDef } from 'src/types/customTable';
 
 // ── Row model ──
@@ -62,22 +66,14 @@ const TYPE_ITEMS: { label: string; value: ColumnDef['type'] }[] = [
 ];
 
 /**
- * Parse a comma-separated choices string: split on ',', trim, drop empties.
- * "a, ,b," → ["a", "b"].
- */
-function parseChoices(raw: string): string[] {
-  return raw
-    .split(',')
-    .map((c) => c.trim())
-    .filter((c) => c.length > 0);
-}
-
-/**
  * Run all validation rules against the builder state. Returns an array of
  * human-readable error messages; an empty array means the input is valid.
  *
  * The rules are evaluated independently so that multiple simultaneous
- * violations are all reported.
+ * violations are all reported. The per-column helpers (reserved-name,
+ * duplicate-name, choices parsing) are shared with the post-creation Add
+ * Column modal via `utils/columnValidation` so the two surfaces enforce
+ * identical rules.
  */
 function validateBuilder(
   tableName: string,
@@ -99,14 +95,10 @@ function validateBuilder(
   }
 
   // ── Per-column name checks ──
-  const reservedLower = new Set(
-    RESERVED_COLUMN_NAMES.map((n) => n.toLowerCase()),
-  );
   const seenNames = new Map<string, number>(); // lower-trimmed → first index
 
   rows.forEach((row, i) => {
     const trimmedName = row.name.trim();
-    const lowerName = trimmedName.toLowerCase();
     const label = `Column ${i + 1}`;
 
     if (!trimmedName) {
@@ -114,11 +106,12 @@ function validateBuilder(
       return;
     }
 
-    if (reservedLower.has(lowerName)) {
+    if (isReservedName(trimmedName)) {
       errors.push(`${label}: "${trimmedName}" is a reserved name.`);
     }
 
     // Duplicate detection — case-insensitive, trimmed
+    const lowerName = trimmedName.toLowerCase();
     if (seenNames.has(lowerName)) {
       const firstIndex = seenNames.get(lowerName)!;
       errors.push(
@@ -129,11 +122,8 @@ function validateBuilder(
     }
 
     // Dropdown needs at least one non-empty choice
-    if (row.type === 'dropdown') {
-      const choices = parseChoices(row.choicesText);
-      if (choices.length === 0) {
-        errors.push(`${label}: dropdown column needs at least one choice.`);
-      }
+    if (row.type === 'dropdown' && !hasValidChoices(row.choicesText)) {
+      errors.push(`${label}: dropdown column needs at least one choice.`);
     }
   });
 
