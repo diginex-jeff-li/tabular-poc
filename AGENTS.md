@@ -71,10 +71,28 @@ Vue 3.5 + Vite 8 + TSX (NOT SFCs) + Nuxt UI v4 + Tailwind v4.
 - Vite resolve aliases: `src`, `components`, `composables`, `config`, `pages`,
   `styles`, `utils`.
 
+### Test config (dual vitest)
+
+There are two frontend vitest configs and root `pnpm test` only loads one:
+
+- `frontend/apps/admin/vite.config.ts` (`test` block) — loaded by
+  `pnpm --filter @sc/admin test`, which is what root `pnpm test` runs. **This is
+  the config that takes effect.**
+- `frontend/vitest.config.ts` — loaded by `pnpm --filter frontend test` (the
+  parent workspace package, not run by root `pnpm test`).
+
+Both currently carry the same `setupFiles` (the `frontend/setup-localstorage.ts`
+localStorage polyfill). If you change test configuration, change **both** configs
+or you will produce a config change that silently never applies.
+
 ## Monorepo Conventions
 
-**Catalog deps** — every dependency version declared once in `pnpm-workspace.yaml`
-under `catalog:`. Each `package.json` references with `"<dep>": "catalog:"`.
+**Dependency versions** — no `catalog:` references anywhere (StackBlitz does not
+support catalogs). External dependencies are pinned to explicit versions in each
+`package.json` (e.g. `"vue": "3.5.38"`). The only `workspace:` reference is the
+internal `contracts` package, declared as `"contracts": "workspace:*"` in
+`frontend/apps/admin/package.json`. `pnpm-workspace.yaml` lists workspace globs
+only — it has no `catalog:` block.
 
 **Guardrails** — oxlint (lint), oxfmt (format), vitest (tests), tsc (typecheck),
 knip (dead code), jscpd (duplicate code). Run `pnpm validate` before committing.
@@ -103,6 +121,10 @@ selection — all in the free core.
 | `frontend/apps/admin/src/pages/ComplianceGridEditor.tsx`  | Main grid editor page                                 |
 | `frontend/apps/admin/src/utils/zodToTabulatorColumns.ts`  | Derive Tabulator column defs from Zod schema          |
 | `frontend/apps/admin/src/composables/useDirtyTracking.ts` | Track added/modified/deleted rows for diff-based save |
+| `frontend/apps/admin/src/composables/useGridEditor.ts`   | Grid engine composable — Tabulator lifecycle, paste, save, errors |
+| `frontend/apps/admin/src/components/GridEditor/GridEditor.tsx` | Shared grid editor component (toolbar, grid host, error sidebar) |
+| `frontend/apps/admin/src/utils/test-infra.test.ts`       | Test infrastructure tests (localStorage polyfill, component mounting) |
+| `frontend/setup-localstorage.ts`                         | In-memory localStorage polyfill wired via vitest setupFiles |
 | `contracts/src/compliance-library/schemas/index.ts`       | Zod schema for compliance library entity              |
 | `.wayfinder/map.md`                                       | Wayfinder decision map                                |
 | `knip.json`                                               | Dead code detection config                            |

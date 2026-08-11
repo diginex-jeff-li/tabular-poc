@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { ComplianceLibrarySchema } from 'contracts';
 import { zodToTabulatorColumns } from 'utils/zodToTabulatorColumns';
 
 /**
@@ -7,35 +7,6 @@ import { zodToTabulatorColumns } from 'utils/zodToTabulatorColumns';
  * Extracted from ComplianceGridEditor.tsx for testability — the column
  * definitions can be tested without mounting the Vue component.
  */
-
-const CategoryCodeEnum = z.enum([
-  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
-  'K', 'L', 'M', 'N', 'O', 'P', 'Q',
-]);
-const ComplianceCategoryEnum = z.enum(['Governance', 'Social', 'Environment']);
-const TopicEnum = z.enum([
-  'Key Compliance Requirements', 'Zero Tolerance Policy', 'Freedom of Association',
-  'Recruitment & Fees', 'Forced & Compulsory Labour', 'Wages & Benefits',
-  'Working Hours', 'Occupational Safety & Health', 'Environmental Responsibility',
-  'Grievance Mechanisms', 'Discrimination', 'Business Integrity',
-  'Compliance Requirements', 'Community & Environment',
-]);
-const RiskLevelEnum = z.enum(['High', 'Medium', 'Low']);
-const ClosureTimingEnum = z.enum(['7', '30', '60', '90', 'Next assessment']);
-
-const ComplianceLibrarySchema = z.object({
-  id: z.string().uuid(),
-  categoryCode: CategoryCodeEnum,
-  complianceCategory: ComplianceCategoryEnum,
-  topic: TopicEnum,
-  riskLevel: RiskLevelEnum,
-  issue: z.string(),
-  closureTiming: ClosureTimingEnum,
-  evidenceExpectation: z.string().nullable(),
-  bestPractice: z.string().nullable(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-});
 
 const ENUM_FIELDS = new Set([
   'categoryCode', 'complianceCategory', 'topic', 'riskLevel', 'closureTiming',
