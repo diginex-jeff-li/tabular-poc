@@ -297,9 +297,28 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   });
 
   // ── Clear grid ──
+  // VAL-CUSTOM-040 / VAL-GRID-023: clearing the grid empties the visible
+  // data, clears error highlights and the error sidebar, and resets the
+  // save result — but it does NOT clear the dirty map. Instead it marks
+  // every existing (currently displayed) row as 'deleted' so that:
+  //   1. dirtyCount stays > 0, keeping the Save button enabled;
+  //   2. buildSavePayload includes all the cleared row ids in `deletes`;
+  //   3. a subsequent save writes an empty array to the table's stored row
+  //      data (the save handler applies the deletes and persists []).
+  // Rows that were only ever 'added' (never saved) are dropped from the
+  // dirty map by markDeleted (matching its existing semantics) since they
+  // were never persisted and need no delete sent to the backend.
   function clearGrid() {
+    if (tabulator.value) {
+      const currentData = tabulator.value.getData() as Record<string, unknown>[];
+      for (const row of currentData) {
+        const rowId = row.id as string | undefined;
+        if (rowId) {
+          markDeleted(rowId);
+        }
+      }
+    }
     tabulator.value?.clearData();
-    clearDirty();
     clearErrorHighlights();
     errorList.value = [];
     saveResult.value = null;

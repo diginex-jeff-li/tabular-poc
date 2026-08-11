@@ -818,9 +818,97 @@ describe('useGridEditor', () => {
 
     expect(mockTab._getData()).toHaveLength(0);
     expect(result.rowCount.value).toBe(0);
-    expect(result.dirtyCount.value).toBe(0);
     expect(result.errorList.value).toEqual([]);
     expect(result.saveResult.value).toBeNull();
+  });
+
+  // ── VAL-CUSTOM-040: clear marks existing rows as deleted so a save ──
+  // writes an empty array to the table's stored row data.
+  // clearGrid must NOT clear the dirty map entirely — it must mark every
+  // existing row as 'deleted' so that buildSavePayload includes their ids in
+  // the deletes array, the Save button stays enabled, and the save handler
+  // can persist the empty grid. Rows that were only ever 'added' (never
+  // saved) are simply dropped from the dirty map (matching markDeleted
+  // semantics) since they were never persisted and need no delete.
+
+  it('clearGrid marks existing saved rows as deleted so the save button stays enabled', async () => {
+    const initialData = [
+      { id: 'r1', issue: 'first' },
+      { id: 'r2', issue: 'second' },
+    ];
+    const { result, mockTab, tableEl } = setupGridEditor({ initialData });
+
+    tableEl.value = document.createElement('div');
+    await nextTick();
+
+    // No edits yet — dirtyCount is 0
+    expect(result.dirtyCount.value).toBe(0);
+
+    result.clearGrid();
+
+    // The grid is visually empty...
+    expect(mockTab._getData()).toHaveLength(0);
+    expect(result.rowCount.value).toBe(0);
+    // ...but dirtyCount > 0 because the two saved rows are now tracked as
+    // 'deleted' — the Save button stays enabled so the user can persist the
+    // empty grid.
+    expect(result.dirtyCount.value).toBe(2);
+  });
+
+  it('clearGrid drops added-but-unsaved rows from the dirty map (never persisted, no delete needed)', async () => {
+    const initialData = [{ id: 'r1', issue: 'saved row' }];
+    const { result, tableEl } = setupGridEditor({ initialData });
+
+    tableEl.value = document.createElement('div');
+    await nextTick();
+
+    // Add a new row (tracked as 'added', never saved)
+    result.handleAddRow();
+    await nextTick();
+    expect(result.dirtyCount.value).toBe(1);
+
+    result.clearGrid();
+
+    // The unsaved added row is dropped from tracking; the saved row is marked
+    // deleted. Net dirty count = 1 (the saved row's delete).
+    expect(result.dirtyCount.value).toBe(1);
+  });
+
+  it('after clearGrid, buildSavePayload includes all saved row ids in deletes', async () => {
+    const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 2 });
+    const initialData = [
+      { id: 'r1', issue: 'first' },
+      { id: 'r2', issue: 'second' },
+    ];
+    const { result, tableEl } = setupGridEditor({ initialData, onSave });
+
+    tableEl.value = document.createElement('div');
+    await nextTick();
+
+    result.clearGrid();
+
+    // Save after clearing — the handler must receive the deleted row ids
+    await result.handleSave();
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const payload = onSave.mock.calls[0][0];
+    expect(payload.upserts).toEqual([]);
+    expect(payload.deletes).toHaveLength(2);
+    expect(payload.deletes).toContain('r1');
+    expect(payload.deletes).toContain('r2');
+  });
+
+  it('after clearGrid on an empty grid, dirtyCount stays 0 (nothing to delete)', async () => {
+    const { result, tableEl } = setupGridEditor({ initialData: [] });
+
+    tableEl.value = document.createElement('div');
+    await nextTick();
+
+    expect(result.dirtyCount.value).toBe(0);
+
+    result.clearGrid();
+
+    expect(result.dirtyCount.value).toBe(0);
   });
 
   // ── Export CSV ──

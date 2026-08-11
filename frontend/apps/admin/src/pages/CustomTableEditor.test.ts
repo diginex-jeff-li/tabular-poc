@@ -623,4 +623,48 @@ describe('CustomTableEditor', () => {
       expect(dataA[0].Foo).toBe('ARow');
     });
   });
+
+  // ── Clear + save (feature c3, VAL-CUSTOM-040) ──
+  // Saving after a confirmed Clear must write an empty array to the table's
+  // stored row data. The save handler receives the deleted row ids via the
+  // engine's buildSavePayload (clearGrid marks saved rows as 'deleted' rather
+  // than clearing the dirty map), applies the deletes, and writes [].
+
+  describe('clear + save', () => {
+    it('saving after clearing writes an empty array to sc-table-data-{id}', async () => {
+      seedDef(makeDef());
+      const row1Id = crypto.randomUUID();
+      const row2Id = crypto.randomUUID();
+      seedRows(VALID_UUID_A, [
+        makeRow({ id: row1Id, Title: 'First', Score: 1, Status: 'Open' }),
+        makeRow({ id: row2Id, Title: 'Second', Score: 2, Status: 'Closed' }),
+      ]);
+      await mountEditor(VALID_UUID_A);
+      const onSave = saveCapture.onSave!;
+
+      // Simulate clearGrid marking all rows as deleted, then save.
+      // The engine's clearGrid calls clearData() and marks each existing row
+      // as 'deleted' in the dirty map. buildSavePayload then includes all the
+      // row ids in deletes with an empty upserts array.
+      const result = await onSave({ upserts: [], deletes: [row1Id, row2Id] });
+
+      expect(result.errors).toEqual([]);
+      expect(result.saved).toBe(2);
+      const stored = JSON.parse(
+        localStorage.getItem(`sc-table-data-${VALID_UUID_A}`) || 'null',
+      );
+      expect(stored).toEqual([]);
+    });
+
+    it('clearing a table with no saved rows and saving writes nothing (no deletes)', async () => {
+      seedDef(makeDef());
+      await mountEditor(VALID_UUID_A);
+      const onSave = saveCapture.onSave!;
+
+      // No rows to clear — deletes is empty
+      const result = await onSave({ upserts: [], deletes: [] });
+      expect(result.errors).toEqual([]);
+      expect(result.saved).toBe(0);
+    });
+  });
 });
