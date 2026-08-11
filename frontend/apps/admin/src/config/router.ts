@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 const ComplianceGridEditor = () => import('pages/ComplianceGridEditor');
 const CustomTableList = () => import('pages/CustomTableList');
 const CustomTableBuilder = () => import('pages/CustomTableBuilder');
+const CustomTableEditor = () => import('pages/CustomTableEditor');
 
 const router = createRouter({
   history: createWebHistory(),
@@ -18,6 +19,10 @@ const router = createRouter({
     {
       path: '/custom/new',
       component: CustomTableBuilder,
+    },
+    {
+      path: '/custom/:tableId',
+      component: CustomTableEditor,
     },
   ],
 });
