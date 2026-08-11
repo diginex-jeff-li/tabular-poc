@@ -31,12 +31,15 @@ const PlaceholderPage = defineComponent({
 // ── Helper to mount Application with a real router ──
 //
 // createMemoryHistory avoids URL/history issues under happy-dom. The router
-// has only the '/' route (matching this milestone — /custom arrives in B).
+// includes the routes registered in config/router.ts: '/' and '/custom'.
 
 async function mountApplication(initialPath = '/') {
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/', component: PlaceholderPage }],
+    routes: [
+      { path: '/', component: PlaceholderPage },
+      { path: '/custom', component: PlaceholderPage },
+    ],
   });
   await router.push(initialPath);
   await router.isReady();
@@ -77,24 +80,37 @@ describe('Application — nav shell', () => {
 
   it('the header contains a "Compliance Library" RouterLink navigating to "/"', async () => {
     const wrapper = await mountApplication();
-    const link = wrapper.find('header a[href]');
-    expect(link.exists()).toBe(true);
-    expect(link.text()).toBe('Compliance Library');
+    const links = wrapper.findAll('header a[href]');
+    const complianceLink = links.find((l) => l.text() === 'Compliance Library');
+    expect(complianceLink).toBeDefined();
     // RouterLink with createMemoryHistory renders href="#" or href="/"
     // — either way it is a link, not a dead-end
   });
 
-  it('the header does NOT contain a "Custom Tables" link (deferred to milestone B)', async () => {
+  it('the header contains a "Custom Tables" RouterLink navigating to "/custom"', async () => {
     const wrapper = await mountApplication();
-    const headerText = wrapper.find('header').text();
-    expect(headerText).not.toContain('Custom Tables');
+    const links = wrapper.findAll('header a[href]');
+    const customLink = links.find((l) => l.text() === 'Custom Tables');
+    expect(customLink).toBeDefined();
   });
 
   it('the "Compliance Library" link is visually distinguished as active when on "/"', async () => {
     const wrapper = await mountApplication('/');
-    const link = wrapper.find('header a');
-    const classes = link.classes();
+    const links = wrapper.findAll('header a');
+    const complianceLink = links.find((l) => l.text() === 'Compliance Library');
+    expect(complianceLink).toBeDefined();
+    const classes = complianceLink!.classes();
     // The active link must carry a distinguishing class (font-semibold + text-primary)
+    expect(classes).toContain('font-semibold');
+    expect(classes).toContain('text-primary');
+  });
+
+  it('the "Custom Tables" link is visually distinguished as active when on "/custom"', async () => {
+    const wrapper = await mountApplication('/custom');
+    const links = wrapper.findAll('header a');
+    const customLink = links.find((l) => l.text() === 'Custom Tables');
+    expect(customLink).toBeDefined();
+    const classes = customLink!.classes();
     expect(classes).toContain('font-semibold');
     expect(classes).toContain('text-primary');
   });

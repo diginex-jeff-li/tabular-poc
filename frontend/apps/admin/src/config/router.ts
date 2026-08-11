@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 const ComplianceGridEditor = () => import('pages/ComplianceGridEditor');
+const CustomTableList = () => import('pages/CustomTableList');
 
 const router = createRouter({
   history: createWebHistory(),
@@ -8,6 +9,10 @@ const router = createRouter({
     {
       path: '/',
       component: ComplianceGridEditor,
+    },
+    {
+      path: '/custom',
+      component: CustomTableList,
     },
   ],
 });
