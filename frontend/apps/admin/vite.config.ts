@@ -29,6 +29,7 @@ export default defineConfig(({ mode }) => {
         pages: path.resolve(__dirname, 'src/pages'),
         styles: path.resolve(__dirname, 'src/styles'),
         utils: path.resolve(__dirname, 'src/utils'),
+        contracts: path.resolve(__dirname, '../../../contracts/src'),
       },
       dedupe: ['@nuxt/ui', 'vue', 'vue-router'],
       extensions: ['.tsx', '.ts', '.jsx', '.js', '.vue', '.json'],

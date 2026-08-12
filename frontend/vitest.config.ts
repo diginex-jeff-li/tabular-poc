@@ -38,6 +38,7 @@ export default defineConfig({
       styles: path.resolve(__dirname, 'apps/admin/src/styles'),
       utils: path.resolve(__dirname, 'apps/admin/src/utils'),
       src: path.resolve(__dirname, 'apps/admin/src'),
+      contracts: path.resolve(__dirname, '../contracts/src'),
     },
   },
   test: {
