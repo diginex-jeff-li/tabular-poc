@@ -1,20 +1,22 @@
+import DataGrid from 'components/DataGrid';
 import GridEditor from 'components/GridEditor';
 import { buildComplianceColumns } from 'composables/buildComplianceColumns';
+import { buildComplianceGridColumns } from 'composables/buildComplianceGridColumns';
 import { ComplianceLibrarySchema } from 'contracts';
 /**
  * PROTOTYPE — Compliance Library Grid Editor
  *
- * Thin wrapper over the shared GridEditor component (the grid engine's
- * presentation). This page owns only compliance-specific material: the
- * contracts schema, SEED_ROWS, the in-memory mock store, mockList,
- * mockBulkSave, and buildComplianceColumns(). It renders a single
- * <GridEditor> element.
+ * Thin wrapper over a grid engine: the TanStack `DataGrid` or the Tabulator
+ * `GridEditor` (the `engine` prop; both take the same props contract). This
+ * page owns only compliance-specific material: the contracts schema,
+ * SEED_ROWS, the in-memory mock store, mockList, mockBulkSave, and the
+ * column builders.
  *
  * NOT PRODUCTION — throwaway prototype code.
  */
 import { defineComponent } from 'vue';
 import type { BulkSaveErrorType, BulkSaveResponseType } from 'contracts';
-import type { VNode } from 'vue';
+import type { PropType, VNode } from 'vue';
 
 // ── Derived from the shared contracts schema ──
 
@@ -220,17 +222,28 @@ async function mockBulkSave(payload: {
 
 export default defineComponent({
   name: 'ComplianceGridEditor',
-  setup() {
-    const columns = buildComplianceColumns();
+  props: {
+    engine: {
+      type: String as PropType<'tanstack' | 'tabulator'>,
+      default: 'tabulator',
+    },
+  },
+  setup(props) {
+    const shared = {
+      onSave: mockBulkSave,
+      title: 'Compliance Library Editor',
+      exportFilename: 'compliance-library.csv',
+    };
 
+    if (props.engine === 'tanstack') {
+      const columns = buildComplianceGridColumns();
+      return (): VNode => (
+        <DataGrid columns={columns} data={mockList()} {...shared} />
+      );
+    }
+    const columns = buildComplianceColumns();
     return (): VNode => (
-      <GridEditor
-        columns={columns}
-        data={mockList()}
-        onSave={mockBulkSave}
-        title="Compliance Library Editor"
-        exportFilename="compliance-library.csv"
-      />
+      <GridEditor columns={columns} data={mockList()} {...shared} />
     );
   },
 });

@@ -13,6 +13,12 @@ const router = createRouter({
       path: '/',
       component: ComplianceGridEditor,
     },
+    // Temporary: the compliance page on the TanStack engine until cutover (ticket 12).
+    {
+      path: '/next',
+      component: ComplianceGridEditor,
+      props: { engine: 'tanstack' },
+    },
     {
       path: '/custom',
       component: CustomTableList,
