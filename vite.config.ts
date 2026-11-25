@@ -91,7 +91,6 @@ export default defineConfig({
       'unicorn/consistent-function-scoping': 'off', // 10
       'react/jsx-key': 'off', // 9
       'quality/no-unknown-returns': 'off', // 9
-      'no-console': 'off', // 8
     },
     overrides: [
       {
@@ -104,6 +103,16 @@ export default defineConfig({
             { checksVoidReturn: { attributes: false } },
           ],
         },
+      },
+      {
+        // Logging is the job here: a CLI's report, and warnings for
+        // localStorage failures and WebMCP tools that fail to register.
+        files: [
+          'scripts/**',
+          'frontend/apps/admin/src/utils/tableStorage.ts',
+          'frontend/apps/admin/src/composables/useAgentTools.ts',
+        ],
+        rules: { 'no-console': 'off' },
       },
     ],
   },
