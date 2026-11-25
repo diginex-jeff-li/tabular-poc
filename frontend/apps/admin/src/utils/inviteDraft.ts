@@ -1,181 +1,269 @@
+import { INVITE_FIELDS, type InviteField } from 'contracts';
 import {
-  INVITE_FIELDS,
-  INVITE_GROUPS,
-  INVITE_ROLES,
-  parseInviteGroups,
-} from 'contracts';
+  applyColumnMapping,
+  mappingProblems,
+  planPaste,
+  type ColumnMapping,
+  type UnmappedTable,
+} from 'utils/columnMapping';
+import {
+  draftFields,
+  inviteRowStatus,
+  needsReview,
+  normalizeInviteRow,
+  type InviteRowStatus,
+} from 'utils/draftRow';
+import { validateInvites } from 'utils/validateInvites';
+import { shallowRef, type ShallowRef } from 'vue';
+import type {
+  GridApi,
+  GridSaveError,
+  GridSaveResponse,
+} from 'composables/useGridEditor';
 
 /**
- * PROTOTYPE — turns whatever reached the invite draft into draft rows
- * (see CONTEXT.md and docs/adr/0001-draft-rows-vs-ready-rows.md).
+ * PROTOTYPE — the invite draft (CONTEXT.md): every rule about who may change
+ * which rows, behind one interface. The page and the agent tools are thin
+ * adapters over it; rows themselves live behind the `GridApi` seam
+ * (Tabulator on the page, in memory in tests).
  *
- * Runs on every way in (paste, Excel import, agent writes, cell edits) and is
- * idempotent. It never decides validity — that is `validateInvites` — and it
- * never guesses: a whole line in one cell is split only when every column is
- * clear; otherwise the text stays as typed and the row needs review.
+ * Rules it owns:
+ * - every write is normalized and followed by a full check and repaint
+ * - an agent resolving a needs-review row makes it agent proposed; a person
+ *   confirming or editing the row clears that
+ * - an agent cannot delete a row that needs review or is agent proposed
+ * - a paste whose columns don't match is held as an unmapped table; the
+ *   agent may propose a column mapping, only a person applies it
+ * - Send passes only when every row is ready
  */
-const DRAFT_FIELDS = INVITE_FIELDS;
+export type Actor = 'person' | 'agent';
 
-const byLowerCase = (values: readonly string[]) =>
-  new Map(values.map((v) => [v.toLowerCase(), v]));
-const ROLE_BY_KEY = byLowerCase(INVITE_ROLES);
-const GROUP_BY_KEY = byLowerCase(INVITE_GROUPS);
+export type DraftRowView = { id: string } & Record<
+  InviteField,
+  string | null
+> & { status: InviteRowStatus };
 
-// Longest first, so "Account Admin" wins over any shorter overlapping name.
-const PHRASES = [
-  ...INVITE_ROLES.map((value) => ({ value, kind: 'role' as const })),
-  ...INVITE_GROUPS.map((value) => ({ value, kind: 'group' as const })),
-]
-  .sort((a, b) => b.value.length - a.value.length)
-  .map(({ value, kind }) => ({
-    value,
-    kind,
-    pattern: new RegExp(
-      `(?<=\\s)${value
-        .split(' ')
-        .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-        .join('\\s+')}(?=\\s)`,
-      'gi',
-    ),
-  }));
-
-type Fields = Record<(typeof DRAFT_FIELDS)[number], string | null>;
-
-function text(value: unknown): string | null {
-  if (value === undefined || value === null) return null;
-  const trimmed = String(value).trim();
-  return trimmed === '' ? null : trimmed;
+export interface HeldPaste {
+  table: UnmappedTable;
+  mapping: ColumnMapping;
+  /** Columns whose mapping the agent proposed and no person has changed. */
+  agentColumns: number[];
 }
 
-function canonicalGroups(value: string | null): string | null {
-  const names = [
-    ...new Set(
-      parseInviteGroups(value).map(
-        (g) => GROUP_BY_KEY.get(g.toLowerCase()) ?? g,
-      ),
-    ),
-  ];
-  return names.length > 0 ? names.join('; ') : null;
-}
+type Row = Record<string, unknown>;
 
-function clean(fields: Fields): Fields {
-  return {
-    email: fields.email?.toLowerCase() ?? null,
-    firstName: fields.firstName,
-    lastName: fields.lastName,
-    role: fields.role
-      ? (ROLE_BY_KEY.get(fields.role.toLowerCase()) ?? fields.role)
-      : null,
-    groups: canonicalGroups(fields.groups),
+export function createInviteDraft(
+  grid: () => GridApi | null,
+  { existingEmails }: { existingEmails: ReadonlySet<string> },
+) {
+  const agentProposed = new Set<string>();
+  let errors: GridSaveError[] = [];
+  const held: ShallowRef<HeldPaste | null> = shallowRef(null);
+
+  const api = (): GridApi => {
+    const g = grid();
+    if (!g) throw new Error('Invite grid is not ready');
+    return g;
   };
-}
+  const rowById = (id: string) =>
+    api()
+      .getRows()
+      .find((r) => r.id === id);
 
-/** The one filled cell, when it holds more than one part. */
-function lineText(fields: Fields): string | null {
-  const filled = DRAFT_FIELDS.map((f) => fields[f]).filter((v) => v !== null);
-  if (filled.length !== 1) return null;
-  return /[\t|,\s]/.test(filled[0]) ? filled[0] : null;
-}
-
-function parseSeparated(line: string, separator: string): Fields | null {
-  const pieces = line.split(separator).map(text);
-  if (
-    pieces.length !== DRAFT_FIELDS.length &&
-    pieces.length !== DRAFT_FIELDS.length - 1
-  ) {
-    return null;
+  function check(): GridSaveError[] {
+    const g = grid();
+    if (!g) return errors;
+    errors = validateInvites(g.getRows(), existingEmails, agentProposed);
+    g.showErrors(errors);
+    return errors;
   }
-  const [email, firstName, lastName, role, groups = null] = pieces;
-  return { email, firstName, lastName, role, groups };
-}
 
-function parseSpaced(line: string): Fields | null {
-  const roles: string[] = [];
-  const groups: { value: string; at: number }[] = [];
-  let rest = ` ${line.replace(/;/g, ' ')} `;
-  for (const { value, kind, pattern } of PHRASES) {
-    // Blank the match out at equal length so offsets keep the typed order.
-    rest = rest.replace(pattern, (match: string, at: number) => {
-      if (kind === 'role') roles.push(value);
-      else groups.push({ value, at });
-      return ' '.repeat(match.length);
+  function status(row: Row): InviteRowStatus {
+    return inviteRowStatus(row, errors, agentProposed);
+  }
+
+  function rows(): DraftRowView[] {
+    return api()
+      .getRows()
+      .map((row) => ({
+        id: String(row.id),
+        ...draftFields(row),
+        status: status(row),
+      }));
+  }
+
+  async function add(newRows: Row[]): Promise<string[]> {
+    const ids = await api().addRows(newRows.map(normalizeInviteRow));
+    check();
+    return ids;
+  }
+
+  async function update(
+    patches: ({ id: string } & Row)[],
+    by: Actor,
+  ): Promise<{ updated: string[]; missing: string[] }> {
+    const wasReview = new Set(
+      patches
+        .filter((p) => {
+          const row = rowById(p.id);
+          return row !== undefined && needsReview(row);
+        })
+        .map((p) => p.id),
+    );
+    const merged = patches.map(({ id, ...fields }) => {
+      const current = rowById(id);
+      return current
+        ? { ...normalizeInviteRow({ ...current, ...fields }), id }
+        : { id, ...fields };
     });
+    const result = await api().updateRows(merged);
+    for (const id of result.updated) {
+      if (by === 'person') agentProposed.delete(id);
+      else if (wasReview.has(id) && !needsReview(rowById(id) ?? {})) {
+        agentProposed.add(id);
+      }
+    }
+    check();
+    return result;
   }
-  const words = rest.split(/\s+/).filter(Boolean);
-  const emails = words.filter((w) => w.includes('@'));
-  const names = words.filter((w) => !w.includes('@'));
-  if (emails.length !== 1 || roles.length !== 1 || names.length !== 2)
-    return null;
+
+  function remove(
+    ids: string[],
+    by: Actor,
+  ): { deleted: string[]; missing: string[] } {
+    if (by === 'agent') {
+      // Either kind of row waits on a person; deleting it would let an agent
+      // replace it with an unmarked copy.
+      const refused = ids.filter((id) => {
+        const row = rowById(id);
+        return row !== undefined && (needsReview(row) || agentProposed.has(id));
+      });
+      if (refused.length > 0) {
+        throw new Error(
+          `Rows that need review or are agent proposed cannot be deleted by an agent: ${refused.join(', ')}. Split needs-review rows with update_rows; leave agent-proposed rows for the user to confirm or delete. Nothing was deleted.`,
+        );
+      }
+    }
+    const result = api().deleteRows(ids);
+    for (const id of result.deleted) agentProposed.delete(id);
+    check();
+    return result;
+  }
+
+  /** A person accepts an agent-proposed row as it is. */
+  function confirm(id: string) {
+    agentProposed.delete(id);
+    check();
+  }
+
+  /** A person changed these rows directly in the grid (paste, edit, add, delete). */
+  function edited(ids: string[]) {
+    for (const id of ids) agentProposed.delete(id);
+    check();
+  }
+
+  /**
+   * A person pasted text into the grid. Returns the rows to insert now
+   * (empty when the paste is held as an unmapped table) and the pasted
+   * columns that were ignored. `positional` is the grid's default parse.
+   */
+  function paste(
+    text: string,
+    { autoMatch }: { autoMatch: boolean },
+    positional: () => Row[],
+  ): { rows: Row[]; ignored: string[] } {
+    const plan = planPaste(text, { autoMatch });
+    if (plan.kind === 'positional') return { rows: positional(), ignored: [] };
+    if (plan.kind === 'insert')
+      return { rows: plan.rows, ignored: plan.ignored };
+    held.value = { table: plan.table, mapping: plan.mapping, agentColumns: [] };
+    return { rows: [], ignored: [] };
+  }
+
+  function heldOrThrow(): HeldPaste {
+    if (!held.value) {
+      throw new Error('There is no pasted table waiting for a column mapping.');
+    }
+    return held.value;
+  }
+
+  /** The agent fills the mapping panel; nothing enters the draft. */
+  function proposeMapping(mapping: unknown[]): string[] {
+    const { table } = heldOrThrow();
+    if (mapping.length !== table.headers.length) {
+      throw new Error(
+        `The pasted table has ${table.headers.length} columns; send one entry per column.`,
+      );
+    }
+    const unknown = mapping.find(
+      (f) => f !== null && !(INVITE_FIELDS as unknown[]).includes(f),
+    );
+    if (unknown !== undefined) {
+      throw new Error(`Unknown template column "${String(unknown)}".`);
+    }
+    const proposed = mapping as ColumnMapping;
+    held.value = {
+      table,
+      mapping: proposed,
+      agentColumns: proposed.map((_, i) => i),
+    };
+    return mappingProblems(proposed);
+  }
+
+  /** A person picks the template column for one pasted column. */
+  function setMappingColumn(column: number, field: InviteField | null) {
+    const current = heldOrThrow();
+    const mapping = [...current.mapping];
+    mapping[column] = field;
+    held.value = {
+      ...current,
+      mapping,
+      agentColumns: current.agentColumns.filter((c) => c !== column),
+    };
+  }
+
+  /** A person applies the mapping: the pasted rows enter the draft. */
+  async function applyMapping(): Promise<{ added: number; ignored: string[] }> {
+    const { table, mapping } = heldOrThrow();
+    const problems = mappingProblems(mapping);
+    if (problems.length > 0) throw new Error(problems.join('; '));
+    const { rows: mapped, ignored } = applyColumnMapping(table, mapping);
+    held.value = null;
+    await add(mapped);
+    return { added: mapped.length, ignored };
+  }
+
+  function discardMapping() {
+    held.value = null;
+  }
+
+  /** Send gate: every row must be ready. Nothing is sent (prototype). */
+  function send(): GridSaveResponse {
+    const blocking = check();
+    const count = grid()?.getRows().length ?? 0;
+    return blocking.length > 0
+      ? { errors: blocking, saved: 0 }
+      : { errors: [], saved: count };
+  }
+
   return {
-    email: emails[0],
-    firstName: names[0],
-    lastName: names[1],
-    role: roles[0],
-    groups:
-      groups.length > 0
-        ? groups
-            .sort((a, b) => a.at - b.at)
-            .map((g) => g.value)
-            .join('; ')
-        : null,
+    held,
+    errors: () => errors,
+    status,
+    rows,
+    check,
+    add,
+    update,
+    remove,
+    confirm,
+    edited,
+    paste,
+    proposeMapping,
+    setMappingColumn,
+    applyMapping,
+    discardMapping,
+    send,
   };
 }
 
-function parseLine(line: string): Fields | null {
-  const separator = ['\t', '|', ','].find((s) => line.includes(s));
-  return separator ? parseSeparated(line, separator) : parseSpaced(line);
-}
-
-/** The template's columns of a row, trimmed, blank as null. */
-export function draftFields(row: Record<string, unknown>): Fields {
-  return Object.fromEntries(
-    DRAFT_FIELDS.map((f) => [f, text(row[f])]),
-  ) as Fields;
-}
-
-/** Clean a row and split a whole line in one cell when that needs no guess. */
-export function normalizeInviteRow(
-  row: Record<string, unknown>,
-): Record<string, unknown> {
-  const fields = draftFields(row);
-  const line = lineText(fields);
-  if (line === null) return { ...row, ...clean(fields) };
-  const parsed = parseLine(line);
-  if (parsed) return { ...row, ...clean(parsed) };
-  // Needs review: keep the text as typed, in the cell it was typed in.
-  const kept = Object.fromEntries(
-    DRAFT_FIELDS.filter((f) => fields[f] !== null).map((f) => [f, fields[f]]),
-  );
-  const others = Object.fromEntries(
-    Object.entries(row).filter(
-      ([k]) => !(DRAFT_FIELDS as readonly string[]).includes(k),
-    ),
-  );
-  return { ...others, ...kept };
-}
-
-/** A whole line in one cell that cannot be split without guessing. */
-export function needsReview(row: Record<string, unknown>): boolean {
-  const line = lineText(draftFields(row));
-  return line !== null && parseLine(line) === null;
-}
-
-export const INVITE_ROW_STATUSES = [
-  'Ready',
-  'Not ready',
-  'Needs review',
-  'Agent proposed',
-] as const;
-export type InviteRowStatus = (typeof INVITE_ROW_STATUSES)[number];
-
-/** Status shown in the grid and to the agent; `errors` from `validateInvites`. */
-export function inviteRowStatus(
-  row: Record<string, unknown>,
-  errors: readonly { rowId: string }[],
-  agentProposed: ReadonlySet<string>,
-): InviteRowStatus {
-  const id = String(row.id);
-  if (needsReview(row)) return 'Needs review';
-  if (agentProposed.has(id)) return 'Agent proposed';
-  return errors.some((e) => e.rowId === id) ? 'Not ready' : 'Ready';
-}
+export type InviteDraft = ReturnType<typeof createInviteDraft>;

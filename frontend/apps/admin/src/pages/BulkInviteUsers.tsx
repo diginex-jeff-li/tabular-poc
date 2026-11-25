@@ -23,28 +23,14 @@ import UButton from '@nuxt/ui/components/Button.vue';
 import ColumnMappingPanel from 'components/ColumnMappingPanel';
 import GridEditor from 'components/GridEditor';
 import { useAgentTools } from 'composables/useAgentTools';
-import { INVITE_TITLES, InviteRowSchema, type InviteField } from 'contracts';
-import {
-  applyColumnMapping,
-  planPaste,
-  type ColumnMapping,
-  type UnmappedTable,
-} from 'utils/columnMapping';
+import { INVITE_TITLES, InviteRowSchema } from 'contracts';
+import { normalizeInviteRow, type InviteRowStatus } from 'utils/draftRow';
 import { createInviteTools } from 'utils/inviteAgentTools';
-import {
-  inviteRowStatus,
-  normalizeInviteRow,
-  type InviteRowStatus,
-} from 'utils/inviteDraft';
+import { createInviteDraft } from 'utils/inviteDraft';
 import { buildInviteWorkbook, parseInviteWorkbook } from 'utils/inviteWorkbook';
-import { validateInvites } from 'utils/validateInvites';
 import { zodToTabulatorColumns } from 'utils/zodToTabulatorColumns';
 import { defineComponent, onMounted, ref, type VNode } from 'vue';
-import type {
-  GridApi,
-  GridSaveError,
-  GridSaveResponse,
-} from 'composables/useGridEditor';
+import type { GridApi } from 'composables/useGridEditor';
 
 // Mock directory: these emails already have accounts in the organisation.
 const EXISTING_EMAILS: ReadonlySet<string> = new Set([
@@ -128,123 +114,51 @@ export default defineComponent({
     const fileInput = ref<HTMLInputElement | null>(null);
     const webmcp = ref(false);
     const notice = ref<string | null>(null);
-    // Row ids the agent resolved from needs review; cleared only by a person.
-    const agentProposed = new Set<string>();
-    let lastErrors: GridSaveError[] = [];
-
-    const validate = (rows: Record<string, unknown>[]) =>
-      (lastErrors = validateInvites(rows, EXISTING_EMAILS, agentProposed));
-    const revalidate = () => {
-      if (grid) grid.showErrors(validate(grid.getRows()));
-    };
-    const columns = buildColumns(
-      (row) => inviteRowStatus(row, lastErrors, agentProposed),
-      (rowId) => {
-        agentProposed.delete(rowId);
-        revalidate();
-      },
-    );
-    // A paste whose columns could not be matched waits here for a mapping.
     const autoMatch = ref(true);
-    const unmapped = ref<{
-      table: UnmappedTable;
-      mapping: ColumnMapping;
-      agentColumns: number[];
-    } | null>(null);
 
-    const tools = createInviteTools({
-      grid: () => grid,
-      validate,
-      agentProposed,
-      unmappedTable: {
-        current: () => unmapped.value,
-        propose: (mapping) => {
-          if (!unmapped.value) return;
-          unmapped.value = {
-            ...unmapped.value,
-            mapping,
-            agentColumns: mapping.map((_, i) => i),
-          };
-        },
-      },
+    const draft = createInviteDraft(() => grid, {
+      existingEmails: EXISTING_EMAILS,
     });
+    const columns = buildColumns(draft.status, draft.confirm);
+    const tools = createInviteTools(draft);
     useAgentTools('scInvite', tools);
     onMounted(() => {
       webmcp.value = Boolean(document.modelContext ?? navigator.modelContext);
     });
 
-    // A person pasted or edited these rows: that confirms any agent proposal.
-    function onUserEdit(rowIds: string[]) {
-      for (const id of rowIds) agentProposed.delete(id);
-      revalidate();
-    }
-
     function pasteParser(
       clipboard: string,
       positional: () => Record<string, unknown>[],
     ): Record<string, unknown>[] {
-      const plan = planPaste(clipboard, { autoMatch: autoMatch.value });
-      if (plan.kind === 'positional') return positional();
-      if (plan.kind === 'insert') {
-        if (plan.ignored.length > 0) {
-          notice.value = `Pasted by header name. Ignored columns: ${plan.ignored.join(', ')}.`;
-        }
-        return plan.rows;
+      const { rows, ignored } = draft.paste(
+        clipboard,
+        { autoMatch: autoMatch.value },
+        positional,
+      );
+      if (ignored.length > 0) {
+        notice.value = `Pasted by header name. Ignored columns: ${ignored.join(', ')}.`;
       }
-      unmapped.value = {
-        table: plan.table,
-        mapping: plan.mapping,
-        agentColumns: [],
-      };
-      return [];
-    }
-
-    function setMappingColumn(column: number, field: InviteField | null) {
-      if (!unmapped.value) return;
-      const mapping = [...unmapped.value.mapping];
-      mapping[column] = field;
-      unmapped.value = {
-        ...unmapped.value,
-        mapping,
-        agentColumns: unmapped.value.agentColumns.filter((c) => c !== column),
-      };
+      return rows;
     }
 
     async function applyMapping() {
-      if (!unmapped.value || !grid) return;
-      const { rows, ignored } = applyColumnMapping(
-        unmapped.value.table,
-        unmapped.value.mapping,
-      );
-      unmapped.value = null;
-      await grid.addRows(rows);
-      revalidate();
+      const { added, ignored } = await draft.applyMapping();
       notice.value =
-        `Added ${rows.length} pasted row(s); ${lastErrors.length} error(s) to fix.` +
+        `Added ${added} pasted row(s); ${draft.errors().length} error(s) to fix.` +
         (ignored.length ? ` Ignored columns: ${ignored.join(', ')}.` : '');
-    }
-
-    async function simulateSend(): Promise<GridSaveResponse> {
-      const rows = grid?.getRows() ?? [];
-      const errors = validate(rows);
-      grid?.showErrors(errors);
-      return errors.length > 0
-        ? { errors, saved: 0 }
-        : { errors: [], saved: rows.length };
     }
 
     async function importFile(event: Event) {
       const input = event.target as HTMLInputElement;
       const file = input.files?.[0];
       input.value = '';
-      if (!file || !grid) return;
+      if (!file) return;
       const { rows, ignoredHeaders } = await parseInviteWorkbook(
         await file.arrayBuffer(),
       );
-      await grid.addRows(rows);
-      revalidate();
+      await draft.add(rows);
       notice.value =
-        `Imported ${rows.length} row(s) from ${file.name}; ${lastErrors.length} error(s) to fix.` +
+        `Imported ${rows.length} row(s) from ${file.name}; ${draft.errors().length} error(s) to fix.` +
         (ignoredHeaders.length
           ? ` Ignored columns: ${ignoredHeaders.join(', ')}.`
           : '');
@@ -327,16 +241,14 @@ export default defineComponent({
               }}
             />
           )}
-          {unmapped.value && (
+          {draft.held.value && (
             <ColumnMappingPanel
-              table={unmapped.value.table}
-              mapping={unmapped.value.mapping}
-              agentColumns={unmapped.value.agentColumns}
-              onChange={setMappingColumn}
+              table={draft.held.value.table}
+              mapping={draft.held.value.mapping}
+              agentColumns={draft.held.value.agentColumns}
+              onChange={draft.setMappingColumn}
               onApply={applyMapping}
-              onDiscard={() => {
-                unmapped.value = null;
-              }}
+              onDiscard={draft.discardMapping}
             />
           )}
         </div>
@@ -344,9 +256,9 @@ export default defineComponent({
           <GridEditor
             columns={columns}
             data={[]}
-            onSave={simulateSend}
+            onSave={async () => draft.send()}
             normalizeRow={normalizeInviteRow}
-            onUserEdit={onUserEdit}
+            onUserEdit={draft.edited}
             pasteParser={pasteParser}
             onReady={(api: GridApi) => {
               grid = api;

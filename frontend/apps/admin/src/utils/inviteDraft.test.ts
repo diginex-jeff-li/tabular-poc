@@ -1,260 +1,168 @@
 import { describe, expect, it } from 'vitest';
-import { needsReview, normalizeInviteRow } from './inviteDraft';
+import { createInviteDraft } from './inviteDraft';
+import { createMemoryGrid } from './memoryGridApi';
 
-const line = (text: string) => normalizeInviteRow({ id: 'r', email: text });
-
-describe('normalizeInviteRow — cleaning a structured row', () => {
-  it('trims, lowercases the email and spells role and groups canonically', () => {
-    expect(
-      normalizeInviteRow({
-        id: 'r',
-        email: '  Ann.Lee@Acme.COM ',
-        firstName: ' Ann ',
-        lastName: 'Lee',
-        role: 'responder',
-        groups: 'vietnam suppliers ;apparel',
-      }),
-    ).toEqual({
-      id: 'r',
-      email: 'ann.lee@acme.com',
-      firstName: 'Ann',
-      lastName: 'Lee',
-      role: 'Responder',
-      groups: 'Vietnam Suppliers; Apparel',
-    });
+function setup() {
+  const grid = createMemoryGrid();
+  const draft = createInviteDraft(() => grid, {
+    existingEmails: new Set(['jane.doe@acme.com']),
   });
+  return { grid, draft };
+}
 
-  it('keeps unknown values as typed so the validator can name them', () => {
-    const row = normalizeInviteRow({
-      id: 'r',
-      email: 'a@x.com',
-      firstName: 'A',
-      lastName: 'B',
-      role: 'Owner',
-      groups: 'Mars',
-    });
-    expect(row).toMatchObject({ role: 'Owner', groups: 'Mars' });
-  });
+const ann = {
+  email: 'ann@acme.com',
+  firstName: 'Ann',
+  lastName: 'Lee',
+  role: 'Viewer',
+};
+const TOM_LINE = { email: 'Tom Lee tom@acme.com Owner' };
+const tomFixed = {
+  email: 'tom@acme.com',
+  firstName: 'Tom',
+  lastName: 'Lee',
+  role: 'Viewer',
+};
+const statuses = (draft: ReturnType<typeof setup>['draft']) =>
+  draft.rows().map((r) => r.status);
 
-  it('is idempotent', () => {
-    const once = line(
-      'Bo Chan bo@x.com assessment manager vietnam suppliers; apparel',
-    );
-    expect(normalizeInviteRow(once)).toEqual(once);
-  });
-});
+describe('invite draft', () => {
+  it('normalizes what is added, checks every row and paints the errors', async () => {
+    const { draft, grid } = setup();
+    await draft.add([
+      { ...ann, email: ' ANN@acme.com ', role: 'viewer' },
+      { ...ann, email: 'jane.doe@acme.com' },
+      TOM_LINE,
+    ]);
 
-// Rebuilt from the 19-line Codex demo paste (tabs lost, so each line landed
-// whole in Email), plus multi-word role/group cases.
-describe('normalizeInviteRow — splitting a whole line in one cell', () => {
-  const cases: [string, Record<string, string | null>][] = [
-    // the 12 rows Codex split by hand
-    [
-      'Ann Lee ann@x.com Account Admin',
-      {
-        email: 'ann@x.com',
-        firstName: 'Ann',
-        lastName: 'Lee',
-        role: 'Account Admin',
-        groups: null,
-      },
-    ],
-    [
-      'Bo Chan bo@x.com assessment manager vietnam suppliers; apparel',
-      {
-        email: 'bo@x.com',
-        firstName: 'Bo',
-        lastName: 'Chan',
-        role: 'Assessment Manager',
-        groups: 'Vietnam Suppliers; Apparel',
-      },
-    ],
-    [
-      'Mia Tran mia.tran@acme.com Responder Vietnam Suppliers',
-      {
-        email: 'mia.tran@acme.com',
-        firstName: 'Mia',
-        lastName: 'Tran',
-        role: 'Responder',
-        groups: 'Vietnam Suppliers',
-      },
-    ],
-    [
-      'Leo Park leo.park@acme.com Viewer',
-      {
-        email: 'leo.park@acme.com',
-        firstName: 'Leo',
-        lastName: 'Park',
-        role: 'Viewer',
-        groups: null,
-      },
-    ],
-    [
-      'Ava Khan ava.khan@acme.com responder bangladesh suppliers electronics',
-      {
-        email: 'ava.khan@acme.com',
-        firstName: 'Ava',
-        lastName: 'Khan',
-        role: 'Responder',
-        groups: 'Bangladesh Suppliers; Electronics',
-      },
-    ],
-    [
-      'Max Wu MAX.WU@ACME.COM VIEWER APPAREL',
-      {
-        email: 'max.wu@acme.com',
-        firstName: 'Max',
-        lastName: 'Wu',
-        role: 'Viewer',
-        groups: 'Apparel',
-      },
-    ],
-    [
-      'zoe.li@acme.com Zoe Li Account Admin',
-      {
-        email: 'zoe.li@acme.com',
-        firstName: 'Zoe',
-        lastName: 'Li',
-        role: 'Account Admin',
-        groups: null,
-      },
-    ],
-    [
-      'jane.doe@acme.com, Jane, Doe, Viewer, Apparel',
-      {
-        email: 'jane.doe@acme.com',
-        firstName: 'Jane',
-        lastName: 'Doe',
-        role: 'Viewer',
-        groups: 'Apparel',
-      },
-    ],
-    [
-      'ken.ito@acme.com | Ken | Ito | Responder | Electronics; Apparel',
-      {
-        email: 'ken.ito@acme.com',
-        firstName: 'Ken',
-        lastName: 'Ito',
-        role: 'Responder',
-        groups: 'Electronics; Apparel',
-      },
-    ],
-    [
-      'lia.ono@acme.com\tLia\tOno\tViewer\t',
-      {
-        email: 'lia.ono@acme.com',
-        firstName: 'Lia',
-        lastName: 'Ono',
-        role: 'Viewer',
-        groups: null,
-      },
-    ],
-    [
-      'ben.ho@acme.com,Ben,Ho,assessment manager',
-      {
-        email: 'ben.ho@acme.com',
-        firstName: 'Ben',
-        lastName: 'Ho',
-        role: 'Assessment Manager',
-        groups: null,
-      },
-    ],
-    [
-      'Uma Das uma.das@acme.com Responder Apparel Electronics',
-      {
-        email: 'uma.das@acme.com',
-        firstName: 'Uma',
-        lastName: 'Das',
-        role: 'Responder',
-        groups: 'Apparel; Electronics',
-      },
-    ],
-    // malformed emails: the column is clear, the validator flags the value
-    [
-      'Nora Hale nora@acme Viewer',
-      {
-        email: 'nora@acme',
-        firstName: 'Nora',
-        lastName: 'Hale',
-        role: 'Viewer',
-        groups: null,
-      },
-    ],
-    [
-      'Sam Ng sam.ng@acme..com Responder',
-      {
-        email: 'sam.ng@acme..com',
-        firstName: 'Sam',
-        lastName: 'Ng',
-        role: 'Responder',
-        groups: null,
-      },
-    ],
-    [
-      'Raj Kumar raj.k@@acme.com Viewer Apparel',
-      {
-        email: 'raj.k@@acme.com',
-        firstName: 'Raj',
-        lastName: 'Kumar',
-        role: 'Viewer',
-        groups: 'Apparel',
-      },
-    ],
-    // unknown group, but separators make every column clear
-    [
-      'ian.ross@acme.com, Ian, Ross, Responder, Mars',
-      {
-        email: 'ian.ross@acme.com',
-        firstName: 'Ian',
-        lastName: 'Ross',
-        role: 'Responder',
-        groups: 'Mars',
-      },
-    ],
-    [
-      'eli.cohen@acme.com\tEli\tCohen\tViewer\tMoon',
-      {
-        email: 'eli.cohen@acme.com',
-        firstName: 'Eli',
-        lastName: 'Cohen',
-        role: 'Viewer',
-        groups: 'Moon',
-      },
-    ],
-  ];
-
-  it.each(cases)('splits %j', (text, expected) => {
-    const row = line(text);
-    expect(row).toEqual({ id: 'r', ...expected });
-    expect(needsReview(row)).toBe(false);
-  });
-
-  it.each([
-    ['unknown word where a role should be', 'Tom Lee tom.lee@acme.com Owner'],
-    ['space inside the email', 'Kim Park kim park@acme.com Responder'],
-    ['no email', 'Pat Roe Viewer'],
-    ['two emails', 'Pat Roe pat@x.com roe@x.com Viewer'],
-    ['two roles', 'Pat Roe pat@x.com Viewer Responder'],
-    ['wrong number of separated pieces', 'pat@x.com, Pat, Viewer'],
-  ])('leaves the line as typed and needs review: %s', (_why, text) => {
-    const row = line(text);
-    expect(row).toEqual({ id: 'r', email: text.trim() });
-    expect(needsReview(row)).toBe(true);
-  });
-
-  it('does not re-parse a row with more than one filled cell', () => {
-    const row = normalizeInviteRow({
-      id: 'r',
-      email: 'Tom Lee tom@x.com',
+    expect(draft.rows()[0]).toMatchObject({
+      email: 'ann@acme.com',
       role: 'Viewer',
     });
-    expect(row.email).toBe('tom lee tom@x.com');
-    expect(needsReview(row)).toBe(false);
+    expect(statuses(draft)).toEqual(['Ready', 'Not ready', 'Needs review']);
+    expect(grid.shown).toEqual(draft.errors());
   });
 
-  it('does not treat a single word as a line', () => {
-    const row = line('ann@x.com');
-    expect(row.email).toBe('ann@x.com');
-    expect(needsReview(row)).toBe(false);
+  describe('agent proposed', () => {
+    async function proposed() {
+      const s = setup();
+      const [tom] = await s.draft.add([TOM_LINE]);
+      await s.draft.update([{ id: tom, ...tomFixed }], 'agent');
+      return { ...s, tom };
+    }
+
+    it('an agent resolving a needs-review row marks it and blocks Send', async () => {
+      const { draft } = await proposed();
+      expect(statuses(draft)).toEqual(['Agent proposed']);
+      expect(draft.send()).toMatchObject({ saved: 0 });
+    });
+
+    it('a person confirming it unblocks Send', async () => {
+      const { draft, tom } = await proposed();
+      draft.confirm(tom);
+      expect(statuses(draft)).toEqual(['Ready']);
+      expect(draft.send()).toEqual({ errors: [], saved: 1 });
+    });
+
+    it('a person editing it, here or in the grid, clears the mark', async () => {
+      const a = await proposed();
+      await a.draft.update([{ id: a.tom, firstName: 'Thomas' }], 'person');
+      expect(statuses(a.draft)).toEqual(['Ready']);
+
+      const b = await proposed();
+      b.draft.edited([b.tom]);
+      expect(statuses(b.draft)).toEqual(['Ready']);
+    });
+
+    it('an agent editing a row that did not need review does not mark it', async () => {
+      const { draft } = setup();
+      const [id] = await draft.add([ann]);
+      await draft.update([{ id, firstName: 'Anne' }], 'agent');
+      expect(statuses(draft)).toEqual(['Ready']);
+    });
+
+    it('an agent cannot delete it and swap in an unmarked copy', async () => {
+      const { draft, tom, grid } = await proposed();
+      expect(() => draft.remove([tom], 'agent')).toThrow(/agent proposed/i);
+      expect(grid.rows).toHaveLength(1);
+      draft.remove([tom], 'person');
+      expect(grid.rows).toHaveLength(0);
+    });
+  });
+
+  it('an agent cannot delete a row that needs review; nothing is deleted', async () => {
+    const { draft, grid } = setup();
+    const ids = await draft.add([ann, TOM_LINE]);
+    expect(() => draft.remove(ids, 'agent')).toThrow(/need review/i);
+    expect(grid.rows).toHaveLength(2);
+  });
+
+  it('re-checks after a delete: the surviving duplicate becomes ready', async () => {
+    const { draft } = setup();
+    const [, second] = await draft.add([ann, ann]);
+    expect(statuses(draft)).toEqual(['Ready', 'Not ready']);
+    draft.remove([second], 'person');
+    expect(statuses(draft)).toEqual(['Ready']);
+  });
+
+  describe('unmapped table', () => {
+    // One known header (Work Email) makes the first line a header row; the
+    // other three have no match, so the paste is held.
+    const PASTE = [
+      'Work Email\tNom\tApellido\tAccess',
+      'ann@acme.com\tAnn\tLee\tViewer',
+    ].join('\n');
+    const positional = () => [{ email: 'positional' }];
+
+    it('holds a paste it cannot match and inserts nothing', () => {
+      const { draft } = setup();
+      expect(draft.paste(PASTE, { autoMatch: true }, positional)).toEqual({
+        rows: [],
+        ignored: [],
+      });
+      expect(draft.held.value?.table.headers).toEqual([
+        'Work Email',
+        'Nom',
+        'Apellido',
+        'Access',
+      ]);
+      expect(draft.held.value?.mapping).toEqual(['email', null, null, null]);
+    });
+
+    it('the agent proposes, a person applies, and the rows enter the draft', async () => {
+      const { draft } = setup();
+      draft.paste(PASTE, { autoMatch: true }, positional);
+
+      expect(
+        draft.proposeMapping(['email', 'firstName', 'lastName', 'role']),
+      ).toEqual([]);
+      expect(draft.held.value?.agentColumns).toEqual([0, 1, 2, 3]);
+      draft.setMappingColumn(3, 'role');
+      expect(draft.held.value?.agentColumns).toEqual([0, 1, 2]);
+
+      expect(await draft.applyMapping()).toEqual({ added: 1, ignored: [] });
+      expect(draft.held.value).toBeNull();
+      expect(statuses(draft)).toEqual(['Ready']);
+    });
+
+    it('refuses to apply an incomplete mapping and rejects a mapping that does not fit', async () => {
+      const { draft } = setup();
+      expect(() => draft.proposeMapping([])).toThrow(/no pasted table/i);
+      draft.paste(PASTE, { autoMatch: true }, positional);
+      await expect(draft.applyMapping()).rejects.toThrow(
+        /No column for First Name/,
+      );
+      expect(() => draft.proposeMapping(['email'])).toThrow(/4 columns/);
+      expect(() => draft.proposeMapping(['email', 'mail', null, null])).toThrow(
+        /unknown template column "mail"/i,
+      );
+    });
+
+    it('a template-shaped body still pastes by position', () => {
+      const { draft } = setup();
+      expect(
+        draft.paste('ann@acme.com\tAnn', { autoMatch: true }, positional).rows,
+      ).toEqual(positional());
+    });
   });
 });
