@@ -1,3 +1,5 @@
+// Loaded with the Tabulator engine only, so DataGrid pages never fetch it.
+import 'tabulator-tables/dist/css/tabulator_modern.min.css';
 import UBadge from '@nuxt/ui/components/Badge.vue';
 /**
  * GridEditor — the shared grid engine's presentation.
