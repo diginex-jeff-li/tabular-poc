@@ -206,7 +206,7 @@ export default defineComponent({
       }));
 
       const def = createDefinition(tableName.value.trim(), columns);
-      router.push(`/custom/${def.id}`);
+      void router.push(`/custom/${def.id}`);
     }
 
     return (): VNode => (

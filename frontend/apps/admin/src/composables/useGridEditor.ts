@@ -187,7 +187,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
           return row;
         });
         if (needsUpdate) {
-          tab.replaceData(updated);
+          void tab.replaceData(updated);
         }
         // Only mark rows that got a new UUID (were newly pasted)
         const pastedIds: Array<string> = [];
@@ -361,7 +361,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
         r.getData().id === err.rowId,
     );
     if (row) {
-      row.scrollTo();
+      void row.scrollTo();
       const cell = row.getCell(err.field);
       if (cell) {
         const el = cell.getElement();
@@ -432,7 +432,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
       const rowId = rowData.id as string;
       markDeleted(rowId);
       deletedRowIds.add(rowId);
-      row.delete();
+      void row.delete();
     }
     if (deletedRowIds.size > 0 && errorList.value.length > 0) {
       errorList.value = errorList.value.filter(
@@ -522,7 +522,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
         continue;
       }
       markDeleted(id);
-      row.delete();
+      void row.delete();
       result.deleted.push(id);
     }
     errorList.value = errorList.value.filter(

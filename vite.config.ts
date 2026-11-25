@@ -93,14 +93,6 @@ export default defineConfig({
       'vitest/no-conditional-expect': 'off', // 5
       'jsx-a11y/label-has-associated-control': 'off', // 5
       'typescript/no-misused-promises': 'off', // 5
-      'typescript/no-floating-promises': 'off', // 5
     },
-    // The preset's TypeScript override re-enables these; keep the baseline.
-    overrides: [
-      {
-        files: ['**/*.ts', '**/*.tsx', '**/*.mts', '**/*.cts'],
-        rules: { 'typescript/no-floating-promises': 'off' }, // 5
-      },
-    ],
   },
 });

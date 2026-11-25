@@ -242,7 +242,7 @@ export default defineComponent({
 
     // ── Not-found back-link ──
     function goToList(): void {
-      router.push('/custom');
+      void router.push('/custom');
     }
 
     // ── Add Column modal state ──

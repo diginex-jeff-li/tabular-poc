@@ -58,11 +58,11 @@ export default defineComponent({
 
     // ── Navigation ──
     function goToNew(): void {
-      router.push('/custom/new');
+      void router.push('/custom/new');
     }
 
     function goToEditor(id: string): void {
-      router.push(`/custom/${id}`);
+      void router.push(`/custom/${id}`);
     }
 
     // ── Row count helper — reads from the table's data key, not the definition ──
