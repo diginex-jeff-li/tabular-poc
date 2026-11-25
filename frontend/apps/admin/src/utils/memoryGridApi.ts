@@ -1,8 +1,9 @@
 import type { GridApi, GridSaveError } from './gridApi';
 
 /**
- * In-memory adapter for the `GridApi` seam (the Tabulator grid is the other
- * one). Lets the invite draft and the agent tools run without a browser.
+ * In-memory adapter for the `GridApi` seam (the TanStack `DataGrid` and the
+ * Tabulator grid are the others). Lets the invite draft and the agent tools
+ * run without a browser.
  * `shown` records the last errors painted, as the grid would show them.
  */
 export function createMemoryGrid(): GridApi & {

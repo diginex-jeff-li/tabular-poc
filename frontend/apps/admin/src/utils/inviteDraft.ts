@@ -22,7 +22,8 @@ import type { ShallowRef } from 'vue';
  * PROTOTYPE — the invite draft (CONTEXT.md): every rule about who may change
  * which rows, behind one interface. The page and the agent tools are thin
  * adapters over it; rows themselves live behind the `GridApi` seam
- * (Tabulator on the page, in memory in tests).
+ * (the TanStack `DataGrid` or the Tabulator grid on the page, in memory in
+ * tests).
  *
  * Rules it owns:
  * - every write is normalized and followed by a full check and repaint

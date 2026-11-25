@@ -2,13 +2,15 @@
 
 ## Project
 
-Tabulator grid editor prototype — compliance library admin grid. A pnpm
-workspace monorepo with two packages:
+Spreadsheet-style grid prototype — compliance library admin grid and bulk
+invite page on TanStack Table (Nuxt UI `UTable`), with the Tabulator build
+kept for comparison. A pnpm workspace monorepo with two packages:
 
 - **`contracts/`** — Shared Zod schemas (oRPC removed, Zod only). SWC-compiled
   ESM + tsc declaration files. Consumed by frontend.
 - **`frontend/`** — Vue 3.5 + TSX admin app (port 3500). Vite+ (Vite 8),
-  Nuxt UI v4, Tailwind v4. Contains the Tabulator grid editor at `/`.
+  Nuxt UI v4, Tailwind v4. Grid engine `DataGrid` at `/` and `/invite-users`;
+  Tabulator `GridEditor` at `/tabulator` and `/tabulator/invite-users`.
 
 Requires Node >= 24 and pnpm >= 12. Use pnpm only.
 
@@ -67,7 +69,8 @@ Vue 3.5 + Vite+ (Vite 8) + TSX (NOT SFCs) + Nuxt UI v4 + Tailwind v4.
 - All components are `.tsx` using `defineComponent({ setup() { return (): VNode =>
 <.../> } })` with render functions. No SFCs, no `<script setup>`.
 - Nuxt UI v4 components imported explicitly with `U` prefix (no auto-registration).
-- AutoImport configured for Vue + vue-router APIs only.
+- AutoImport configured for Vue + vue-router APIs only. VueUse (`@vueuse/core`)
+  is imported explicitly; reach for a VueUse composable before custom code.
 - Vite resolve aliases: `src`, `components`, `composables`, `config`, `pages`,
   `styles`, `utils`.
 
@@ -126,24 +129,49 @@ is capped at 15 via the Oxlint `complexity` rule.
 Contracts must not import from frontend. Frontend imports contracts via the
 `contracts` workspace dependency only.
 
-**Tabulator** — MIT licensed, all features free. No paid tier. The prototype
-proves: clipboard paste, validation, filtering, sorting, CSV export, checkbox
-selection — all in the free core.
+**Grid engines** — one page per area, with an `engine: 'tanstack' | 'tabulator'`
+prop set by the route. Both engines take the props in
+`components/gridEngineProps.ts` and expose the `GridApi` in `utils/gridApi.ts`.
+
+| Route | Engine |
+|---|---|
+| `/` | TanStack (`DataGrid`), compliance |
+| `/invite-users` | TanStack (`DataGrid`), bulk invite |
+| `/tabulator` | Tabulator (`GridEditor`), compliance |
+| `/tabulator/invite-users` | Tabulator (`GridEditor`), bulk invite |
+
+New grid work goes to `DataGrid` only. The Tabulator side (`GridEditor`,
+`useGridEditor`, `useDirtyTracking`, `zodToTabulatorColumns`,
+`buildComplianceColumns`, `tabulator-tables`) is **comparison-only**: keep it
+working, don't extend it. Tabulator is MIT licensed with no paid tier.
+
+**DataGrid rules** — `rows` (a `shallowRef` in `useDataGrid`) is the single
+source of truth and is replaced immutably, never mutated. Grid logic is pure
+modules over `GridColumn[]` + `Row[]` keyed by row id + column id (`utils/grid*.ts`,
+`csv.ts`, `zodToColumnDefs.ts`). Cells read per-cell state inside `GridCell`'s
+own `computed`, never in the column `cell` function. Rows have a fixed
+`ROW_HEIGHT` that `virtualize` and scroll-to-row rely on. Spec and measured
+`UTable` gotchas: `.scratch/tanstack-grid/`.
 
 ## Key Files
 
 | File                                                      | Purpose                                               |
 | --------------------------------------------------------- | ----------------------------------------------------- |
-| `frontend/apps/admin/src/pages/ComplianceGridEditor.tsx`  | Main grid editor page                                 |
-| `frontend/apps/admin/src/utils/zodToTabulatorColumns.ts`  | Derive Tabulator column defs from Zod schema          |
-| `frontend/apps/admin/src/composables/useDirtyTracking.ts` | Track added/modified/deleted rows for diff-based save |
-| `frontend/apps/admin/src/composables/useGridEditor.ts`   | Grid engine composable — Tabulator lifecycle, paste, save, errors |
-| `frontend/apps/admin/src/components/GridEditor/GridEditor.tsx` | Shared grid editor component (toolbar, grid host, error sidebar) |
+| `frontend/apps/admin/src/pages/ComplianceGridEditor.tsx`  | Compliance grid page (either engine)                  |
+| `frontend/apps/admin/src/components/DataGrid/DataGrid.tsx` | TanStack grid engine: `UTable`, toolbar, keyboard, clipboard, error sidebar |
+| `frontend/apps/admin/src/composables/useDataGrid.ts` | DataGrid state: rows, derived dirty diff, save loop, `GridApi` |
+| `frontend/apps/admin/src/composables/useGridSelection.ts` | Active cell, range and editing state (ids, not indexes) |
+| `frontend/apps/admin/src/utils/zodToColumnDefs.ts` | Derive engine-neutral `GridColumn`s from a Zod schema |
+| `frontend/apps/admin/src/utils/gridApi.ts` | `GridApi` seam shared by both engines and `memoryGridApi` |
+| `frontend/apps/admin/src/utils/zodToTabulatorColumns.ts`  | Tabulator (comparison-only): column defs from Zod schema |
+| `frontend/apps/admin/src/composables/useDirtyTracking.ts` | Tabulator (comparison-only): dirty tracking |
+| `frontend/apps/admin/src/composables/useGridEditor.ts`   | Tabulator (comparison-only): lifecycle, paste, save, errors |
+| `frontend/apps/admin/src/components/GridEditor/GridEditor.tsx` | Tabulator (comparison-only): grid editor component |
 | `frontend/apps/admin/src/pages/BulkInviteUsers.tsx` | SC15-706 bulk invite prototype — Excel template/import, paste, simulated send |
 | `frontend/apps/admin/src/utils/inviteDraft.ts` | Invite draft module — every rule on who may change which rows (agent proposed, confirm, refused deletes, unmapped tables, Send gate) |
 | `frontend/apps/admin/src/utils/inviteAgentTools.ts` | Agent tools: adapter over the invite draft module (edit-only; no send/confirm/apply tool) |
 | `frontend/apps/admin/src/utils/draftRow.ts` | One draft row: cleanup + line parser (never guesses), row status |
-| `frontend/apps/admin/src/utils/memoryGridApi.ts` | In-memory `GridApi` adapter for tests (Tabulator is the other) |
+| `frontend/apps/admin/src/utils/memoryGridApi.ts` | In-memory `GridApi` adapter for tests (the two grid engines are the others) |
 | `frontend/apps/admin/src/utils/columnMapping.ts` | Pasted client tables: header/alias matching, hold vs insert, column mapping |
 | `frontend/apps/admin/src/components/ColumnMappingPanel/ColumnMappingPanel.tsx` | Mapping panel for an unmapped table (person applies; agent may propose) |
 | `CONTEXT.md` / `docs/adr/` | Domain glossary (bulk invite terms) and ADRs |
