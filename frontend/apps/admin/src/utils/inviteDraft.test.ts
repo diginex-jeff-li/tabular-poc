@@ -29,11 +29,14 @@ const statuses = (draft: ReturnType<typeof setup>['draft']) =>
 describe('invite draft', () => {
   it('normalizes what is added, checks every row and paints the errors', async () => {
     const { draft, grid } = setup();
-    await draft.add([
-      { ...ann, email: ' ANN@acme.com ', role: 'viewer' },
-      { ...ann, email: 'jane.doe@acme.com' },
-      TOM_LINE,
-    ]);
+    await draft.add(
+      [
+        { ...ann, email: ' ANN@acme.com ', role: 'viewer' },
+        { ...ann, email: 'jane.doe@acme.com' },
+        TOM_LINE,
+      ],
+      'person',
+    );
 
     expect(draft.rows()[0]).toMatchObject({
       email: 'ann@acme.com',
@@ -46,7 +49,7 @@ describe('invite draft', () => {
   describe('agent proposed', () => {
     async function proposed() {
       const s = setup();
-      const [tom] = await s.draft.add([TOM_LINE]);
+      const [tom] = await s.draft.add([TOM_LINE], 'person');
       await s.draft.update([{ id: tom, ...tomFixed }], 'agent');
       return { ...s, tom };
     }
@@ -76,7 +79,7 @@ describe('invite draft', () => {
 
     it('an agent editing a row that did not need review does not mark it', async () => {
       const { draft } = setup();
-      const [id] = await draft.add([ann]);
+      const [id] = await draft.add([ann], 'person');
       await draft.update([{ id, firstName: 'Anne' }], 'agent');
       expect(statuses(draft)).toEqual(['Ready']);
     });
@@ -92,14 +95,14 @@ describe('invite draft', () => {
 
   it('an agent cannot delete a row that needs review; nothing is deleted', async () => {
     const { draft, grid } = setup();
-    const ids = await draft.add([ann, TOM_LINE]);
+    const ids = await draft.add([ann, TOM_LINE], 'agent');
     expect(() => draft.remove(ids, 'agent')).toThrow(/need review/i);
     expect(grid.rows).toHaveLength(2);
   });
 
   it('re-checks after a delete: the surviving duplicate becomes ready', async () => {
     const { draft } = setup();
-    const [, second] = await draft.add([ann, ann]);
+    const [, second] = await draft.add([ann, ann], 'person');
     expect(statuses(draft)).toEqual(['Ready', 'Not ready']);
     draft.remove([second], 'person');
     expect(statuses(draft)).toEqual(['Ready']);

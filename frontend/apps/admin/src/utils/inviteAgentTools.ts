@@ -184,6 +184,7 @@ export function createInviteTools(draft: InviteDraft): AgentTool[] {
       execute: async (args) => {
         const added = await draft.add(
           requireArray(args, 'rows').map(toDraftRow),
+          'agent',
         );
         return { added, ...result(added) } satisfies z.infer<
           typeof AddRowsOutputSchema

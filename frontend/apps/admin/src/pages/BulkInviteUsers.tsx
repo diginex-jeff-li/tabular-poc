@@ -8,9 +8,11 @@
  * - Paste from Excel straight into the grid.
  * - An AI agent through WebMCP tools (or the `window.scInvite` bridge).
  *
- * Every way in is normalized (`normalizeInviteRow`), and the Status column
- * shows Ready / Not ready / Needs review / Agent proposed live. Only a person
- * can confirm an agent-proposed row (its Confirm button, or editing it).
+ * The rules (normalizing every way in, Status, agent proposed, unmapped
+ * tables, the Send gate) live in the invite draft module
+ * (`utils/inviteDraft.ts`); this page renders it and adapts the grid to it.
+ * Only a person can confirm an agent-proposed row (its Confirm button, or
+ * editing it).
  *
  * "Send invites" is SIMULATED: it runs the send checks and sends nothing.
  * The real bulk backend — atomicity, oversight approval, partial failure —
@@ -156,7 +158,7 @@ export default defineComponent({
       const { rows, ignoredHeaders } = await parseInviteWorkbook(
         await file.arrayBuffer(),
       );
-      await draft.add(rows);
+      await draft.add(rows, 'person');
       notice.value =
         `Imported ${rows.length} row(s) from ${file.name}; ${draft.errors().length} error(s) to fix.` +
         (ignoredHeaders.length

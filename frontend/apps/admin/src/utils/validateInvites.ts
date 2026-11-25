@@ -13,7 +13,7 @@ const ALLOWED_GROUPS: ReadonlySet<string> = new Set(INVITE_GROUPS);
  * - needs review: a whole line in one cell that cannot be split without
  *   guessing (reported once, instead of field errors)
  * - agent proposed: the agent resolved a needs-review row and no person has
- *   confirmed or edited it yet (`agentProposed`, owned by the page)
+ *   confirmed or edited it yet (`agentProposed`, owned by the invite draft module)
  * - the row fails `InviteRowSchema` (email format, names, role list)
  * - a name in the "; "-separated groups cell is not in the group list
  * - an email repeated within the invite draft (case-insensitive)

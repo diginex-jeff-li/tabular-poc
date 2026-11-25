@@ -92,7 +92,9 @@ export function createInviteDraft(
       }));
   }
 
-  async function add(newRows: Row[]): Promise<string[]> {
+  // Who added rows changes no rule today; the actor stays in the interface so
+  // every write names it (agreed design, spec decision Q31).
+  async function add(newRows: Row[], _by: Actor): Promise<string[]> {
     const ids = await api().addRows(newRows.map(normalizeInviteRow));
     check();
     return ids;
@@ -229,7 +231,7 @@ export function createInviteDraft(
     if (problems.length > 0) throw new Error(problems.join('; '));
     const { rows: mapped, ignored } = applyColumnMapping(table, mapping);
     held.value = null;
-    await add(mapped);
+    await add(mapped, 'person');
     return { added: mapped.length, ignored };
   }
 
