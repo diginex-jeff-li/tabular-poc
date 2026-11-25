@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
 import { ref, nextTick } from 'vue';
 import { useDirtyTracking } from './useDirtyTracking';
 
@@ -96,13 +96,21 @@ describe('useDirtyTracking', () => {
   });
 
   it('initializes with empty dirty map', () => {
-    const tabRef = ref(mockTab as unknown as InstanceType<typeof import('tabulator-tables').TabulatorFull>);
+    const tabRef = ref(
+      mockTab as unknown as InstanceType<
+        typeof import('tabulator-tables').TabulatorFull
+      >,
+    );
     const { dirtyMap } = useDirtyTracking(tabRef);
     expect(dirtyMap.value.size).toBe(0);
   });
 
   it('marks a row as modified on cellEdited event', async () => {
-    const tabRef = ref(mockTab as unknown as InstanceType<typeof import('tabulator-tables').TabulatorFull>);
+    const tabRef = ref(
+      mockTab as unknown as InstanceType<
+        typeof import('tabulator-tables').TabulatorFull
+      >,
+    );
     const { dirtyMap } = useDirtyTracking(tabRef);
 
     const cell = createMockCell({ id: 'uuid-1', issue: 'Updated issue' }, 0);
@@ -113,7 +121,11 @@ describe('useDirtyTracking', () => {
   });
 
   it('marks a row as added on rowAdded event', async () => {
-    const tabRef = ref(mockTab as unknown as InstanceType<typeof import('tabulator-tables').TabulatorFull>);
+    const tabRef = ref(
+      mockTab as unknown as InstanceType<
+        typeof import('tabulator-tables').TabulatorFull
+      >,
+    );
     const { dirtyMap } = useDirtyTracking(tabRef);
 
     const row = createMockRow({ id: 'uuid-3', issue: 'New row' }, 2);
@@ -124,7 +136,11 @@ describe('useDirtyTracking', () => {
   });
 
   it('marks a row as deleted via markDeleted()', async () => {
-    const tabRef = ref(mockTab as unknown as InstanceType<typeof import('tabulator-tables').TabulatorFull>);
+    const tabRef = ref(
+      mockTab as unknown as InstanceType<
+        typeof import('tabulator-tables').TabulatorFull
+      >,
+    );
     const { dirtyMap, markDeleted } = useDirtyTracking(tabRef);
 
     markDeleted('uuid-1');
@@ -134,7 +150,11 @@ describe('useDirtyTracking', () => {
   });
 
   it('removes an added row from tracking when deleted (no-op)', async () => {
-    const tabRef = ref(mockTab as unknown as InstanceType<typeof import('tabulator-tables').TabulatorFull>);
+    const tabRef = ref(
+      mockTab as unknown as InstanceType<
+        typeof import('tabulator-tables').TabulatorFull
+      >,
+    );
     const { dirtyMap, markDeleted } = useDirtyTracking(tabRef);
 
     // First add
@@ -150,7 +170,11 @@ describe('useDirtyTracking', () => {
   });
 
   it('keeps modified status when cellEdited fires again on same row', async () => {
-    const tabRef = ref(mockTab as unknown as InstanceType<typeof import('tabulator-tables').TabulatorFull>);
+    const tabRef = ref(
+      mockTab as unknown as InstanceType<
+        typeof import('tabulator-tables').TabulatorFull
+      >,
+    );
     const { dirtyMap } = useDirtyTracking(tabRef);
 
     const cell1 = createMockCell({ id: 'uuid-1', issue: 'First edit' }, 0);
@@ -165,7 +189,11 @@ describe('useDirtyTracking', () => {
   });
 
   it('buildSavePayload returns empty arrays when nothing is dirty', () => {
-    const tabRef = ref(mockTab as unknown as InstanceType<typeof import('tabulator-tables').TabulatorFull>);
+    const tabRef = ref(
+      mockTab as unknown as InstanceType<
+        typeof import('tabulator-tables').TabulatorFull
+      >,
+    );
     const { buildSavePayload } = useDirtyTracking(tabRef);
 
     const payload = buildSavePayload();
@@ -174,7 +202,11 @@ describe('useDirtyTracking', () => {
   });
 
   it('buildSavePayload separates upserts from deletes', async () => {
-    const tabRef = ref(mockTab as unknown as InstanceType<typeof import('tabulator-tables').TabulatorFull>);
+    const tabRef = ref(
+      mockTab as unknown as InstanceType<
+        typeof import('tabulator-tables').TabulatorFull
+      >,
+    );
     const { markDeleted, buildSavePayload } = useDirtyTracking(tabRef);
 
     // Mark uuid-1 as modified
@@ -201,7 +233,11 @@ describe('useDirtyTracking', () => {
   });
 
   it('clearDirty resets the dirty map', async () => {
-    const tabRef = ref(mockTab as unknown as InstanceType<typeof import('tabulator-tables').TabulatorFull>);
+    const tabRef = ref(
+      mockTab as unknown as InstanceType<
+        typeof import('tabulator-tables').TabulatorFull
+      >,
+    );
     const { dirtyMap, clearDirty } = useDirtyTracking(tabRef);
 
     const cell = createMockCell({ id: 'uuid-1', issue: 'Updated' }, 0);
@@ -215,7 +251,11 @@ describe('useDirtyTracking', () => {
   });
 
   it('dirtyCount reflects number of dirty rows', async () => {
-    const tabRef = ref(mockTab as unknown as InstanceType<typeof import('tabulator-tables').TabulatorFull>);
+    const tabRef = ref(
+      mockTab as unknown as InstanceType<
+        typeof import('tabulator-tables').TabulatorFull
+      >,
+    );
     const { dirtyCount, markDeleted } = useDirtyTracking(tabRef);
 
     expect(dirtyCount.value).toBe(0);
@@ -231,7 +271,11 @@ describe('useDirtyTracking', () => {
   });
 
   it('handles rows without an id field gracefully', async () => {
-    const tabRef = ref(mockTab as unknown as InstanceType<typeof import('tabulator-tables').TabulatorFull>);
+    const tabRef = ref(
+      mockTab as unknown as InstanceType<
+        typeof import('tabulator-tables').TabulatorFull
+      >,
+    );
     const { dirtyMap } = useDirtyTracking(tabRef);
 
     const cell = createMockCell({ issue: 'No id row' }, 0);
@@ -243,8 +287,13 @@ describe('useDirtyTracking', () => {
   });
 
   it('handles null tabulator gracefully', () => {
-    const tabRef = ref(null as unknown as InstanceType<typeof import('tabulator-tables').TabulatorFull> | null);
-    const { dirtyMap, buildSavePayload, clearDirty, markDeleted } = useDirtyTracking(tabRef);
+    const tabRef = ref(
+      null as unknown as InstanceType<
+        typeof import('tabulator-tables').TabulatorFull
+      > | null,
+    );
+    const { dirtyMap, buildSavePayload, clearDirty, markDeleted } =
+      useDirtyTracking(tabRef);
 
     expect(dirtyMap.value.size).toBe(0);
     expect(buildSavePayload()).toEqual({ upserts: [], deletes: [] });

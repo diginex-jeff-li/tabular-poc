@@ -1,10 +1,16 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { defineComponent, h, type VNode } from 'vue';
 import { mount, flushPromises } from '@vue/test-utils';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+} from 'vite-plus/test';
+import { defineComponent, h, type VNode } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
-import type { TableDefinition, TableRow } from 'src/types/customTable';
-
 import CustomTableEditor from './CustomTableEditor';
+import type { TableDefinition, TableRow } from 'src/types/customTable';
 
 // ── Stub GridEditor ──
 // The real GridEditor imports Tabulator, which must never be loaded in a unit
@@ -21,7 +27,10 @@ vi.mock('components/GridEditor', () => ({
   default: defineComponent({
     name: 'GridEditor',
     props: {
-      columns: { type: Array as () => Record<string, unknown>[], required: true },
+      columns: {
+        type: Array as () => Record<string, unknown>[],
+        required: true,
+      },
       data: { type: Array as () => Record<string, unknown>[], required: true },
       onSave: { type: Function, required: true },
       title: { type: String, required: true },
@@ -202,8 +211,20 @@ function makeDef(over: Partial<TableDefinition> = {}): TableDefinition {
     id: VALID_UUID_A,
     name: 'Test Table',
     columns: [
-      { id: COL_UUID_1, name: 'Title', type: 'text', required: true, choices: [] },
-      { id: COL_UUID_2, name: 'Score', type: 'number', required: false, choices: [] },
+      {
+        id: COL_UUID_1,
+        name: 'Title',
+        type: 'text',
+        required: true,
+        choices: [],
+      },
+      {
+        id: COL_UUID_2,
+        name: 'Score',
+        type: 'number',
+        required: false,
+        choices: [],
+      },
       {
         id: COL_UUID_3,
         name: 'Status',
@@ -305,7 +326,9 @@ describe('CustomTableEditor', () => {
       seedDef(makeDef({ name: 'Employee Directory' }));
       const { wrapper } = await mountEditor(VALID_UUID_A);
       expect(
-        wrapper.find('[data-test="grid-editor"]').attributes('data-export-filename'),
+        wrapper
+          .find('[data-test="grid-editor"]')
+          .attributes('data-export-filename'),
       ).toBe('employee-directory.csv');
     });
 
@@ -372,7 +395,10 @@ describe('CustomTableEditor', () => {
 
     it('opens an empty grid for a non-array JSON payload', async () => {
       seedDef(makeDef());
-      localStorage.setItem(`sc-table-data-${VALID_UUID_A}`, '{"not":"an array"}');
+      localStorage.setItem(
+        `sc-table-data-${VALID_UUID_A}`,
+        '{"not":"an array"}',
+      );
       const { wrapper } = await mountEditor(VALID_UUID_A);
       expect(
         wrapper.find('[data-test="grid-editor"]').attributes('data-row-count'),
@@ -384,7 +410,12 @@ describe('CustomTableEditor', () => {
       localStorage.setItem(
         `sc-table-data-${VALID_UUID_A}`,
         JSON.stringify([
-          { id: VALID_UUID_A, createdAt: VALID_ISO, updatedAt: VALID_ISO, Title: 'valid' },
+          {
+            id: VALID_UUID_A,
+            createdAt: VALID_ISO,
+            updatedAt: VALID_ISO,
+            Title: 'valid',
+          },
           { foo: 'bar' }, // missing id, createdAt, updatedAt
         ]),
       );
@@ -401,36 +432,60 @@ describe('CustomTableEditor', () => {
         id: VALID_UUID_A,
         name: 'Table A',
         columns: [
-          { id: COL_UUID_1, name: 'Foo', type: 'text', required: false, choices: [] },
-          { id: COL_UUID_2, name: 'Bar', type: 'text', required: false, choices: [] },
+          {
+            id: COL_UUID_1,
+            name: 'Foo',
+            type: 'text',
+            required: false,
+            choices: [],
+          },
+          {
+            id: COL_UUID_2,
+            name: 'Bar',
+            type: 'text',
+            required: false,
+            choices: [],
+          },
         ],
       });
       const defB = makeDef({
         id: VALID_UUID_B,
         name: 'Table B',
         columns: [
-          { id: COL_UUID_3, name: 'X', type: 'text', required: false, choices: [] },
-          { id: COL_UUID_1, name: 'Y', type: 'number', required: false, choices: [] },
-          { id: COL_UUID_2, name: 'Z', type: 'text', required: false, choices: [] },
+          {
+            id: COL_UUID_3,
+            name: 'X',
+            type: 'text',
+            required: false,
+            choices: [],
+          },
+          {
+            id: COL_UUID_1,
+            name: 'Y',
+            type: 'number',
+            required: false,
+            choices: [],
+          },
+          {
+            id: COL_UUID_2,
+            name: 'Z',
+            type: 'text',
+            required: false,
+            choices: [],
+          },
         ],
       });
       seedDef(defA);
       seedDef(defB);
 
       const { wrapper: wA } = await mountEditor(VALID_UUID_A);
-      const fieldsA = wA
-        .find('[data-test="column-fields"]')
-        .text()
-        .split(',');
+      const fieldsA = wA.find('[data-test="column-fields"]').text().split(',');
       expect(fieldsA).toEqual(['__select', 'Foo', 'Bar']);
 
       wA.unmount();
 
       const { wrapper: wB } = await mountEditor(VALID_UUID_B);
-      const fieldsB = wB
-        .find('[data-test="column-fields"]')
-        .text()
-        .split(',');
+      const fieldsB = wB.find('[data-test="column-fields"]').text().split(',');
       expect(fieldsB).toEqual(['__select', 'X', 'Y', 'Z']);
     });
   });
@@ -456,7 +511,10 @@ describe('CustomTableEditor', () => {
         deletes: [],
       });
       expect(result.errors.length).toBeGreaterThanOrEqual(1);
-      expect(result.errors[0]).toMatchObject({ field: 'Title', rowId: newRowId });
+      expect(result.errors[0]).toMatchObject({
+        field: 'Title',
+        rowId: newRowId,
+      });
       expect(result.saved).toBe(0);
     });
 
@@ -470,7 +528,10 @@ describe('CustomTableEditor', () => {
         deletes: [],
       });
       expect(result.errors.length).toBeGreaterThanOrEqual(1);
-      expect(result.errors[0]).toMatchObject({ field: 'Score', rowId: newRowId });
+      expect(result.errors[0]).toMatchObject({
+        field: 'Score',
+        rowId: newRowId,
+      });
       expect(result.saved).toBe(0);
     });
 
@@ -484,7 +545,10 @@ describe('CustomTableEditor', () => {
         deletes: [],
       });
       expect(result.errors.length).toBeGreaterThanOrEqual(1);
-      expect(result.errors[0]).toMatchObject({ field: 'Status', rowId: newRowId });
+      expect(result.errors[0]).toMatchObject({
+        field: 'Status',
+        rowId: newRowId,
+      });
       expect(result.saved).toBe(0);
     });
 
@@ -538,7 +602,10 @@ describe('CustomTableEditor', () => {
       });
       expect(result.errors).toHaveLength(2);
       expect(result.errors[0]).toMatchObject({ field: 'Title', rowId: row1Id });
-      expect(result.errors[1]).toMatchObject({ field: 'Status', rowId: row2Id });
+      expect(result.errors[1]).toMatchObject({
+        field: 'Status',
+        rowId: row2Id,
+      });
     });
   });
 
@@ -552,10 +619,14 @@ describe('CustomTableEditor', () => {
       const before = localStorage.getItem(`sc-table-data-${VALID_UUID_A}`);
       const onSave = saveCapture.onSave!;
       await onSave({
-        upserts: [{ id: crypto.randomUUID(), Title: '', Score: 2, Status: 'Open' }],
+        upserts: [
+          { id: crypto.randomUUID(), Title: '', Score: 2, Status: 'Open' },
+        ],
         deletes: [],
       });
-      expect(localStorage.getItem(`sc-table-data-${VALID_UUID_A}`)).toBe(before);
+      expect(localStorage.getItem(`sc-table-data-${VALID_UUID_A}`)).toBe(
+        before,
+      );
     });
 
     it('a fully valid set of rows saves cleanly and persists', async () => {
@@ -580,7 +651,9 @@ describe('CustomTableEditor', () => {
       await mountEditor(VALID_UUID_A);
       const onSave = saveCapture.onSave!;
       await onSave({
-        upserts: [{ id: crypto.randomUUID(), Title: 'Hi', Score: 1, Status: 'Open' }],
+        upserts: [
+          { id: crypto.randomUUID(), Title: 'Hi', Score: 1, Status: 'Open' },
+        ],
         deletes: [],
       });
       const defs = JSON.parse(
@@ -696,21 +769,31 @@ describe('CustomTableEditor', () => {
         id: VALID_UUID_A,
         name: 'Table A',
         columns: [
-          { id: COL_UUID_1, name: 'Foo', type: 'text', required: true, choices: [] },
+          {
+            id: COL_UUID_1,
+            name: 'Foo',
+            type: 'text',
+            required: true,
+            choices: [],
+          },
         ],
       });
       const defB = makeDef({
         id: VALID_UUID_B,
         name: 'Table B',
         columns: [
-          { id: COL_UUID_2, name: 'X', type: 'text', required: true, choices: [] },
+          {
+            id: COL_UUID_2,
+            name: 'X',
+            type: 'text',
+            required: true,
+            choices: [],
+          },
         ],
       });
       seedDef(defA);
       seedDef(defB);
-      seedRows(VALID_UUID_B, [
-        makeRow({ id: crypto.randomUUID(), X: 'BRow' }),
-      ]);
+      seedRows(VALID_UUID_B, [makeRow({ id: crypto.randomUUID(), X: 'BRow' })]);
       const defBBefore = localStorage.getItem('sc-table-defs');
       const dataBBefore = localStorage.getItem(`sc-table-data-${VALID_UUID_B}`);
 
@@ -722,7 +805,9 @@ describe('CustomTableEditor', () => {
       });
 
       expect(localStorage.getItem('sc-table-defs')).toBe(defBBefore);
-      expect(localStorage.getItem(`sc-table-data-${VALID_UUID_B}`)).toBe(dataBBefore);
+      expect(localStorage.getItem(`sc-table-data-${VALID_UUID_B}`)).toBe(
+        dataBBefore,
+      );
       const dataA = JSON.parse(
         localStorage.getItem(`sc-table-data-${VALID_UUID_A}`) || '[]',
       );
@@ -867,7 +952,9 @@ describe('CustomTableEditor', () => {
       expect(errorBox.exists()).toBe(true);
       expect(errorBox.text().toLowerCase()).toContain('name');
       // Modal stays open
-      expect(wrapper.find('[data-test="add-column-modal"]').exists()).toBe(true);
+      expect(wrapper.find('[data-test="add-column-modal"]').exists()).toBe(
+        true,
+      );
     });
 
     it('rejects a whitespace-only name', async () => {
@@ -876,7 +963,9 @@ describe('CustomTableEditor', () => {
       const nameInput = modal.findAll('.u-input')[0];
       await nameInput.setValue('   ');
       await flushPromises();
-      await wrapper.find('[data-test="add-column-modal"] [data-label="Add Column"]').trigger('click');
+      await wrapper
+        .find('[data-test="add-column-modal"] [data-label="Add Column"]')
+        .trigger('click');
       await flushPromises();
       const errorBox = wrapper.find('[data-testid="add-column-errors"]');
       expect(errorBox.exists()).toBe(true);
@@ -889,7 +978,9 @@ describe('CustomTableEditor', () => {
       // "title" collides with existing "Title" case-insensitively
       await nameInput.setValue('title');
       await flushPromises();
-      await wrapper.find('[data-test="add-column-modal"] [data-label="Add Column"]').trigger('click');
+      await wrapper
+        .find('[data-test="add-column-modal"] [data-label="Add Column"]')
+        .trigger('click');
       await flushPromises();
       const errorBox = wrapper.find('[data-testid="add-column-errors"]');
       expect(errorBox.exists()).toBe(true);
@@ -903,7 +994,9 @@ describe('CustomTableEditor', () => {
       // "Status " collides with existing "Status" after trimming
       await nameInput.setValue('Status ');
       await flushPromises();
-      await wrapper.find('[data-test="add-column-modal"] [data-label="Add Column"]').trigger('click');
+      await wrapper
+        .find('[data-test="add-column-modal"] [data-label="Add Column"]')
+        .trigger('click');
       await flushPromises();
       const errorBox = wrapper.find('[data-testid="add-column-errors"]');
       expect(errorBox.exists()).toBe(true);
@@ -916,7 +1009,9 @@ describe('CustomTableEditor', () => {
       const nameInput = modal.findAll('.u-input')[0];
       await nameInput.setValue('id');
       await flushPromises();
-      await wrapper.find('[data-test="add-column-modal"] [data-label="Add Column"]').trigger('click');
+      await wrapper
+        .find('[data-test="add-column-modal"] [data-label="Add Column"]')
+        .trigger('click');
       await flushPromises();
       const errorBox = wrapper.find('[data-testid="add-column-errors"]');
       expect(errorBox.exists()).toBe(true);
@@ -931,7 +1026,9 @@ describe('CustomTableEditor', () => {
       await modal.find('.u-select').setValue('dropdown');
       await flushPromises();
       // Leave choices empty
-      await wrapper.find('[data-test="add-column-modal"] [data-label="Add Column"]').trigger('click');
+      await wrapper
+        .find('[data-test="add-column-modal"] [data-label="Add Column"]')
+        .trigger('click');
       await flushPromises();
       const errorBox = wrapper.find('[data-testid="add-column-errors"]');
       expect(errorBox.exists()).toBe(true);
@@ -949,7 +1046,9 @@ describe('CustomTableEditor', () => {
       const choicesInput = modalAfter.findAll('.u-input')[1];
       await choicesInput.setValue(', , ,');
       await flushPromises();
-      await wrapper.find('[data-test="add-column-modal"] [data-label="Add Column"]').trigger('click');
+      await wrapper
+        .find('[data-test="add-column-modal"] [data-label="Add Column"]')
+        .trigger('click');
       await flushPromises();
       const errorBox = wrapper.find('[data-testid="add-column-errors"]');
       expect(errorBox.exists()).toBe(true);
@@ -961,7 +1060,10 @@ describe('CustomTableEditor', () => {
       seedDef(makeDef());
       const { wrapper } = await mountEditor(VALID_UUID_A);
       // Initial columns: __select, Title, Score, Status
-      let fields = wrapper.find('[data-test="column-fields"]').text().split(',');
+      let fields = wrapper
+        .find('[data-test="column-fields"]')
+        .text()
+        .split(',');
       expect(fields).toEqual(['__select', 'Title', 'Score', 'Status']);
 
       await wrapper.find('[data-label="Add Column"]').trigger('click');
@@ -1028,7 +1130,9 @@ describe('CustomTableEditor', () => {
       expect(newCol.type).toBe('dropdown');
       expect(newCol.required).toBe(true);
       expect(newCol.choices).toEqual(['A', 'B', 'C']);
-      expect(newCol.id).toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/);
+      expect(newCol.id).toMatch(
+        /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/,
+      );
     });
   });
 
@@ -1094,8 +1198,20 @@ describe('CustomTableEditor', () => {
       const onSave = saveCapture.onSave!;
       const result = await onSave({
         upserts: [
-          { id: row1Id, Title: 'First', Score: 1, Status: 'Open', Mandatory: null },
-          { id: row2Id, Title: 'Second', Score: 2, Status: 'Closed', Mandatory: null },
+          {
+            id: row1Id,
+            Title: 'First',
+            Score: 1,
+            Status: 'Open',
+            Mandatory: null,
+          },
+          {
+            id: row2Id,
+            Title: 'Second',
+            Score: 2,
+            Status: 'Closed',
+            Mandatory: null,
+          },
         ],
         deletes: [],
       });
@@ -1127,8 +1243,20 @@ describe('CustomTableEditor', () => {
       const onSave = saveCapture.onSave!;
       const result = await onSave({
         upserts: [
-          { id: row1Id, Title: 'First', Score: 1, Status: 'Open', Mandatory: 'yes' },
-          { id: row2Id, Title: 'Second', Score: 2, Status: 'Closed', Mandatory: 'yes' },
+          {
+            id: row1Id,
+            Title: 'First',
+            Score: 1,
+            Status: 'Open',
+            Mandatory: 'yes',
+          },
+          {
+            id: row2Id,
+            Title: 'Second',
+            Score: 2,
+            Status: 'Closed',
+            Mandatory: 'yes',
+          },
         ],
         deletes: [],
       });
@@ -1152,9 +1280,14 @@ describe('CustomTableEditor', () => {
       await modal.find('[data-label="Cancel"]').trigger('click');
       await flushPromises();
       // Modal closed
-      expect(wrapper.find('[data-test="add-column-modal"]').exists()).toBe(false);
+      expect(wrapper.find('[data-test="add-column-modal"]').exists()).toBe(
+        false,
+      );
       // Columns unchanged
-      const fields = wrapper.find('[data-test="column-fields"]').text().split(',');
+      const fields = wrapper
+        .find('[data-test="column-fields"]')
+        .text()
+        .split(',');
       expect(fields).toEqual(['__select', 'Title', 'Score', 'Status']);
       // Definition unchanged
       expect(localStorage.getItem('sc-table-defs')).toBe(defBefore);

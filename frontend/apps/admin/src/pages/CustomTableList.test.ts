@@ -1,10 +1,16 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { nextTick, defineComponent, h, type VNode } from 'vue';
 import { mount, flushPromises } from '@vue/test-utils';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+} from 'vite-plus/test';
+import { nextTick, defineComponent, h, type VNode } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
-import type { TableDefinition } from 'src/types/customTable';
-
 import CustomTableList from './CustomTableList';
+import type { TableDefinition } from 'src/types/customTable';
 
 // ── Stub Nuxt UI components ──
 // The real UButton internally renders a Nuxt UI Link that injects a vue-router
@@ -57,11 +63,15 @@ vi.mock('@nuxt/ui/components/Modal.vue', () => ({
               },
               [
                 slots.default?.(),
-                h('button', {
-                  class: 'u-button',
-                  'data-label': 'modal-close',
-                  onClick: () => emit('update:open', false),
-                }, 'Close'),
+                h(
+                  'button',
+                  {
+                    class: 'u-button',
+                    'data-label': 'modal-close',
+                    onClick: () => emit('update:open', false),
+                  },
+                  'Close',
+                ),
               ],
             )
           : h('div', { class: 'u-modal', 'data-open': 'false' });
@@ -94,7 +104,11 @@ const COL_UUID_5 = '88888888-8888-4888-8888-888888888888';
 const COL_UUID_6 = '99999999-9999-4999-8999-999999999999';
 const VALID_ISO = '2026-08-11T12:00:00.000Z';
 
-function col(id: string, name: string, over: Partial<TableDefinition['columns'][number]> = {}) {
+function col(
+  id: string,
+  name: string,
+  over: Partial<TableDefinition['columns'][number]> = {},
+) {
   return {
     id,
     name,
@@ -112,7 +126,10 @@ function def(over: Partial<TableDefinition> = {}): TableDefinition {
     columns: [
       col(COL_UUID_1, 'Title'),
       col(COL_UUID_2, 'Score', { type: 'number' }),
-      col(COL_UUID_3, 'Status', { type: 'dropdown', choices: ['Open', 'Closed'] }),
+      col(COL_UUID_3, 'Status', {
+        type: 'dropdown',
+        choices: ['Open', 'Closed'],
+      }),
     ],
     createdAt: VALID_ISO,
     updatedAt: VALID_ISO,
@@ -233,7 +250,17 @@ describe('CustomTableList', () => {
     });
 
     it('shows the column count matching the definition exactly (no phantom columns)', async () => {
-      seedDef(def({ id: VALID_UUID_A, columns: [col(COL_UUID_1, 'A'), col(COL_UUID_2, 'B'), col(COL_UUID_3, 'C'), col(COL_UUID_4, 'D')] }));
+      seedDef(
+        def({
+          id: VALID_UUID_A,
+          columns: [
+            col(COL_UUID_1, 'A'),
+            col(COL_UUID_2, 'B'),
+            col(COL_UUID_3, 'C'),
+            col(COL_UUID_4, 'D'),
+          ],
+        }),
+      );
       const { wrapper } = await mountList();
       expect(wrapper.text()).toContain('4');
       expect(wrapper.text()).not.toContain('5 columns');
@@ -242,9 +269,24 @@ describe('CustomTableList', () => {
     it('reads the row count from the table data key, not the definition', async () => {
       seedDef(def({ id: VALID_UUID_A }));
       seedRows(VALID_UUID_A, [
-        { id: VALID_UUID_A, createdAt: VALID_ISO, updatedAt: VALID_ISO, Title: 'x' },
-        { id: VALID_UUID_B, createdAt: VALID_ISO, updatedAt: VALID_ISO, Title: 'y' },
-        { id: VALID_UUID_C, createdAt: VALID_ISO, updatedAt: VALID_ISO, Title: 'z' },
+        {
+          id: VALID_UUID_A,
+          createdAt: VALID_ISO,
+          updatedAt: VALID_ISO,
+          Title: 'x',
+        },
+        {
+          id: VALID_UUID_B,
+          createdAt: VALID_ISO,
+          updatedAt: VALID_ISO,
+          Title: 'y',
+        },
+        {
+          id: VALID_UUID_C,
+          createdAt: VALID_ISO,
+          updatedAt: VALID_ISO,
+          Title: 'z',
+        },
       ]);
       const { wrapper } = await mountList();
       const card = wrapper.find('.u-card');
@@ -272,9 +314,31 @@ describe('CustomTableList', () => {
     });
 
     it('renders multiple cards with correct names and column counts', async () => {
-      seedDef(def({ id: VALID_UUID_A, name: 'Alpha', columns: [col(COL_UUID_1, 'A')] }));
-      seedDef(def({ id: VALID_UUID_B, name: 'Beta', columns: [col(COL_UUID_2, 'B'), col(COL_UUID_3, 'C')] }));
-      seedDef(def({ id: VALID_UUID_C, name: 'Gamma', columns: [col(COL_UUID_4, 'D'), col(COL_UUID_5, 'E'), col(COL_UUID_6, 'F')] }));
+      seedDef(
+        def({
+          id: VALID_UUID_A,
+          name: 'Alpha',
+          columns: [col(COL_UUID_1, 'A')],
+        }),
+      );
+      seedDef(
+        def({
+          id: VALID_UUID_B,
+          name: 'Beta',
+          columns: [col(COL_UUID_2, 'B'), col(COL_UUID_3, 'C')],
+        }),
+      );
+      seedDef(
+        def({
+          id: VALID_UUID_C,
+          name: 'Gamma',
+          columns: [
+            col(COL_UUID_4, 'D'),
+            col(COL_UUID_5, 'E'),
+            col(COL_UUID_6, 'F'),
+          ],
+        }),
+      );
       const { wrapper } = await mountList();
       const cards = wrapper.findAll('.u-card');
       expect(cards).toHaveLength(3);
@@ -297,7 +361,9 @@ describe('CustomTableList', () => {
       seedDef(def({ id: VALID_UUID_A }));
       const { wrapper, router } = await mountList();
       const buttons = wrapper.findAll('[data-label]');
-      const newBtn = buttons.find((b) => b.attributes('data-label') === 'New Table');
+      const newBtn = buttons.find(
+        (b) => b.attributes('data-label') === 'New Table',
+      );
       expect(newBtn).toBeDefined();
       await newBtn!.trigger('click');
       await flushPromises();
@@ -337,7 +403,12 @@ describe('CustomTableList', () => {
     it('cancelling the modal leaves the definition and data intact', async () => {
       seedDef(def({ id: VALID_UUID_A, name: 'Keep Me' }));
       seedRows(VALID_UUID_A, [
-        { id: VALID_UUID_A, createdAt: VALID_ISO, updatedAt: VALID_ISO, Title: 'x' },
+        {
+          id: VALID_UUID_A,
+          createdAt: VALID_ISO,
+          updatedAt: VALID_ISO,
+          Title: 'x',
+        },
       ]);
       const { wrapper } = await mountList();
       // open delete modal
@@ -345,7 +416,9 @@ describe('CustomTableList', () => {
       await deleteBtn.trigger('click');
       await nextTick();
       // cancel — click the Cancel button
-      const cancelBtn = wrapper.findAll('button').find((b) => b.text() === 'Cancel');
+      const cancelBtn = wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Cancel');
       expect(cancelBtn).toBeDefined();
       await cancelBtn!.trigger('click');
       await nextTick();
@@ -357,19 +430,28 @@ describe('CustomTableList', () => {
       expect(raw).not.toBeNull();
       expect(JSON.parse(raw as string)).toHaveLength(1);
       // data key still present
-      expect(localStorage.getItem(`sc-table-data-${VALID_UUID_A}`)).not.toBeNull();
+      expect(
+        localStorage.getItem(`sc-table-data-${VALID_UUID_A}`),
+      ).not.toBeNull();
     });
 
     it('confirming delete removes the definition and its data key', async () => {
       seedDef(def({ id: VALID_UUID_A, name: 'Remove Me' }));
       seedRows(VALID_UUID_A, [
-        { id: VALID_UUID_A, createdAt: VALID_ISO, updatedAt: VALID_ISO, Title: 'x' },
+        {
+          id: VALID_UUID_A,
+          createdAt: VALID_ISO,
+          updatedAt: VALID_ISO,
+          Title: 'x',
+        },
       ]);
       const { wrapper } = await mountList();
       const deleteBtn = wrapper.find('[data-label="Delete"]');
       await deleteBtn.trigger('click');
       await nextTick();
-      const confirmBtn = wrapper.findAll('button').find((b) => b.text() === 'Confirm');
+      const confirmBtn = wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Confirm');
       expect(confirmBtn).toBeDefined();
       await confirmBtn!.trigger('click');
       await flushPromises();
@@ -387,10 +469,20 @@ describe('CustomTableList', () => {
       seedDef(def({ id: VALID_UUID_A, name: 'Remove Me' }));
       seedDef(def({ id: VALID_UUID_B, name: 'Survivor' }));
       seedRows(VALID_UUID_A, [
-        { id: VALID_UUID_A, createdAt: VALID_ISO, updatedAt: VALID_ISO, Title: 'x' },
+        {
+          id: VALID_UUID_A,
+          createdAt: VALID_ISO,
+          updatedAt: VALID_ISO,
+          Title: 'x',
+        },
       ]);
       seedRows(VALID_UUID_B, [
-        { id: VALID_UUID_B, createdAt: VALID_ISO, updatedAt: VALID_ISO, Title: 'y' },
+        {
+          id: VALID_UUID_B,
+          createdAt: VALID_ISO,
+          updatedAt: VALID_ISO,
+          Title: 'y',
+        },
       ]);
       const { wrapper } = await mountList();
       expect(wrapper.findAll('.u-card')).toHaveLength(2);
@@ -398,7 +490,9 @@ describe('CustomTableList', () => {
       const deleteBtn = wrapper.find('[data-label="Delete"]');
       await deleteBtn.trigger('click');
       await nextTick();
-      const confirmBtn = wrapper.findAll('button').find((b) => b.text() === 'Confirm');
+      const confirmBtn = wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Confirm');
       await confirmBtn!.trigger('click');
       await flushPromises();
       await nextTick();
@@ -412,7 +506,9 @@ describe('CustomTableList', () => {
       expect(parsed).toHaveLength(1);
       expect(parsed[0].id).toBe(VALID_UUID_B);
       // survivor data intact
-      expect(localStorage.getItem(`sc-table-data-${VALID_UUID_B}`)).not.toBeNull();
+      expect(
+        localStorage.getItem(`sc-table-data-${VALID_UUID_B}`),
+      ).not.toBeNull();
       // removed data key gone
       expect(localStorage.getItem(`sc-table-data-${VALID_UUID_A}`)).toBeNull();
     });
@@ -464,10 +560,14 @@ describe('CustomTableList', () => {
       seedDef(def({ id: VALID_UUID_A, name: 'Alpha' }));
       seedDef(def({ id: VALID_UUID_B, name: 'Beta' }));
       const { wrapper: w1 } = await mountList();
-      const names1 = w1.findAll('.u-card').map((c) => c.text().match(/(Gamma|Alpha|Beta)/)?.[0]);
+      const names1 = w1
+        .findAll('.u-card')
+        .map((c) => c.text().match(/(Gamma|Alpha|Beta)/)?.[0]);
       w1.unmount();
       const { wrapper: w2 } = await mountList();
-      const names2 = w2.findAll('.u-card').map((c) => c.text().match(/(Gamma|Alpha|Beta)/)?.[0]);
+      const names2 = w2
+        .findAll('.u-card')
+        .map((c) => c.text().match(/(Gamma|Alpha|Beta)/)?.[0]);
       expect(names2).toEqual(names1);
     });
   });

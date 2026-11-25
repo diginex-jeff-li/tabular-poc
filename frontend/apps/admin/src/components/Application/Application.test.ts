@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { defineComponent, h, type VNode } from 'vue';
 import { mount } from '@vue/test-utils';
+import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
+import { defineComponent, h, type VNode } from 'vue';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import Application from './Application';
 
@@ -24,7 +24,8 @@ vi.mock('@nuxt/ui/components/App.vue', () => ({
 const PlaceholderPage = defineComponent({
   name: 'PlaceholderPage',
   setup() {
-    return (): VNode => h('div', { class: 'placeholder-page' }, 'Grid goes here');
+    return (): VNode =>
+      h('div', { class: 'placeholder-page' }, 'Grid goes here');
   },
 });
 
@@ -65,8 +66,8 @@ describe('Application — nav shell', () => {
     const headerIndex = Array.from(children).findIndex(
       (el) => (el as HTMLElement).tagName === 'HEADER',
     );
-    const outletIndex = Array.from(children).findIndex(
-      (el) => (el as HTMLElement).classList.contains('router-outlet'),
+    const outletIndex = Array.from(children).findIndex((el) =>
+      (el as HTMLElement).classList.contains('router-outlet'),
     );
     expect(headerIndex).toBeGreaterThanOrEqual(0);
     expect(outletIndex).toBeGreaterThan(headerIndex);

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import { definitionToColumns } from './definitionToColumns';
 import type { ColumnDef } from 'src/types/customTable';
 
@@ -53,7 +53,9 @@ describe('definitionToColumns', () => {
 
   describe('text columns', () => {
     it('yields editor input and headerFilter input', () => {
-      const columns = definitionToColumns([col({ name: 'Title', type: 'text', required: false })]);
+      const columns = definitionToColumns([
+        col({ name: 'Title', type: 'text', required: false }),
+      ]);
       expect(columns[1]).toMatchObject({
         field: 'Title',
         title: 'Title',
@@ -63,19 +65,25 @@ describe('definitionToColumns', () => {
     });
 
     it('required text column adds the required validator', () => {
-      const columns = definitionToColumns([col({ name: 'Title', type: 'text', required: true })]);
+      const columns = definitionToColumns([
+        col({ name: 'Title', type: 'text', required: true }),
+      ]);
       expect(columns[1].validator).toBe('required');
     });
 
     it('optional text column omits the required validator', () => {
-      const columns = definitionToColumns([col({ name: 'Title', type: 'text', required: false })]);
+      const columns = definitionToColumns([
+        col({ name: 'Title', type: 'text', required: false }),
+      ]);
       expect(columns[1].validator).toBeUndefined();
     });
   });
 
   describe('number columns', () => {
     it('yields editor number and headerFilter input', () => {
-      const columns = definitionToColumns([col({ name: 'Score', type: 'number', required: false })]);
+      const columns = definitionToColumns([
+        col({ name: 'Score', type: 'number', required: false }),
+      ]);
       expect(columns[1]).toMatchObject({
         field: 'Score',
         editor: 'number',
@@ -84,7 +92,9 @@ describe('definitionToColumns', () => {
     });
 
     it('has a coercing mutator that converts a numeric string to a number', () => {
-      const columns = definitionToColumns([col({ name: 'Score', type: 'number', required: false })]);
+      const columns = definitionToColumns([
+        col({ name: 'Score', type: 'number', required: false }),
+      ]);
       const mutator = columns[1].mutator as (value: unknown) => unknown;
       expect(typeof mutator).toBe('function');
       expect(mutator('42')).toBe(42);
@@ -92,7 +102,9 @@ describe('definitionToColumns', () => {
     });
 
     it('the mutator leaves non-numeric input alone for the schema to reject', () => {
-      const columns = definitionToColumns([col({ name: 'Score', type: 'number', required: false })]);
+      const columns = definitionToColumns([
+        col({ name: 'Score', type: 'number', required: false }),
+      ]);
       const mutator = columns[1].mutator as (value: unknown) => unknown;
       // 'abc' stays a string — the runtime schema rejects it downstream
       expect(mutator('abc')).toBe('abc');
@@ -100,24 +112,32 @@ describe('definitionToColumns', () => {
     });
 
     it('the mutator coerces a numeric string with decimals', () => {
-      const columns = definitionToColumns([col({ name: 'Score', type: 'number', required: false })]);
+      const columns = definitionToColumns([
+        col({ name: 'Score', type: 'number', required: false }),
+      ]);
       const mutator = columns[1].mutator as (value: unknown) => unknown;
       expect(mutator('3.14')).toBe(3.14);
     });
 
     it('the mutator passes through an actual number unchanged', () => {
-      const columns = definitionToColumns([col({ name: 'Score', type: 'number', required: false })]);
+      const columns = definitionToColumns([
+        col({ name: 'Score', type: 'number', required: false }),
+      ]);
       const mutator = columns[1].mutator as (value: unknown) => unknown;
       expect(mutator(99)).toBe(99);
     });
 
     it('required number column adds the required validator', () => {
-      const columns = definitionToColumns([col({ name: 'Score', type: 'number', required: true })]);
+      const columns = definitionToColumns([
+        col({ name: 'Score', type: 'number', required: true }),
+      ]);
       expect(columns[1].validator).toBe('required');
     });
 
     it('optional number column omits the required validator', () => {
-      const columns = definitionToColumns([col({ name: 'Score', type: 'number', required: false })]);
+      const columns = definitionToColumns([
+        col({ name: 'Score', type: 'number', required: false }),
+      ]);
       expect(columns[1].validator).toBeUndefined();
     });
   });
@@ -139,12 +159,20 @@ describe('definitionToColumns', () => {
         col({ name: 'Status', type: 'dropdown', choices: ['Open', 'Closed'] }),
       ]);
       expect(columns[1].headerFilter).toBe('list');
-      expect(columns[1].headerFilterParams).toEqual({ values: ['Open', 'Closed'], clearable: true });
+      expect(columns[1].headerFilterParams).toEqual({
+        values: ['Open', 'Closed'],
+        clearable: true,
+      });
     });
 
     it('required dropdown gets both required and in validators', () => {
       const columns = definitionToColumns([
-        col({ name: 'Status', type: 'dropdown', required: true, choices: ['Open', 'Closed'] }),
+        col({
+          name: 'Status',
+          type: 'dropdown',
+          required: true,
+          choices: ['Open', 'Closed'],
+        }),
       ]);
       expect(columns[1].validator).toEqual([
         'required',
@@ -154,7 +182,12 @@ describe('definitionToColumns', () => {
 
     it('optional dropdown gets only the in validator', () => {
       const columns = definitionToColumns([
-        col({ name: 'Status', type: 'dropdown', required: false, choices: ['Open', 'Closed'] }),
+        col({
+          name: 'Status',
+          type: 'dropdown',
+          required: false,
+          choices: ['Open', 'Closed'],
+        }),
       ]);
       expect(columns[1].validator).toEqual([
         { type: 'in', parameters: 'Open|Closed' },
@@ -163,7 +196,12 @@ describe('definitionToColumns', () => {
 
     it('handles a single-choice dropdown', () => {
       const columns = definitionToColumns([
-        col({ name: 'Status', type: 'dropdown', required: true, choices: ['Only'] }),
+        col({
+          name: 'Status',
+          type: 'dropdown',
+          required: true,
+          choices: ['Only'],
+        }),
       ]);
       expect(columns[1].editorParams).toEqual({ values: ['Only'] });
       expect(columns[1].validator).toEqual([
@@ -188,15 +226,39 @@ describe('definitionToColumns', () => {
       const columns = definitionToColumns([
         col({ id: VALID_UUID, name: 'Name', type: 'text', required: true }),
         col({ id: VALID_UUID, name: 'Score', type: 'number', required: true }),
-        col({ id: VALID_UUID, name: 'Category', type: 'dropdown', required: true, choices: ['A', 'B', 'C'] }),
+        col({
+          id: VALID_UUID,
+          name: 'Category',
+          type: 'dropdown',
+          required: true,
+          choices: ['A', 'B', 'C'],
+        }),
         col({ id: VALID_UUID, name: 'Notes', type: 'text', required: false }),
       ]);
       expect(columns).toHaveLength(5);
       expect(columns[0].field).toBe('__select');
-      expect(columns[1]).toMatchObject({ field: 'Name', editor: 'input', validator: 'required', headerFilter: 'input' });
-      expect(columns[2]).toMatchObject({ field: 'Score', editor: 'number', validator: 'required', headerFilter: 'input' });
-      expect(columns[3]).toMatchObject({ field: 'Category', editor: 'list', headerFilter: 'list' });
-      expect(columns[4]).toMatchObject({ field: 'Notes', editor: 'input', headerFilter: 'input' });
+      expect(columns[1]).toMatchObject({
+        field: 'Name',
+        editor: 'input',
+        validator: 'required',
+        headerFilter: 'input',
+      });
+      expect(columns[2]).toMatchObject({
+        field: 'Score',
+        editor: 'number',
+        validator: 'required',
+        headerFilter: 'input',
+      });
+      expect(columns[3]).toMatchObject({
+        field: 'Category',
+        editor: 'list',
+        headerFilter: 'list',
+      });
+      expect(columns[4]).toMatchObject({
+        field: 'Notes',
+        editor: 'input',
+        headerFilter: 'input',
+      });
       expect(columns[4].validator).toBeUndefined();
     });
   });

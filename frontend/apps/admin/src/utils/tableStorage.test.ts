@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vite-plus/test';
 import {
   tableDataKey,
   parseTableDefinitions,
@@ -7,7 +7,11 @@ import {
   writeTableRows,
   deleteTableData,
 } from './tableStorage';
-import type { ColumnDef, TableDefinition, TableRow } from 'src/types/customTable';
+import type {
+  ColumnDef,
+  TableDefinition,
+  TableRow,
+} from 'src/types/customTable';
 
 const VALID_UUID = '550e8400-e29b-41d4-a716-446655440000';
 const OTHER_UUID = '660e8400-e29b-41d4-a716-446655440001';
@@ -146,7 +150,9 @@ describe('tableStorage', () => {
 
     it('returns an empty array when all entries are invalid', () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const result = parseTableDefinitions(JSON.stringify([{ a: 1 }, { b: 2 }]));
+      const result = parseTableDefinitions(
+        JSON.stringify([{ a: 1 }, { b: 2 }]),
+      );
       expect(result).toEqual([]);
       warnSpy.mockRestore();
     });
@@ -295,7 +301,12 @@ describe('tableStorage', () => {
     });
 
     it('round-trips rows with extra keys', () => {
-      const r = row({ id: VALID_UUID, Title: 'Hello', Score: 42, Status: 'Open' });
+      const r = row({
+        id: VALID_UUID,
+        Title: 'Hello',
+        Score: 42,
+        Status: 'Open',
+      });
       writeTableRows('abc-123', [r]);
       const result = readTableRows('abc-123');
       expect(result).toHaveLength(1);

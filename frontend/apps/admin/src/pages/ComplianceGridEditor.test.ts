@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
 import { buildComplianceColumns } from 'composables/buildComplianceColumns';
+import { describe, it, expect } from 'vite-plus/test';
 
 /**
  * TDD tests for the compliance grid editor's compliance-specific material.

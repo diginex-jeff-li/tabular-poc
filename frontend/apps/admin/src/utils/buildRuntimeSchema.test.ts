@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import { z } from 'zod';
 import { buildRuntimeSchema } from './buildRuntimeSchema';
 import type { ColumnDef } from 'src/types/customTable';
@@ -38,7 +38,13 @@ describe('buildRuntimeSchema', () => {
     const schema = buildRuntimeSchema([
       col({ id: OTHER_UUID, name: 'Title', type: 'text', required: true }),
       col({ id: OTHER_UUID, name: 'Score', type: 'number', required: true }),
-      col({ id: OTHER_UUID, name: 'Status', type: 'dropdown', required: true, choices: ['Open', 'Closed'] }),
+      col({
+        id: OTHER_UUID,
+        name: 'Status',
+        type: 'dropdown',
+        required: true,
+        choices: ['Open', 'Closed'],
+      }),
     ]);
     const result = schema.safeParse({
       ...meta(),
@@ -164,7 +170,13 @@ describe('buildRuntimeSchema', () => {
   describe('dropdown columns', () => {
     it('a dropdown column accepts a value from its choices', () => {
       const schema = buildRuntimeSchema([
-        col({ id: OTHER_UUID, name: 'Status', type: 'dropdown', required: true, choices: ['Open', 'Closed'] }),
+        col({
+          id: OTHER_UUID,
+          name: 'Status',
+          type: 'dropdown',
+          required: true,
+          choices: ['Open', 'Closed'],
+        }),
       ]);
       const result = schema.safeParse({ ...meta(), Status: 'Open' });
       expect(result.success).toBe(true);
@@ -172,7 +184,13 @@ describe('buildRuntimeSchema', () => {
 
     it('a dropdown column rejects a value outside its choices', () => {
       const schema = buildRuntimeSchema([
-        col({ id: OTHER_UUID, name: 'Status', type: 'dropdown', required: true, choices: ['Open', 'Closed'] }),
+        col({
+          id: OTHER_UUID,
+          name: 'Status',
+          type: 'dropdown',
+          required: true,
+          choices: ['Open', 'Closed'],
+        }),
       ]);
       const result = schema.safeParse({ ...meta(), Status: 'Critical' });
       expect(result.success).toBe(false);
@@ -180,7 +198,13 @@ describe('buildRuntimeSchema', () => {
 
     it('a required dropdown column rejects an empty string', () => {
       const schema = buildRuntimeSchema([
-        col({ id: OTHER_UUID, name: 'Status', type: 'dropdown', required: true, choices: ['Open', 'Closed'] }),
+        col({
+          id: OTHER_UUID,
+          name: 'Status',
+          type: 'dropdown',
+          required: true,
+          choices: ['Open', 'Closed'],
+        }),
       ]);
       const result = schema.safeParse({ ...meta(), Status: '' });
       expect(result.success).toBe(false);
@@ -188,7 +212,13 @@ describe('buildRuntimeSchema', () => {
 
     it('a required dropdown column rejects a missing key', () => {
       const schema = buildRuntimeSchema([
-        col({ id: OTHER_UUID, name: 'Status', type: 'dropdown', required: true, choices: ['Open', 'Closed'] }),
+        col({
+          id: OTHER_UUID,
+          name: 'Status',
+          type: 'dropdown',
+          required: true,
+          choices: ['Open', 'Closed'],
+        }),
       ]);
       const result = schema.safeParse({ ...meta() });
       expect(result.success).toBe(false);
@@ -196,7 +226,13 @@ describe('buildRuntimeSchema', () => {
 
     it('an optional dropdown column accepts null', () => {
       const schema = buildRuntimeSchema([
-        col({ id: OTHER_UUID, name: 'Status', type: 'dropdown', required: false, choices: ['Open', 'Closed'] }),
+        col({
+          id: OTHER_UUID,
+          name: 'Status',
+          type: 'dropdown',
+          required: false,
+          choices: ['Open', 'Closed'],
+        }),
       ]);
       const result = schema.safeParse({ ...meta(), Status: null });
       expect(result.success).toBe(true);
@@ -204,7 +240,13 @@ describe('buildRuntimeSchema', () => {
 
     it('an optional dropdown column accepts undefined (missing key)', () => {
       const schema = buildRuntimeSchema([
-        col({ id: OTHER_UUID, name: 'Status', type: 'dropdown', required: false, choices: ['Open', 'Closed'] }),
+        col({
+          id: OTHER_UUID,
+          name: 'Status',
+          type: 'dropdown',
+          required: false,
+          choices: ['Open', 'Closed'],
+        }),
       ]);
       const result = schema.safeParse({ ...meta() });
       expect(result.success).toBe(true);
@@ -212,7 +254,13 @@ describe('buildRuntimeSchema', () => {
 
     it('an optional dropdown column accepts an empty string', () => {
       const schema = buildRuntimeSchema([
-        col({ id: OTHER_UUID, name: 'Status', type: 'dropdown', required: false, choices: ['Open', 'Closed'] }),
+        col({
+          id: OTHER_UUID,
+          name: 'Status',
+          type: 'dropdown',
+          required: false,
+          choices: ['Open', 'Closed'],
+        }),
       ]);
       const result = schema.safeParse({ ...meta(), Status: '' });
       expect(result.success).toBe(true);
@@ -220,7 +268,13 @@ describe('buildRuntimeSchema', () => {
 
     it('a dropdown with a single choice accepts that choice', () => {
       const schema = buildRuntimeSchema([
-        col({ id: OTHER_UUID, name: 'Status', type: 'dropdown', required: true, choices: ['Only'] }),
+        col({
+          id: OTHER_UUID,
+          name: 'Status',
+          type: 'dropdown',
+          required: true,
+          choices: ['Only'],
+        }),
       ]);
       const result = schema.safeParse({ ...meta(), Status: 'Only' });
       expect(result.success).toBe(true);
@@ -230,30 +284,64 @@ describe('buildRuntimeSchema', () => {
   describe('metadata fields', () => {
     it('requires id as a uuid', () => {
       const schema = buildRuntimeSchema([]);
-      expect(schema.safeParse({ createdAt: VALID_ISO, updatedAt: VALID_ISO }).success).toBe(false);
-      expect(schema.safeParse({ id: 'not-a-uuid', createdAt: VALID_ISO, updatedAt: VALID_ISO }).success).toBe(false);
+      expect(
+        schema.safeParse({ createdAt: VALID_ISO, updatedAt: VALID_ISO })
+          .success,
+      ).toBe(false);
+      expect(
+        schema.safeParse({
+          id: 'not-a-uuid',
+          createdAt: VALID_ISO,
+          updatedAt: VALID_ISO,
+        }).success,
+      ).toBe(false);
     });
 
     it('requires createdAt as a datetime', () => {
       const schema = buildRuntimeSchema([]);
-      expect(schema.safeParse({ id: VALID_UUID, updatedAt: VALID_ISO }).success).toBe(false);
-      expect(schema.safeParse({ id: VALID_UUID, createdAt: 'nope', updatedAt: VALID_ISO }).success).toBe(false);
+      expect(
+        schema.safeParse({ id: VALID_UUID, updatedAt: VALID_ISO }).success,
+      ).toBe(false);
+      expect(
+        schema.safeParse({
+          id: VALID_UUID,
+          createdAt: 'nope',
+          updatedAt: VALID_ISO,
+        }).success,
+      ).toBe(false);
     });
 
     it('requires updatedAt as a datetime', () => {
       const schema = buildRuntimeSchema([]);
-      expect(schema.safeParse({ id: VALID_UUID, createdAt: VALID_ISO }).success).toBe(false);
-      expect(schema.safeParse({ id: VALID_UUID, createdAt: VALID_ISO, updatedAt: 'nope' }).success).toBe(false);
+      expect(
+        schema.safeParse({ id: VALID_UUID, createdAt: VALID_ISO }).success,
+      ).toBe(false);
+      expect(
+        schema.safeParse({
+          id: VALID_UUID,
+          createdAt: VALID_ISO,
+          updatedAt: 'nope',
+        }).success,
+      ).toBe(false);
     });
   });
 
   describe('column keying', () => {
     it('keys columns by their name exactly, including names with spaces', () => {
       const schema = buildRuntimeSchema([
-        col({ id: OTHER_UUID, name: 'Full Name', type: 'text', required: true }),
+        col({
+          id: OTHER_UUID,
+          name: 'Full Name',
+          type: 'text',
+          required: true,
+        }),
       ]);
-      expect(schema.safeParse({ ...meta(), 'Full Name': 'Alice' }).success).toBe(true);
-      expect(schema.safeParse({ ...meta(), FullName: 'Alice' }).success).toBe(false);
+      expect(
+        schema.safeParse({ ...meta(), 'Full Name': 'Alice' }).success,
+      ).toBe(true);
+      expect(schema.safeParse({ ...meta(), FullName: 'Alice' }).success).toBe(
+        false,
+      );
     });
   });
 });

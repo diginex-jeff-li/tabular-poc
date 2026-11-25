@@ -1,10 +1,10 @@
-/// <reference types="vitest" />
+/// <reference types="vite-plus/test" />
 import path from 'path';
-import { defineConfig, loadEnv } from 'vite';
+import ui from '@nuxt/ui/vite';
 import vue from '@vitejs/plugin-vue';
 import vueJsx from '@vitejs/plugin-vue-jsx';
-import ui from '@nuxt/ui/vite';
 import AutoImport from 'unplugin-auto-import/vite';
+import { defineConfig, loadEnv, lazyPlugins } from 'vite-plus';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, path.resolve(__dirname, '../..'), '');
@@ -34,7 +34,7 @@ export default defineConfig(({ mode }) => {
       dedupe: ['@nuxt/ui', 'vue', 'vue-router'],
       extensions: ['.tsx', '.ts', '.jsx', '.js', '.vue', '.json'],
     },
-    plugins: [
+    plugins: lazyPlugins(() => [
       vue(),
       vueJsx(),
       ui({ autoImport: false, components: false, colorMode: false }),
@@ -59,11 +59,16 @@ export default defineConfig(({ mode }) => {
         ],
         dts: 'src/types/auto-imports.d.ts',
       }),
-    ],
+    ]),
     build: {
       target: 'esnext',
     },
     test: {
+      // Vitest v4 compatibility: preserve mock call history.
+      // Remove after tests no longer rely on calls from setup or earlier tests.
+      // https://viteplus.dev/guide/vitest-v5#remove-unneeded-compatibility-settings
+      // https://vitest.dev/guide/migration/#clearmocks-is-enabled-by-default
+      clearMocks: false,
       globals: true,
       environment: 'happy-dom',
       include: ['src/**/*.test.ts'],

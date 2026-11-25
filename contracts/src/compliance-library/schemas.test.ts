@@ -1,4 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
+import { BulkSaveRequestSchema } from './requests/index.js';
+import {
+  BulkSaveResponseSchema,
+  BulkSaveErrorSchema,
+} from './responses/index.js';
 import {
   ComplianceLibrarySchema,
   CategoryCodeEnum,
@@ -7,11 +12,6 @@ import {
   RiskLevelEnum,
   ClosureTimingEnum,
 } from './schemas/index.js';
-import { BulkSaveRequestSchema } from './requests/index.js';
-import {
-  BulkSaveResponseSchema,
-  BulkSaveErrorSchema,
-} from './responses/index.js';
 import type { ComplianceLibraryType } from './schemas/index.js';
 
 // ── Test data: a valid row matching Sample library.xlsx shape ──
@@ -36,7 +36,10 @@ describe('ComplianceLibrarySchema', () => {
   });
 
   it('rejects invalid categoryCode', () => {
-    const result = ComplianceLibrarySchema.safeParse({ ...validRow, categoryCode: 'Z' });
+    const result = ComplianceLibrarySchema.safeParse({
+      ...validRow,
+      categoryCode: 'Z',
+    });
     expect(result.success).toBe(false);
   });
 
@@ -49,12 +52,18 @@ describe('ComplianceLibrarySchema', () => {
   });
 
   it('rejects invalid riskLevel', () => {
-    const result = ComplianceLibrarySchema.safeParse({ ...validRow, riskLevel: 'Critical' });
+    const result = ComplianceLibrarySchema.safeParse({
+      ...validRow,
+      riskLevel: 'Critical',
+    });
     expect(result.success).toBe(false);
   });
 
   it('rejects invalid closureTiming', () => {
-    const result = ComplianceLibrarySchema.safeParse({ ...validRow, closureTiming: '45' });
+    const result = ComplianceLibrarySchema.safeParse({
+      ...validRow,
+      closureTiming: '45',
+    });
     expect(result.success).toBe(false);
   });
 
@@ -67,7 +76,10 @@ describe('ComplianceLibrarySchema', () => {
   });
 
   it('accepts null for bestPractice', () => {
-    const result = ComplianceLibrarySchema.safeParse({ ...validRow, bestPractice: null });
+    const result = ComplianceLibrarySchema.safeParse({
+      ...validRow,
+      bestPractice: null,
+    });
     expect(result.success).toBe(true);
   });
 
@@ -78,7 +90,10 @@ describe('ComplianceLibrarySchema', () => {
   });
 
   it('rejects non-UUID id', () => {
-    const result = ComplianceLibrarySchema.safeParse({ ...validRow, id: 'not-a-uuid' });
+    const result = ComplianceLibrarySchema.safeParse({
+      ...validRow,
+      id: 'not-a-uuid',
+    });
     expect(result.success).toBe(false);
   });
 });
@@ -91,7 +106,11 @@ describe('Enum exports', () => {
   });
 
   it('ComplianceCategoryEnum has 3 values', () => {
-    expect(ComplianceCategoryEnum.options).toEqual(['Governance', 'Social', 'Environment']);
+    expect(ComplianceCategoryEnum.options).toEqual([
+      'Governance',
+      'Social',
+      'Environment',
+    ]);
   });
 
   it('RiskLevelEnum has 3 values', () => {
@@ -99,7 +118,13 @@ describe('Enum exports', () => {
   });
 
   it('ClosureTimingEnum has 5 values', () => {
-    expect(ClosureTimingEnum.options).toEqual(['7', '30', '60', '90', 'Next assessment']);
+    expect(ClosureTimingEnum.options).toEqual([
+      '7',
+      '30',
+      '60',
+      '90',
+      'Next assessment',
+    ]);
   });
 
   it('TopicEnum has 14 values', () => {
@@ -129,7 +154,10 @@ describe('BulkSaveRequestSchema', () => {
   });
 
   it('parses empty upserts and deletes', () => {
-    const result = BulkSaveRequestSchema.safeParse({ upserts: [], deletes: [] });
+    const result = BulkSaveRequestSchema.safeParse({
+      upserts: [],
+      deletes: [],
+    });
     expect(result.success).toBe(true);
   });
 
@@ -159,8 +187,18 @@ describe('BulkSaveResponseSchema', () => {
   it('parses an error response with row-level errors including rowId', () => {
     const result = BulkSaveResponseSchema.safeParse({
       errors: [
-        { row: 0, rowId: '550e8400-e29b-41d4-a716-446655440000', field: 'riskLevel', message: 'Invalid enum value' },
-        { row: 2, rowId: '550e8400-e29b-41d4-a716-446655440001', field: 'issue', message: 'Required' },
+        {
+          row: 0,
+          rowId: '550e8400-e29b-41d4-a716-446655440000',
+          field: 'riskLevel',
+          message: 'Invalid enum value',
+        },
+        {
+          row: 2,
+          rowId: '550e8400-e29b-41d4-a716-446655440001',
+          field: 'issue',
+          message: 'Required',
+        },
       ],
       saved: 0,
     });

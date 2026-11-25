@@ -8,21 +8,19 @@
     "build": "pnpm --filter @sc/admin build",
     "preview": "pnpm --filter @sc/admin preview",
     "typecheck": "pnpm --filter @sc/admin typecheck",
-    "lint": "oxlint apps",
-    "fmt": "oxfmt --write \"apps/**/src/**/*.{ts,tsx}\"",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "lint": "vp lint apps",
+    "fmt": "vp fmt --write \"apps/**/src/**/*.{ts,tsx}\"",
+    "test": "vp test run",
+    "test:watch": "vp test"
   },
   "devDependencies": {
     "@types/node": "26.0.0",
     "@vitejs/plugin-vue": "6.0.7",
     "@vitejs/plugin-vue-jsx": "5.1.6",
     "happy-dom": "20.10.6",
-    "oxfmt": "0.56.0",
-    "oxlint": "1.71.0",
     "typescript": "6.0.3",
     "unplugin-auto-import": "21.0.0",
-    "vite": "8.1.0",
-    "vitest": "4.1.9"
+    "vite": "npm:@voidzero-dev/vite-plus-core@8.3.8001",
+    "vite-plus": "1.8.0"
   }
 }

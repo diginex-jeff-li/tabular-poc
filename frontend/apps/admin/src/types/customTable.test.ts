@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 import {
   ColumnDefSchema,
   TableDefinitionSchema,
@@ -148,9 +148,27 @@ describe('TableDefinitionSchema', () => {
       id: VALID_UUID,
       name: 'Employee Directory',
       columns: [
-        { id: VALID_UUID, name: 'Name', type: 'text', required: true, choices: [] },
-        { id: VALID_UUID, name: 'Salary', type: 'number', required: false, choices: [] },
-        { id: VALID_UUID, name: 'Dept', type: 'dropdown', required: true, choices: ['Eng', 'Sales'] },
+        {
+          id: VALID_UUID,
+          name: 'Name',
+          type: 'text',
+          required: true,
+          choices: [],
+        },
+        {
+          id: VALID_UUID,
+          name: 'Salary',
+          type: 'number',
+          required: false,
+          choices: [],
+        },
+        {
+          id: VALID_UUID,
+          name: 'Dept',
+          type: 'dropdown',
+          required: true,
+          choices: ['Eng', 'Sales'],
+        },
       ],
       createdAt: VALID_ISO,
       updatedAt: VALID_ISO,
@@ -237,7 +255,15 @@ describe('TableDefinitionSchema', () => {
     const result = TableDefinitionSchema.safeParse({
       id: VALID_UUID,
       name: 'My Table',
-      columns: [{ id: VALID_UUID, name: 'Bad', type: 'invalid', required: true, choices: [] }],
+      columns: [
+        {
+          id: VALID_UUID,
+          name: 'Bad',
+          type: 'invalid',
+          required: true,
+          choices: [],
+        },
+      ],
       createdAt: VALID_ISO,
       updatedAt: VALID_ISO,
     });

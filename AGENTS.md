@@ -7,8 +7,8 @@ workspace monorepo with two packages:
 
 - **`contracts/`** — Shared Zod schemas (oRPC removed, Zod only). SWC-compiled
   ESM + tsc declaration files. Consumed by frontend.
-- **`frontend/`** — Vue 3.5 + TSX admin app (port 3500). Vite 8, Nuxt UI v4,
-  Tailwind v4. Contains the Tabulator grid editor at `/`.
+- **`frontend/`** — Vue 3.5 + TSX admin app (port 3500). Vite+ (Vite 8),
+  Nuxt UI v4, Tailwind v4. Contains the Tabulator grid editor at `/`.
 
 Requires Node >= 24 and pnpm >= 12. Use pnpm only.
 
@@ -19,8 +19,8 @@ pnpm install          # install all deps
 pnpm dev              # run frontend dev server (port 3500)
 pnpm build            # build contracts → frontend
 pnpm test             # run all tests (contracts + frontend)
-pnpm lint             # oxlint across all packages + root
-pnpm fmt              # oxfmt across all packages
+pnpm lint             # vp lint (Oxlint) across all packages + root
+pnpm fmt              # vp fmt (Oxfmt) across all packages
 pnpm typecheck        # tsc --noEmit (contracts build first)
 pnpm knip             # dead code detection
 pnpm jscpd            # duplicate code detection
@@ -32,18 +32,18 @@ pnpm validate         # lint + typecheck + test + knip (full gate)
 
 ```bash
 pnpm --filter contracts build        # SWC ESM + tsc declarations → dist
-pnpm --filter contracts test          # vitest run (Zod schema tests)
-pnpm --filter contracts lint          # oxlint src
-pnpm --filter contracts fmt           # oxfmt --write "src/**/*.ts"
+pnpm --filter contracts test          # vp test run (Zod schema tests)
+pnpm --filter contracts lint          # vp lint src
+pnpm --filter contracts fmt           # vp fmt --write "src/**/*.ts"
 ```
 
 ### frontend
 
 ```bash
-pnpm --filter @sc/admin dev           # vite dev (port 3500)
-pnpm --filter @sc/admin build         # vite build
+pnpm --filter @sc/admin dev           # vp dev (port 3500)
+pnpm --filter @sc/admin build         # vp build
 pnpm --filter @sc/admin typecheck     # tsc --noEmit
-pnpm --filter @sc/admin test          # vitest run (component tests)
+pnpm --filter @sc/admin test          # vp test run (component tests)
 ```
 
 Always rebuild contracts after changing them before running frontend:
@@ -62,7 +62,7 @@ folders under `src/`: `schemas/`, `requests/`, `responses/`. Each exports a barr
 
 ### Frontend (`frontend/apps/admin/`)
 
-Vue 3.5 + Vite 8 + TSX (NOT SFCs) + Nuxt UI v4 + Tailwind v4.
+Vue 3.5 + Vite+ (Vite 8) + TSX (NOT SFCs) + Nuxt UI v4 + Tailwind v4.
 
 - All components are `.tsx` using `defineComponent({ setup() { return (): VNode =>
 <.../> } })` with render functions. No SFCs, no `<script setup>`.
@@ -91,20 +91,30 @@ or you will produce a config change that silently never applies.
 support catalogs). External dependencies are pinned to explicit versions in each
 `package.json` (e.g. `"vue": "3.5.38"`). The only `workspace:` reference is the
 internal `contracts` package, declared as `"contracts": "workspace:*"` in
-`frontend/apps/admin/package.json`. `pnpm-workspace.yaml` lists workspace globs
-only — it has no `catalog:` block.
+`frontend/apps/admin/package.json`. `pnpm-workspace.yaml` holds workspace globs,
+`allowBuilds`, and one `overrides` entry that pins every `vite` to Vite+'s
+bundled core (`npm:@voidzero-dev/vite-plus-core@…`, an explicit version, not a
+catalog) so tests and the app share one Vite. `vp migrate` maintains it; keep it,
+the `vite` devDependencies and `vite-plus` in step when upgrading Vite+.
 
-**Guardrails** — oxlint (lint), oxfmt (format), vitest (tests), tsc (typecheck),
-knip (dead code), jscpd (duplicate code). Run `pnpm validate` before committing.
+**Toolchain** — Vite+ (`vite-plus`, the `vp` CLI) supplies Vite, Vitest
+(`vite-plus/test` imports), Oxlint and Oxfmt. Lint, format and staged-file
+config live in the root `vite.config.ts`.
 
-**Pre-commit hooks** — husky + lint-staged run oxlint and oxfmt on staged files.
+**Guardrails** — vp lint (Oxlint), vp fmt (Oxfmt), vp test (Vitest), tsc
+(typecheck), knip (dead code), jscpd (duplicate code). Run `pnpm validate`
+before committing.
+
+**Pre-commit hooks** — `.vite-hooks/pre-commit` runs `vp staged`, which lints
+and format-checks staged TS files (the `staged` block in `vite.config.ts`).
 AGENTS.md is validated for documented commands on every commit via
-`pnpm agents:check`.
+`pnpm agents:check`. `pnpm install` runs `vp config`, which installs the hook
+dispatcher.
 
 **Naming conventions** — use camelCase for functions and variables, PascalCase
 for components and types, kebab-case for file names of non-component modules.
-oxlint `unicorn/filename-case` rule enforces file naming. Cyclomatic complexity
-is capped at 15 via the oxlint `complexity` rule.
+Oxlint `unicorn/filename-case` rule enforces file naming. Cyclomatic complexity
+is capped at 15 via the Oxlint `complexity` rule.
 
 **Module boundaries** — `import/no-cycle` prevents circular dependencies.
 Contracts must not import from frontend. Frontend imports contracts via the

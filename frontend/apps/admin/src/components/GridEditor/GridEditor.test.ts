@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { h, defineComponent, type VNode } from 'vue';
 import { mount } from '@vue/test-utils';
+import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
+import { h, defineComponent, type VNode } from 'vue';
 import GridEditor from './GridEditor';
 
 // ── Mock the grid engine composable so the presentation is isolated ──
@@ -20,7 +20,7 @@ const mockState = vi.hoisted(() => ({ refs: null as any }));
 
 vi.mock('composables/useGridEditor', async () => {
   const { ref } = await import('vue');
-  const { vi: _vi } = await import('vitest');
+  const { vi: _vi } = await import('vite-plus/test');
   mockState.refs = {
     rowCount: ref(0),
     dirtyCount: ref(0),
@@ -107,14 +107,19 @@ vi.mock('@nuxt/ui/components/Modal.vue', () => ({
 }));
 
 // ── Helper to mount GridEditor with controllable props ──
-function mountGridEditor(options: {
-  title?: string;
-  toolbarActions?: () => VNode | VNode[];
-} = {}) {
+function mountGridEditor(
+  options: {
+    title?: string;
+    toolbarActions?: () => VNode | VNode[];
+  } = {},
+) {
   const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 0 });
   return mount(GridEditor, {
     props: {
-      columns: [{ field: '__select', clipboard: false }, { field: 'issue', clipboard: true }],
+      columns: [
+        { field: '__select', clipboard: false },
+        { field: 'issue', clipboard: true },
+      ],
       data: [{ id: 'r1', issue: 'row' }],
       onSave,
       title: options.title ?? 'Test Editor',
@@ -207,7 +212,9 @@ describe('GridEditor — toolbar', () => {
 
   it('Save button is disabled when there are no unsaved changes', () => {
     const wrapper = mountGridEditor();
-    const saveButton = wrapper.findAll('button.u-button').find((b) => b.text() === 'Save');
+    const saveButton = wrapper
+      .findAll('button.u-button')
+      .find((b) => b.text() === 'Save');
     expect(saveButton).toBeDefined();
     expect(saveButton!.attributes('disabled')).toBeDefined();
   });
@@ -216,7 +223,9 @@ describe('GridEditor — toolbar', () => {
     const wrapper = mountGridEditor();
     mockState.refs.dirtyCount.value = 1;
     await wrapper.vm.$nextTick();
-    const saveButton = wrapper.findAll('button.u-button').find((b) => b.text() === 'Save');
+    const saveButton = wrapper
+      .findAll('button.u-button')
+      .find((b) => b.text() === 'Save');
     expect(saveButton!.attributes('disabled')).toBeUndefined();
   });
 
@@ -224,13 +233,17 @@ describe('GridEditor — toolbar', () => {
     const wrapper = mountGridEditor();
     mockState.refs.isSaving.value = true;
     await wrapper.vm.$nextTick();
-    const saveButton = wrapper.findAll('button.u-button').find((b) => b.text() === 'Save');
+    const saveButton = wrapper
+      .findAll('button.u-button')
+      .find((b) => b.text() === 'Save');
     expect(saveButton!.attributes('data-loading')).toBe('true');
   });
 
   it('clicking Add Row calls handleAddRow', async () => {
     const wrapper = mountGridEditor();
-    const addButton = wrapper.findAll('button.u-button').find((b) => b.text() === 'Add Row');
+    const addButton = wrapper
+      .findAll('button.u-button')
+      .find((b) => b.text() === 'Add Row');
     await addButton!.trigger('click');
     expect(mockState.refs.handleAddRow).toHaveBeenCalledTimes(1);
   });
@@ -306,7 +319,12 @@ describe('GridEditor — toolbarActions render prop', () => {
     const ExtraAction = defineComponent({
       name: 'ExtraAction',
       setup() {
-        return (): VNode => h('button', { class: 'u-button', 'data-test': 'extra-action' }, 'Add Column');
+        return (): VNode =>
+          h(
+            'button',
+            { class: 'u-button', 'data-test': 'extra-action' },
+            'Add Column',
+          );
       },
     });
     const toolbarActions = (): VNode => h(ExtraAction);
@@ -320,7 +338,12 @@ describe('GridEditor — toolbarActions render prop', () => {
     const ExtraAction = defineComponent({
       name: 'ExtraAction',
       setup() {
-        return (): VNode => h('button', { class: 'u-button', 'data-test': 'extra-action' }, 'Add Column');
+        return (): VNode =>
+          h(
+            'button',
+            { class: 'u-button', 'data-test': 'extra-action' },
+            'Add Column',
+          );
       },
     });
     const toolbarActions = (): VNode => h(ExtraAction);

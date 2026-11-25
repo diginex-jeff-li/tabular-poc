@@ -1,8 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { nextTick, defineComponent, h, type VNode } from 'vue';
 import { mount, flushPromises } from '@vue/test-utils';
+import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
+import { nextTick, defineComponent, h, type VNode } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
-
 import CustomTableBuilder from './CustomTableBuilder';
 
 // ── Stub Nuxt UI components ──
@@ -90,9 +89,7 @@ vi.mock('@nuxt/ui/components/Select.vue', () => ({
             onChange: (e: Event) =>
               emit('update:modelValue', (e.target as HTMLSelectElement).value),
           },
-          items.map((item) =>
-            h('option', { value: item.value }, item.label),
-          ),
+          items.map((item) => h('option', { value: item.value }, item.label)),
         );
       };
     },
@@ -134,16 +131,14 @@ function makeRouter() {
         path: '/custom/:tableId',
         component: defineComponent({
           name: 'EditorStub',
-          setup: () => (): VNode =>
-            h('div', { 'data-test': 'editor' }),
+          setup: () => (): VNode => h('div', { 'data-test': 'editor' }),
         }),
       },
       {
         path: '/custom',
         component: defineComponent({
           name: 'ListStub',
-          setup: () => (): VNode =>
-            h('div', { 'data-test': 'list' }),
+          setup: () => (): VNode => h('div', { 'data-test': 'list' }),
         }),
       },
     ],
@@ -233,7 +228,9 @@ describe('CustomTableBuilder', () => {
       // Row 2 name should still be empty
       const rowsAfter = wrapper.findAll('tbody tr');
       expect(rowsAfter[1].findAll('.u-input')[0].attributes('value')).toBe('');
-      expect(rowsAfter[0].findAll('.u-input')[0].attributes('value')).toBe('Alpha');
+      expect(rowsAfter[0].findAll('.u-input')[0].attributes('value')).toBe(
+        'Alpha',
+      );
     });
   });
 
@@ -330,8 +327,12 @@ describe('CustomTableBuilder', () => {
       await rows[0].find('.u-checkbox').setValue(true);
       await nextTick();
       const rowsAfter = wrapper.findAll('tbody tr');
-      expect(rowsAfter[0].find('.u-checkbox').attributes('data-model')).toBe('true');
-      expect(rowsAfter[1].find('.u-checkbox').attributes('data-model')).toBe('false');
+      expect(rowsAfter[0].find('.u-checkbox').attributes('data-model')).toBe(
+        'true',
+      );
+      expect(rowsAfter[1].find('.u-checkbox').attributes('data-model')).toBe(
+        'false',
+      );
     });
   });
 
@@ -368,7 +369,9 @@ describe('CustomTableBuilder', () => {
       await nextTick();
       await wrapper.find('[data-label="Create Table"]').trigger('click');
       await nextTick();
-      expect(wrapper.find('[data-testid="validation-errors"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="validation-errors"]').exists()).toBe(
+        true,
+      );
       expect(getDefs()).toHaveLength(0);
     });
   });
@@ -415,7 +418,9 @@ describe('CustomTableBuilder', () => {
       await nextTick();
       await wrapper.find('[data-label="Create Table"]').trigger('click');
       await nextTick();
-      expect(wrapper.find('[data-testid="validation-errors"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="validation-errors"]').exists()).toBe(
+        true,
+      );
       expect(getDefs()).toHaveLength(0);
     });
   });
@@ -522,7 +527,9 @@ describe('CustomTableBuilder', () => {
       await nextTick();
       await wrapper.find('[data-label="Create Table"]').trigger('click');
       await nextTick();
-      expect(wrapper.find('[data-testid="validation-errors"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="validation-errors"]').exists()).toBe(
+        true,
+      );
       expect(getDefs()).toHaveLength(0);
     });
   });
@@ -564,12 +571,16 @@ describe('CustomTableBuilder', () => {
       // Attempt creation — fails
       await wrapper.find('[data-label="Create Table"]').trigger('click');
       await nextTick();
-      expect(wrapper.find('[data-testid="validation-errors"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="validation-errors"]').exists()).toBe(
+        true,
+      );
       // Fix: enter table name
       await wrapper.find('.table-name-field .u-input').setValue('Fixed Table');
       await nextTick();
       // Error should be cleared (clears on input)
-      expect(wrapper.find('[data-testid="validation-errors"]').exists()).toBe(false);
+      expect(wrapper.find('[data-testid="validation-errors"]').exists()).toBe(
+        false,
+      );
       // Retry creation — succeeds
       await wrapper.find('[data-label="Create Table"]').trigger('click');
       await flushPromises();
@@ -612,12 +623,16 @@ describe('CustomTableBuilder', () => {
       expect(defs).toHaveLength(1);
       const def = defs[0];
       expect(def.name).toBe('My Schema');
-      expect(def.id).toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/);
+      expect(def.id).toMatch(
+        /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/,
+      );
       expect(def.createdAt).toMatch(/\d{4}-\d{2}-\d{2}T/);
       expect(def.updatedAt).toMatch(/\d{4}-\d{2}-\d{2}T/);
       const cols = def.columns as Record<string, unknown>[];
       expect(cols).toHaveLength(1);
-      expect(cols[0].id).toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/);
+      expect(cols[0].id).toMatch(
+        /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/,
+      );
       expect(cols[0].name).toBe('Title');
       expect(cols[0].type).toBe('text');
       expect(cols[0].required).toBe(false);
@@ -830,7 +845,13 @@ describe('CustomTableBuilder', () => {
         id: '11111111-1111-4111-8111-111111111111',
         name: 'Existing',
         columns: [
-          { id: '22222222-2222-4222-8222-222222222222', name: 'Old', type: 'text', required: true, choices: [] as string[] },
+          {
+            id: '22222222-2222-4222-8222-222222222222',
+            name: 'Old',
+            type: 'text',
+            required: true,
+            choices: [] as string[],
+          },
         ],
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',

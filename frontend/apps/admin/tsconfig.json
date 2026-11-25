@@ -22,17 +22,16 @@
     "verbatimModuleSyntax": true,
     "noEmit": true,
     "lib": ["esnext", "dom", "dom.iterable"],
-    "baseUrl": ".",
     "rootDir": "./src",
     "paths": {
-      "apis/*": ["src/apis/*"],
-      "components/*": ["src/components/*"],
-      "composables/*": ["src/composables/*"],
-      "config/*": ["src/config/*"],
-      "pages/*": ["src/pages/*"],
-      "styles/*": ["src/styles/*"],
-      "utils/*": ["src/utils/*"],
-      "src/*": ["src/*"]
+      "apis/*": ["./src/apis/*"],
+      "components/*": ["./src/components/*"],
+      "composables/*": ["./src/composables/*"],
+      "config/*": ["./src/config/*"],
+      "pages/*": ["./src/pages/*"],
+      "styles/*": ["./src/styles/*"],
+      "utils/*": ["./src/utils/*"],
+      "src/*": ["./src/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],

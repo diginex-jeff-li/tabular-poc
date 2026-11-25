@@ -46,10 +46,10 @@
     "build:esm": "swc src -d dist/esm --strip-leading-paths --extensions '.ts' -C module.type=es6 -C sourceMaps=true",
     "build:types": "tsc -p tsconfig.build.json --emitDeclarationOnly",
     "build": "pnpm run clean && pnpm run build:esm && pnpm run build:types",
-    "fmt": "oxfmt --write \"src/**/*.ts\"",
-    "lint": "oxlint src",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "fmt": "vp fmt --write \"src/**/*.ts\"",
+    "lint": "vp lint src",
+    "test": "vp test run",
+    "test:watch": "vp test"
   },
   "dependencies": {
     "zod": "3.25.76"
@@ -57,9 +57,7 @@
   "devDependencies": {
     "@swc/cli": "0.8.1",
     "@swc/core": "1.7.36",
-    "oxfmt": "0.56.0",
-    "oxlint": "1.71.0",
     "typescript": "6.0.3",
-    "vitest": "4.1.9"
+    "vite-plus": "1.8.0"
   }
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
 import { ref, nextTick } from 'vue';
 import { useGridEditor, parseClipboardPaste } from './useGridEditor';
 
@@ -136,7 +136,9 @@ function createMockTabulator(
       selectedRows = rows;
     },
     _setSelectedByRowIds: (rowIds: string[]) => {
-      selectedRows = mockRows.filter((r) => rowIds.includes(r.getData().id as string));
+      selectedRows = mockRows.filter((r) =>
+        rowIds.includes(r.getData().id as string),
+      );
     },
     _setMockRows: (rows: MockRow[]) => {
       mockRows = rows;
@@ -162,7 +164,10 @@ function createMockCell(rowData: Record<string, unknown>, rowIndex: number) {
   };
 }
 
-function createMockRowForEvent(rowData: Record<string, unknown>, rowIndex: number) {
+function createMockRowForEvent(
+  rowData: Record<string, unknown>,
+  rowIndex: number,
+) {
   return {
     getData: () => ({ ...rowData }),
     getIndex: () => rowIndex,
@@ -503,7 +508,10 @@ describe('useGridEditor', () => {
   it('handleSave sends payload to onSave and sets saveResult on success', async () => {
     const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 1 });
     const initialData = [{ id: 'r1', issue: 'old' }];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+    const { result, mockTab, tableEl } = setupGridEditor({
+      initialData,
+      onSave,
+    });
 
     tableEl.value = document.createElement('div');
     await nextTick();
@@ -527,7 +535,10 @@ describe('useGridEditor', () => {
   it('handleSave clears dirty tracking and highlights on success', async () => {
     const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 1 });
     const initialData = [{ id: 'r1', issue: 'old' }];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+    const { result, mockTab, tableEl } = setupGridEditor({
+      initialData,
+      onSave,
+    });
 
     tableEl.value = document.createElement('div');
     await nextTick();
@@ -548,7 +559,10 @@ describe('useGridEditor', () => {
     ];
     const onSave = vi.fn().mockResolvedValue({ errors, saved: 0 });
     const initialData = [{ id: 'r1', issue: '' }];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+    const { result, mockTab, tableEl } = setupGridEditor({
+      initialData,
+      onSave,
+    });
 
     tableEl.value = document.createElement('div');
     await nextTick();
@@ -567,15 +581,18 @@ describe('useGridEditor', () => {
     const rows = mockTab._getRows();
     const targetRow = rows.find((r) => r.getData().id === 'r1');
     expect(targetRow).toBeDefined();
-    expect(targetRow!._cellElements['issue'].classList.add).toHaveBeenCalledWith(
-      'backend-validation-error',
-    );
+    expect(
+      targetRow!._cellElements['issue'].classList.add,
+    ).toHaveBeenCalledWith('backend-validation-error');
   });
 
   it('handleSave rejection produces a synthetic error entry', async () => {
     const onSave = vi.fn().mockRejectedValue(new Error('Network failure'));
     const initialData = [{ id: 'r1', issue: 'old' }];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+    const { result, mockTab, tableEl } = setupGridEditor({
+      initialData,
+      onSave,
+    });
 
     tableEl.value = document.createElement('div');
     await nextTick();
@@ -602,7 +619,10 @@ describe('useGridEditor', () => {
         }),
     );
     const initialData = [{ id: 'r1', issue: 'old' }];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+    const { result, mockTab, tableEl } = setupGridEditor({
+      initialData,
+      onSave,
+    });
 
     tableEl.value = document.createElement('div');
     await nextTick();
@@ -630,7 +650,10 @@ describe('useGridEditor', () => {
   it('clears saveResult when dirtyCount becomes > 0 after a successful save (cell edit)', async () => {
     const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 1 });
     const initialData = [{ id: 'r1', issue: 'old' }];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+    const { result, mockTab, tableEl } = setupGridEditor({
+      initialData,
+      onSave,
+    });
 
     tableEl.value = document.createElement('div');
     await nextTick();
@@ -655,7 +678,10 @@ describe('useGridEditor', () => {
   it('clears saveResult when a new row is added after a successful save', async () => {
     const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 1 });
     const initialData = [{ id: 'r1', issue: 'old' }];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+    const { result, mockTab, tableEl } = setupGridEditor({
+      initialData,
+      onSave,
+    });
 
     tableEl.value = document.createElement('div');
     await nextTick();
@@ -678,7 +704,10 @@ describe('useGridEditor', () => {
   it('does not clear saveResult when dirtyCount stays at 0 (no spurious clear)', async () => {
     const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 1 });
     const initialData = [{ id: 'r1', issue: 'old' }];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+    const { result, mockTab, tableEl } = setupGridEditor({
+      initialData,
+      onSave,
+    });
 
     tableEl.value = document.createElement('div');
     await nextTick();
@@ -712,7 +741,9 @@ describe('useGridEditor', () => {
     const { result, mockTab, tableEl } = setupGridEditor({
       initialData,
       onSave: vi.fn().mockResolvedValue({
-        errors: [{ row: 0, rowId: 'added-2', field: 'issue', message: 'Required' }],
+        errors: [
+          { row: 0, rowId: 'added-2', field: 'issue', message: 'Required' },
+        ],
         saved: 0,
       }),
     });
@@ -743,12 +774,14 @@ describe('useGridEditor', () => {
 
     // The error should highlight added-2 (rowId lookup), NOT seed-1 (array index 0)
     const seedRow = mockTab._getRows().find((r) => r.getData().id === 'seed-1');
-    const added2Row = mockTab._getRows().find((r) => r.getData().id === 'added-2');
+    const added2Row = mockTab
+      ._getRows()
+      .find((r) => r.getData().id === 'added-2');
 
     expect(added2Row!.getCell).toHaveBeenCalledWith('issue');
-    expect(added2Row!._cellElements['issue'].classList.add).toHaveBeenCalledWith(
-      'backend-validation-error',
-    );
+    expect(
+      added2Row!._cellElements['issue'].classList.add,
+    ).toHaveBeenCalledWith('backend-validation-error');
     // seed-1's cell should NOT have been touched — the bug from f7bd853 would
     // have looked it up via err.row (array index 0) and called getCell on it.
     expect(seedRow!.getCell).not.toHaveBeenCalledWith('issue');
@@ -758,7 +791,10 @@ describe('useGridEditor', () => {
     const errors = [{ row: 0, rowId: 'r1', field: 'issue', message: 'err' }];
     const onSave = vi.fn().mockResolvedValue({ errors, saved: 0 });
     const initialData = [{ id: 'r1', issue: '' }];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+    const { result, mockTab, tableEl } = setupGridEditor({
+      initialData,
+      onSave,
+    });
 
     tableEl.value = document.createElement('div');
     await nextTick();
@@ -796,7 +832,9 @@ describe('useGridEditor', () => {
     const targetRow = mockTab._getRows().find((r) => r.getData().id === 'r2');
     expect(targetRow).toBeDefined();
     expect(targetRow!.scrollTo).toHaveBeenCalled();
-    expect(targetRow!._cellElements['issue'].style.outline).toBe('3px solid #ef4444');
+    expect(targetRow!._cellElements['issue'].style.outline).toBe(
+      '3px solid #ef4444',
+    );
   });
 
   it('scrollToError does nothing if the rowId is not found (deleted row)', async () => {
@@ -806,7 +844,12 @@ describe('useGridEditor', () => {
     tableEl.value = document.createElement('div');
     await nextTick();
 
-    const err = { row: 0, rowId: 'nonexistent', field: 'issue', message: 'bad' };
+    const err = {
+      row: 0,
+      rowId: 'nonexistent',
+      field: 'issue',
+      message: 'bad',
+    };
     // Should not throw
     expect(() => result.scrollToError(err)).not.toThrow();
   });
@@ -868,7 +911,10 @@ describe('useGridEditor', () => {
       { id: 'r2', issue: '' },
       { id: 'r3', issue: 'ok' },
     ];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+    const { result, mockTab, tableEl } = setupGridEditor({
+      initialData,
+      onSave,
+    });
 
     tableEl.value = document.createElement('div');
     await nextTick();
@@ -902,7 +948,10 @@ describe('useGridEditor', () => {
       { id: 'r1', issue: '' },
       { id: 'r2', issue: '' },
     ];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+    const { result, mockTab, tableEl } = setupGridEditor({
+      initialData,
+      onSave,
+    });
 
     tableEl.value = document.createElement('div');
     await nextTick();
@@ -934,7 +983,10 @@ describe('useGridEditor', () => {
       { id: 'r1', issue: '' },
       { id: 'r2', issue: '' },
     ];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData, onSave });
+    const { result, mockTab, tableEl } = setupGridEditor({
+      initialData,
+      onSave,
+    });
 
     tableEl.value = document.createElement('div');
     await nextTick();
@@ -1089,9 +1141,14 @@ describe('useGridEditor', () => {
 
     result.handleExportCSV();
 
-    expect(mockTab.download).toHaveBeenCalledWith('csv', 'test-export.csv', {
-      delimiter: ',',
-    }, 'all');
+    expect(mockTab.download).toHaveBeenCalledWith(
+      'csv',
+      'test-export.csv',
+      {
+        delimiter: ',',
+      },
+      'all',
+    );
   });
 
   // ── VAL-GRID-022: CSV export includes ALL rows regardless of active filters ──
@@ -1121,7 +1178,9 @@ describe('useGridEditor', () => {
     mockState.ctorCalls = [];
 
     const tableEl = ref<HTMLElement | null>(null);
-    const cols = ref<Record<string, unknown>[]>([{ field: 'issue', editor: 'input' }]);
+    const cols = ref<Record<string, unknown>[]>([
+      { field: 'issue', editor: 'input' },
+    ]);
     const data = ref<Record<string, unknown>[]>([]);
     const filenameRef = ref('dynamic-name.csv');
     const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 0 });

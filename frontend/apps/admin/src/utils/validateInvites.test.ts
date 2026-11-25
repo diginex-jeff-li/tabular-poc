@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { validateInvites } from './validateInvites';
 
 const existing = new Set(['jane.doe@acme.com']);

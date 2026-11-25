@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vite-plus/test';
 import { needsReview, normalizeInviteRow } from './draftRow';
 
 const line = (text: string) => normalizeInviteRow({ id: 'r', email: text });

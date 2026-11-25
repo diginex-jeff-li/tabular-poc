@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { tableDataKey } from 'utils/tableStorage';
+import { describe, it, expect, beforeEach } from 'vite-plus/test';
 import { nextTick } from 'vue';
 import { useTableDefinitions } from './useTableDefinitions';
-import { tableDataKey } from 'utils/tableStorage';
 import type { ColumnDef, TableDefinition } from 'src/types/customTable';
 
 const VALID_UUID = '550e8400-e29b-41d4-a716-446655440000';
@@ -162,10 +162,13 @@ describe('useTableDefinitions', () => {
       updateDefinition(VALID_UUID, { name: 'Renamed' });
 
       expect(definitions.value[0].name).toBe('Renamed');
-      expect(definitions.value[0].updatedAt).not.toBe('2020-01-01T00:00:00.000Z');
+      expect(definitions.value[0].updatedAt).not.toBe(
+        '2020-01-01T00:00:00.000Z',
+      );
       // updatedAt is now the current time, which is after the original
-      expect(new Date(definitions.value[0].updatedAt).getTime())
-        .toBeGreaterThan(new Date('2020-01-01T00:00:00.000Z').getTime());
+      expect(
+        new Date(definitions.value[0].updatedAt).getTime(),
+      ).toBeGreaterThan(new Date('2020-01-01T00:00:00.000Z').getTime());
       // createdAt is preserved (the seed's createdAt is VALID_ISO)
       expect(definitions.value[0].createdAt).toBe(VALID_ISO);
 
@@ -231,7 +234,9 @@ describe('useTableDefinitions', () => {
       localStorage.setItem('sc-table-defs', JSON.stringify([d]));
       localStorage.setItem(
         tableDataKey(VALID_UUID),
-        JSON.stringify([{ id: VALID_UUID, createdAt: VALID_ISO, updatedAt: VALID_ISO }]),
+        JSON.stringify([
+          { id: VALID_UUID, createdAt: VALID_ISO, updatedAt: VALID_ISO },
+        ]),
       );
       const { deleteDefinition } = useTableDefinitions();
       await nextTick();
@@ -248,11 +253,15 @@ describe('useTableDefinitions', () => {
       localStorage.setItem('sc-table-defs', JSON.stringify([d1, d2]));
       localStorage.setItem(
         tableDataKey(VALID_UUID),
-        JSON.stringify([{ id: VALID_UUID, createdAt: VALID_ISO, updatedAt: VALID_ISO }]),
+        JSON.stringify([
+          { id: VALID_UUID, createdAt: VALID_ISO, updatedAt: VALID_ISO },
+        ]),
       );
       localStorage.setItem(
         tableDataKey(OTHER_UUID),
-        JSON.stringify([{ id: OTHER_UUID, createdAt: VALID_ISO, updatedAt: VALID_ISO }]),
+        JSON.stringify([
+          { id: OTHER_UUID, createdAt: VALID_ISO, updatedAt: VALID_ISO },
+        ]),
       );
       const { definitions, deleteDefinition } = useTableDefinitions();
       await nextTick();
