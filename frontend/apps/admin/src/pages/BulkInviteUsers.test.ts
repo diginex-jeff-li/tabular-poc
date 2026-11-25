@@ -185,8 +185,11 @@ describe('BulkInviteUsers draft in localStorage', () => {
     expect(w.text()).toContain('Simulated — no invitations sent (2 valid)');
   });
 
-  it('starts empty when the stored draft is unreadable', async () => {
-    localStorage.setItem('sc.invite-users.draft', '{"version":0,"rows":"x"}');
+  it.each([
+    ['an old shape', '{"version":0,"rows":"x"}'],
+    ['broken JSON', '{"version":1,"rows":['],
+  ])('starts empty when the stored draft is %s', async (_, raw) => {
+    localStorage.setItem('sc.invite-users.draft', raw);
     const { w } = await mountPage();
     expect(emails(w)).toEqual([]);
   });
