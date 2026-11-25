@@ -1,8 +1,9 @@
 import { mount } from '@vue/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
-import { defineComponent, h, type VNode } from 'vue';
+import { defineComponent, h } from 'vue';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import Application from './Application';
+import type { VNode } from 'vue';
 
 // ── Mock UApp ──
 //

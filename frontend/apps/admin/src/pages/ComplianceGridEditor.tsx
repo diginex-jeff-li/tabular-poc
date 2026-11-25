@@ -1,10 +1,6 @@
 import GridEditor from 'components/GridEditor';
 import { buildComplianceColumns } from 'composables/buildComplianceColumns';
-import {
-  ComplianceLibrarySchema,
-  type BulkSaveErrorType,
-  type BulkSaveResponseType,
-} from 'contracts';
+import { ComplianceLibrarySchema } from 'contracts';
 /**
  * PROTOTYPE — Compliance Library Grid Editor
  *
@@ -16,7 +12,9 @@ import {
  *
  * NOT PRODUCTION — throwaway prototype code.
  */
-import { defineComponent, type VNode } from 'vue';
+import { defineComponent } from 'vue';
+import type { BulkSaveErrorType, BulkSaveResponseType } from 'contracts';
+import type { VNode } from 'vue';
 
 // ── Derived from the shared contracts schema ──
 

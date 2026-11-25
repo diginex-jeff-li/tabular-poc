@@ -1,7 +1,8 @@
 import { mount } from '@vue/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
-import { h, defineComponent, type VNode } from 'vue';
+import { h, defineComponent } from 'vue';
 import GridEditor from './GridEditor';
+import type { VNode } from 'vue';
 
 // ── Mock the grid engine composable so the presentation is isolated ──
 //

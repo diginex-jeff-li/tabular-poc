@@ -1,7 +1,8 @@
 import { mount } from '@vue/test-utils';
 import { useLocalStorage } from '@vueuse/core';
 import { describe, it, expect, beforeEach } from 'vite-plus/test';
-import { defineComponent, h, nextTick, type VNode } from 'vue';
+import { defineComponent, h, nextTick } from 'vue';
+import type { VNode } from 'vue';
 
 describe('test infrastructure — localStorage polyfill and mounting', () => {
   beforeEach(() => {

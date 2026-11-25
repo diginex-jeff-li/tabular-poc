@@ -1,8 +1,9 @@
 import { mount, flushPromises } from '@vue/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
-import { nextTick, defineComponent, h, type VNode } from 'vue';
+import { nextTick, defineComponent, h } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 import CustomTableBuilder from './CustomTableBuilder';
+import type { VNode } from 'vue';
 
 // ── Stub Nuxt UI components ──
 // Mocking the Nuxt UI component paths the builder imports directly keeps the

@@ -1,5 +1,6 @@
-import { ref, computed, watch, type Ref } from 'vue';
+import { ref, computed, watch } from 'vue';
 import type { TabulatorFull } from 'tabulator-tables';
+import type { Ref } from 'vue';
 
 export type DirtyStatus = 'added' | 'modified' | 'deleted' | 'unchanged';
 

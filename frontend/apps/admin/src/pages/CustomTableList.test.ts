@@ -7,10 +7,11 @@ import {
   beforeEach,
   afterEach,
 } from 'vite-plus/test';
-import { nextTick, defineComponent, h, type VNode } from 'vue';
+import { nextTick, defineComponent, h } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 import CustomTableList from './CustomTableList';
 import type { TableDefinition } from 'src/types/customTable';
+import type { VNode } from 'vue';
 
 // ── Stub Nuxt UI components ──
 // The real UButton internally renders a Nuxt UI Link that injects a vue-router

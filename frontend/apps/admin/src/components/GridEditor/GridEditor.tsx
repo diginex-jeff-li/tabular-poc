@@ -22,12 +22,10 @@ import UBadge from '@nuxt/ui/components/Badge.vue';
  */
 import UButton from '@nuxt/ui/components/Button.vue';
 import UModal from '@nuxt/ui/components/Modal.vue';
-import {
-  useGridEditor,
-  type GridApi,
-  type GridSaveResponse,
-} from 'composables/useGridEditor';
-import { computed, defineComponent, ref, type PropType, type VNode } from 'vue';
+import { useGridEditor } from 'composables/useGridEditor';
+import { computed, defineComponent, ref } from 'vue';
+import type { GridApi, GridSaveResponse } from 'composables/useGridEditor';
+import type { PropType, VNode } from 'vue';
 
 // ── Licensing comparison data (generic marketing content, stays in the engine) ──
 

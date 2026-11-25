@@ -41,9 +41,10 @@ import {
   isReservedName,
   hasValidChoices,
 } from 'utils/columnValidation';
-import { defineComponent, ref, type VNode } from 'vue';
+import { defineComponent, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import type { ColumnDef } from 'src/types/customTable';
+import type { VNode } from 'vue';
 
 // ── Row model ──
 // The builder's editable row. The `choicesText` field holds the raw

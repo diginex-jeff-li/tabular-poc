@@ -1,25 +1,26 @@
-import { INVITE_FIELDS, type InviteField } from 'contracts';
+import { INVITE_FIELDS } from 'contracts';
 import {
   applyColumnMapping,
   mappingProblems,
   planPaste,
-  type ColumnMapping,
-  type UnmappedTable,
 } from 'utils/columnMapping';
 import {
   draftFields,
   inviteRowStatus,
   needsReview,
   normalizeInviteRow,
-  type InviteRowStatus,
 } from 'utils/draftRow';
 import { validateInvites } from 'utils/validateInvites';
-import { shallowRef, type ShallowRef } from 'vue';
+import { shallowRef } from 'vue';
 import type {
   GridApi,
   GridSaveError,
   GridSaveResponse,
 } from 'composables/useGridEditor';
+import type { InviteField } from 'contracts';
+import type { ColumnMapping, UnmappedTable } from 'utils/columnMapping';
+import type { InviteRowStatus } from 'utils/draftRow';
+import type { ShallowRef } from 'vue';
 
 /**
  * PROTOTYPE — the invite draft (CONTEXT.md): every rule about who may change

@@ -27,9 +27,10 @@ import UCard from '@nuxt/ui/components/Card.vue';
 import UModal from '@nuxt/ui/components/Modal.vue';
 import { useTableDefinitions } from 'composables/useTableDefinitions';
 import { readTableRows } from 'utils/tableStorage';
-import { defineComponent, ref, type VNode } from 'vue';
+import { defineComponent, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import type { TableDefinition } from 'src/types/customTable';
+import type { VNode } from 'vue';
 
 export default defineComponent({
   name: 'CustomTableList',

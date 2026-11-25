@@ -61,13 +61,14 @@ import {
 } from 'utils/columnValidation';
 import { definitionToColumns } from 'utils/definitionToColumns';
 import { readTableRows, writeTableRows } from 'utils/tableStorage';
-import { computed, defineComponent, ref, type VNode } from 'vue';
+import { computed, defineComponent, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type {
   GridSaveError,
   GridSaveResponse,
 } from 'composables/useGridEditor';
 import type { ColumnDef, TableRow } from 'src/types/customTable';
+import type { VNode } from 'vue';
 
 /**
  * Derive a CSV export filename from a table name. Lowercases, replaces runs

@@ -15,7 +15,8 @@ import { TabulatorFull as Tabulator } from 'tabulator-tables';
  * CRITICAL: error highlighting resolves rows by `rowId`, never by the
  * upserts-array index — commit f7bd853 fixed that bug; do not reintroduce it.
  */
-import { ref, shallowRef, watch, type Ref } from 'vue';
+import { ref, shallowRef, watch } from 'vue';
+import type { Ref } from 'vue';
 
 // ── Shared save types (match contracts BulkSaveError/Response shape) ──
 

@@ -4,10 +4,8 @@ import {
   TableDefinitionSchema,
   TableRowSchema,
   RESERVED_COLUMN_NAMES,
-  type ColumnDef,
-  type TableDefinition,
-  type TableRow,
 } from './customTable';
+import type { ColumnDef, TableDefinition, TableRow } from './customTable';
 
 const VALID_UUID = '550e8400-e29b-41d4-a716-446655440000';
 const VALID_ISO = '2026-08-11T12:00:00.000Z';

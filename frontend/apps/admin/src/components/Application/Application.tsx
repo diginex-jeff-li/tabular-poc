@@ -1,5 +1,6 @@
 import UApp from '@nuxt/ui/components/App.vue';
-import { defineComponent, type VNode } from 'vue';
+import { defineComponent } from 'vue';
+import type { VNode } from 'vue';
 
 /**
  * Application shell — wraps every route with a slim nav header and the router

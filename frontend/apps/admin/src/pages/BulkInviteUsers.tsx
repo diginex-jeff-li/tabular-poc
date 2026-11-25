@@ -26,13 +26,15 @@ import ColumnMappingPanel from 'components/ColumnMappingPanel';
 import GridEditor from 'components/GridEditor';
 import { useAgentTools } from 'composables/useAgentTools';
 import { INVITE_TITLES, InviteRowSchema } from 'contracts';
-import { normalizeInviteRow, type InviteRowStatus } from 'utils/draftRow';
+import { normalizeInviteRow } from 'utils/draftRow';
 import { createInviteTools } from 'utils/inviteAgentTools';
 import { createInviteDraft } from 'utils/inviteDraft';
 import { buildInviteWorkbook, parseInviteWorkbook } from 'utils/inviteWorkbook';
 import { zodToTabulatorColumns } from 'utils/zodToTabulatorColumns';
-import { defineComponent, onMounted, ref, type VNode } from 'vue';
+import { defineComponent, onMounted, ref } from 'vue';
 import type { GridApi } from 'composables/useGridEditor';
+import type { InviteRowStatus } from 'utils/draftRow';
+import type { VNode } from 'vue';
 
 // Mock directory: these emails already have accounts in the organisation.
 const EXISTING_EMAILS: ReadonlySet<string> = new Set([

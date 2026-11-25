@@ -80,7 +80,6 @@ export default defineConfig({
       'typescript/no-unsafe-call': 'off', // 63
       'vitest/require-mock-type-parameters': 'off', // 45
       'typescript/no-unsafe-member-access': 'off', // 39
-      'import/consistent-type-specifier-style': 'off', // 38
       'quality/no-known-value-widening': 'off', // 23
       'typescript/no-unsafe-assignment': 'off', // 22
       'quality/no-chained-type-assertions': 'off', // 19

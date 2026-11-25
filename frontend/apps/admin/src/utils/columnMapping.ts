@@ -1,4 +1,5 @@
-import { INVITE_COLUMNS, matchInviteHeader, type InviteField } from 'contracts';
+import { INVITE_COLUMNS, matchInviteHeader } from 'contracts';
+import type { InviteField } from 'contracts';
 
 /**
  * PROTOTYPE — column mapping for pasted client tables (see CONTEXT.md).

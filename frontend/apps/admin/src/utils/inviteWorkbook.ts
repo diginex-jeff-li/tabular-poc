@@ -6,9 +6,9 @@ import {
   INVITE_ROLES,
   INVITE_TITLES,
   matchInviteHeader,
-  type InviteField,
 } from 'contracts';
 import ExcelJS from 'exceljs';
+import type { InviteField } from 'contracts';
 
 /**
  * PROTOTYPE — the Excel side of bulk invite (SC15-706).

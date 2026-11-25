@@ -7,10 +7,11 @@ import {
   beforeEach,
   afterEach,
 } from 'vite-plus/test';
-import { defineComponent, h, type VNode } from 'vue';
+import { defineComponent, h } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 import CustomTableEditor from './CustomTableEditor';
 import type { TableDefinition, TableRow } from 'src/types/customTable';
+import type { VNode } from 'vue';
 
 // ── Stub GridEditor ──
 // The real GridEditor imports Tabulator, which must never be loaded in a unit

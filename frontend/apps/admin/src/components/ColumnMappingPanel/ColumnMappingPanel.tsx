@@ -1,11 +1,10 @@
 import UButton from '@nuxt/ui/components/Button.vue';
-import { INVITE_COLUMNS, type InviteField } from 'contracts';
-import {
-  mappingProblems,
-  type ColumnMapping,
-  type UnmappedTable,
-} from 'utils/columnMapping';
-import { computed, defineComponent, type PropType, type VNode } from 'vue';
+import { INVITE_COLUMNS } from 'contracts';
+import { mappingProblems } from 'utils/columnMapping';
+import { computed, defineComponent } from 'vue';
+import type { InviteField } from 'contracts';
+import type { ColumnMapping, UnmappedTable } from 'utils/columnMapping';
+import type { PropType, VNode } from 'vue';
 
 /**
  * PROTOTYPE — the person's side of a column mapping (see CONTEXT.md).
