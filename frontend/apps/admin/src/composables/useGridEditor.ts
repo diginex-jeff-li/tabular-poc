@@ -130,6 +130,17 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   });
 
   // ── Init Tabulator when the host element appears ──
+  // A person's cell edit is a way in too: normalize the whole row.
+  const onCellEdited = (cell: AnyTabulator) => {
+    const row = cell.getRow();
+    const before = row.getData() as Record<string, unknown>;
+    const after = normalize(before);
+    if (JSON.stringify(after) !== JSON.stringify(before)) {
+      row.update(after);
+    }
+    onUserEdit?.([String(before.id)]);
+  };
+
   // A watch (immediate) covers both the mounted case (tableEl set by Vue
   // after the DOM renders) and the in-test case (tableEl set synchronously).
   // This keeps the composable testable without a component mount.
@@ -223,16 +234,6 @@ export function useGridEditor(opts: UseGridEditorOptions) {
       };
       tab.on('clipboardPasted', onClipboardPasted);
 
-      // A person's cell edit is a way in too: normalize the whole row.
-      const onCellEdited = (cell: AnyTabulator) => {
-        const row = cell.getRow();
-        const before = row.getData() as Record<string, unknown>;
-        const after = normalize(before);
-        if (JSON.stringify(after) !== JSON.stringify(before)) {
-          row.update(after);
-        }
-        onUserEdit?.([String(before.id)]);
-      };
       tab.on('cellEdited', onCellEdited);
 
       onCleanup(() => {

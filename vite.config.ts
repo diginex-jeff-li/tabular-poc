@@ -91,7 +91,6 @@ export default defineConfig({
       'typescript/no-unsafe-assignment': 'off', // 22
       'quality/no-chained-type-assertions': 'off', // 19
       'typescript/no-base-to-string': 'off', // 13
-      'unicorn/consistent-function-scoping': 'off', // 10
     },
     overrides: [
       {
@@ -114,6 +113,13 @@ export default defineConfig({
           'frontend/apps/admin/src/composables/useAgentTools.ts',
         ],
         rules: { 'no-console': 'off' },
+      },
+      {
+        // Test helpers stay beside the describe block that uses them, and
+        // vi.mock factories are hoisted above module scope, so their
+        // functions cannot move out.
+        files: ['**/*.test.ts'],
+        rules: { 'unicorn/consistent-function-scoping': 'off' },
       },
     ],
   },

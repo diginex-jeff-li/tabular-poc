@@ -79,39 +79,39 @@ export function useDirtyTracking(tabulatorRef: Ref<TabulatorFull | null>) {
   }
 
   // ── Wire up Tabulator events ──
+  const onCellEdited = (cell: {
+    getRow: () => {
+      getData: () => Record<string, unknown>;
+      getIndex: () => number;
+    };
+    getField: () => string;
+    getValue: () => unknown;
+    getInitialValue: () => unknown;
+  }) => {
+    const rowData = cell.getRow().getData();
+    const rowId = rowData.id as string | undefined;
+    if (rowId) {
+      markDirty(rowId, 'modified');
+    }
+  };
+
+  const onRowAdded = (row: {
+    getData: () => Record<string, unknown>;
+    getIndex: () => number;
+  }) => {
+    const rowData = row.getData();
+    const rowId = rowData.id as string | undefined;
+    if (rowId) {
+      markDirty(rowId, 'added');
+    }
+  };
+
   watch(
     () => tabulatorRef.value,
     (tab, _prev, onCleanup) => {
       if (!tab) {
         return;
       }
-
-      const onCellEdited = (cell: {
-        getRow: () => {
-          getData: () => Record<string, unknown>;
-          getIndex: () => number;
-        };
-        getField: () => string;
-        getValue: () => unknown;
-        getInitialValue: () => unknown;
-      }) => {
-        const rowData = cell.getRow().getData();
-        const rowId = rowData.id as string | undefined;
-        if (rowId) {
-          markDirty(rowId, 'modified');
-        }
-      };
-
-      const onRowAdded = (row: {
-        getData: () => Record<string, unknown>;
-        getIndex: () => number;
-      }) => {
-        const rowData = row.getData();
-        const rowId = rowData.id as string | undefined;
-        if (rowId) {
-          markDirty(rowId, 'added');
-        }
-      };
 
       tab.on('cellEdited', onCellEdited);
       tab.on('rowAdded', onRowAdded);

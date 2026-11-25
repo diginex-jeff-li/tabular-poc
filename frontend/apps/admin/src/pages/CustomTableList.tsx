@@ -32,6 +32,23 @@ import { useRouter } from 'vue-router';
 import type { TableDefinition } from 'src/types/customTable';
 import type { VNode } from 'vue';
 
+// ── Row count helper — reads from the table's data key, not the definition ──
+function rowCountFor(id: string): number {
+  return readTableRows(id).length;
+}
+
+// ── Last-modified formatter ──
+function formatUpdatedAt(iso: string): string {
+  // Render as a locale-style date. The exact format is not contractually
+  // fixed; we keep it human-readable and include the year so validators
+  // can match against the stored `updatedAt`.
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    return iso;
+  }
+  return d.toLocaleString();
+}
+
 export default defineComponent({
   name: 'CustomTableList',
   setup() {
@@ -63,23 +80,6 @@ export default defineComponent({
 
     function goToEditor(id: string): void {
       void router.push(`/custom/${id}`);
-    }
-
-    // ── Row count helper — reads from the table's data key, not the definition ──
-    function rowCountFor(id: string): number {
-      return readTableRows(id).length;
-    }
-
-    // ── Last-modified formatter ──
-    function formatUpdatedAt(iso: string): string {
-      // Render as a locale-style date. The exact format is not contractually
-      // fixed; we keep it human-readable and include the year so validators
-      // can match against the stored `updatedAt`.
-      const d = new Date(iso);
-      if (Number.isNaN(d.getTime())) {
-        return iso;
-      }
-      return d.toLocaleString();
     }
 
     return (): VNode => {
