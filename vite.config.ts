@@ -105,7 +105,6 @@ export default defineConfig({
       'typescript/no-unsafe-return': 'off', // 2
       'prefer-const': 'off', // 1
       'no-promise-executor-return': 'off', // 1
-      'unicorn/catch-error-name': 'off', // 1
     },
     // The preset's TypeScript override re-enables these; keep the baseline.
     overrides: [
