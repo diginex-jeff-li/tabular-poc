@@ -111,7 +111,6 @@ export default defineConfig({
       'unicorn/numeric-separators-style': 'off', // 1
       eqeqeq: 'off', // 1
       'quality/no-array-filter-map': 'off', // 1
-      'unicorn/prefer-node-protocol': 'off', // 1
     },
     // The preset's TypeScript override re-enables these; keep the baseline.
     overrides: [
