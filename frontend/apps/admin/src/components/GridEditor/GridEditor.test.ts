@@ -103,7 +103,7 @@ vi.mock('@nuxt/ui/components/Modal.vue', () => ({
     setup(props, { slots }) {
       return (): VNode =>
         props.open
-          ? h('div', { class: 'u-modal' }, slots.default?.())
+          ? h('div', { class: 'u-modal' }, slots.content?.())
           : h('div', { class: 'u-modal u-modal--closed' });
     },
   }),

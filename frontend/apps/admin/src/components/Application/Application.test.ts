@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, nextTick } from 'vue';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import Application from './Application';
 import type { VNode } from 'vue';
@@ -144,5 +144,34 @@ describe('Application — nav shell', () => {
     const wrapper = await mountApplication();
     const header = wrapper.find('header');
     expect(header.classes()).toContain('shrink-0');
+  });
+
+  it('remounts a page shared by two routes, so each route gets its own engine', async () => {
+    // The page reads its prop once in setup, as the grid pages read `engine`.
+    const EnginePage = defineComponent({
+      props: { engine: { type: String, required: true } },
+      setup(props) {
+        const engine = props.engine;
+        return (): VNode => h('div', { class: 'engine' }, engine);
+      },
+    });
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', component: EnginePage, props: { engine: 'tanstack' } },
+        {
+          path: '/tabulator',
+          component: EnginePage,
+          props: { engine: 'tabulator' },
+        },
+      ],
+    });
+    await router.push('/');
+    await router.isReady();
+    const wrapper = mount(Application, { global: { plugins: [router] } });
+    expect(wrapper.find('.engine').text()).toBe('tanstack');
+    await router.push('/tabulator');
+    await nextTick();
+    expect(wrapper.find('.engine').text()).toBe('tabulator');
   });
 });

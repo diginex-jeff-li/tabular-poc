@@ -364,34 +364,39 @@ export default defineComponent({
               showClearConfirm.value = v;
             }}
           >
-            <div class="p-6">
-              <h3 class="text-lg font-semibold text-highlighted">
-                Clear all rows?
-              </h3>
-              <p class="mt-2 text-sm text-muted">
-                This will remove all {rowCount.value} rows from the grid.
-                Unsaved changes will be lost. Saved rows will remain in the
-                backend store.
-              </p>
-              <div class="mt-4 flex justify-end gap-2">
-                <UButton
-                  label="Cancel"
-                  color="neutral"
-                  variant="ghost"
-                  onClick={() => {
-                    showClearConfirm.value = false;
-                  }}
-                />
-                <UButton
-                  label="Clear All"
-                  color="error"
-                  onClick={() => {
-                    clearGrid();
-                    showClearConfirm.value = false;
-                  }}
-                />
-              </div>
-            </div>
+            {{
+              // The default slot is UModal's trigger; the dialog body is `content`.
+              content: (): VNode => (
+                <div class="p-6">
+                  <h3 class="text-lg font-semibold text-highlighted">
+                    Clear all rows?
+                  </h3>
+                  <p class="mt-2 text-sm text-muted">
+                    This will remove all {rowCount.value} rows from the grid.
+                    Unsaved changes will be lost. Saved rows will remain in the
+                    backend store.
+                  </p>
+                  <div class="mt-4 flex justify-end gap-2">
+                    <UButton
+                      label="Cancel"
+                      color="neutral"
+                      variant="ghost"
+                      onClick={() => {
+                        showClearConfirm.value = false;
+                      }}
+                    />
+                    <UButton
+                      label="Clear All"
+                      color="error"
+                      onClick={() => {
+                        clearGrid();
+                        showClearConfirm.value = false;
+                      }}
+                    />
+                  </div>
+                </div>
+              ),
+            }}
           </UModal>
         )}
 

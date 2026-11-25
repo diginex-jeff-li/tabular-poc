@@ -1,7 +1,8 @@
 import UApp from '@nuxt/ui/components/App.vue';
-import { defineComponent } from 'vue';
+import { cloneVNode, defineComponent } from 'vue';
 import { RouterLink, RouterView } from 'vue-router';
 import type { VNode } from 'vue';
+import type { RouteLocationNormalizedLoaded } from 'vue-router';
 
 /**
  * Application shell — wraps every route with a slim nav header and the router
@@ -68,7 +69,19 @@ export default defineComponent({
 
           {/* ── Router outlet (flex-1 min-h-0 — fills remaining space) ── */}
           <div class="router-outlet min-h-0 flex-1 overflow-hidden">
-            <RouterView />
+            {/* Keyed by path: `/` and `/tabulator` share a page component
+                with a different `engine`, and the page picks its engine once. */}
+            <RouterView>
+              {{
+                default: ({
+                  Component,
+                  route,
+                }: {
+                  Component: VNode | undefined;
+                  route: RouteLocationNormalizedLoaded;
+                }) => Component && cloneVNode(Component, { key: route.path }),
+              }}
+            </RouterView>
           </div>
         </div>
       </UApp>
