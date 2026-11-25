@@ -280,7 +280,7 @@ describe('TableRowSchema', () => {
       ...validTableRow,
       Name: 'Alice',
       Department: 'Engineering',
-      Salary: 120000,
+      Salary: 120_000,
       'Weird Key With Spaces': true,
     });
     expect(result.success).toBe(true);
