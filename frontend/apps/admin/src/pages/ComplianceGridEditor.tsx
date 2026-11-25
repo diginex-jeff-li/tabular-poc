@@ -1,5 +1,4 @@
 import DataGrid from 'components/DataGrid';
-import GridEditor from 'components/GridEditor';
 import { buildComplianceColumns } from 'composables/buildComplianceColumns';
 import { buildComplianceGridColumns } from 'composables/buildComplianceGridColumns';
 import { ComplianceLibrarySchema } from 'contracts';
@@ -14,9 +13,12 @@ import { ComplianceLibrarySchema } from 'contracts';
  *
  * NOT PRODUCTION — throwaway prototype code.
  */
-import { defineComponent } from 'vue';
+import { defineAsyncComponent, defineComponent } from 'vue';
 import type { BulkSaveErrorType, BulkSaveResponseType } from 'contracts';
 import type { PropType, VNode } from 'vue';
+
+// Loaded only on the Tabulator route, so TanStack pages never fetch Tabulator.
+const GridEditor = defineAsyncComponent(() => import('components/GridEditor'));
 
 // ── Derived from the shared contracts schema ──
 

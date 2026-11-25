@@ -28,7 +28,6 @@ import UButton from '@nuxt/ui/components/Button.vue';
 import { useFileDialog, useObjectUrl } from '@vueuse/core';
 import ColumnMappingPanel from 'components/ColumnMappingPanel';
 import DataGrid from 'components/DataGrid';
-import GridEditor from 'components/GridEditor';
 import { useAgentTools } from 'composables/useAgentTools';
 import { INVITE_TITLES, InviteRowSchema } from 'contracts';
 import { normalizeInviteRow } from 'utils/draftRow';
@@ -37,12 +36,22 @@ import { createInviteDraft } from 'utils/inviteDraft';
 import { buildInviteWorkbook, parseInviteWorkbook } from 'utils/inviteWorkbook';
 import { zodToColumnDefs } from 'utils/zodToColumnDefs';
 import { zodToTabulatorColumns } from 'utils/zodToTabulatorColumns';
-import { defineComponent, nextTick, onMounted, ref, shallowRef } from 'vue';
+import {
+  defineAsyncComponent,
+  defineComponent,
+  nextTick,
+  onMounted,
+  ref,
+  shallowRef,
+} from 'vue';
 import type { InviteRowStatus } from 'utils/draftRow';
 import type { GridApi } from 'utils/gridApi';
 import type { InviteDraft } from 'utils/inviteDraft';
 import type { GridColumn } from 'utils/zodToColumnDefs';
 import type { PropType, VNode } from 'vue';
+
+// Loaded only on the Tabulator route, so TanStack pages never fetch Tabulator.
+const GridEditor = defineAsyncComponent(() => import('components/GridEditor'));
 
 // Mock directory: these emails already have accounts in the organisation.
 const EXISTING_EMAILS: ReadonlySet<string> = new Set([
