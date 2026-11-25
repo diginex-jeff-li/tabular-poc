@@ -3,6 +3,7 @@
  * backend error; clicking it shows the cell. A failed request (no response)
  * shows as a network entry with nothing to point at.
  */
+import { rowLabel } from 'utils/gridApi';
 import { computed, defineComponent } from 'vue';
 import type { DataGridState } from 'composables/useDataGrid';
 import type { GridSaveError } from 'utils/gridApi';
@@ -14,6 +15,11 @@ export default defineComponent({
     grid: { type: Object as PropType<DataGridState>, required: true },
     onPick: {
       type: Function as PropType<(error: GridSaveError) => void>,
+      required: true,
+    },
+    /** The row's 1-based place in the grid as shown, or null when hidden. */
+    rowNumber: {
+      type: Function as PropType<(rowId: string) => number | null>,
       required: true,
     },
   },
@@ -56,7 +62,7 @@ export default defineComponent({
                 onClick={() => props.onPick(error)}
               >
                 <div class="font-semibold text-error">
-                  Row {error.row + 1}: {error.field}
+                  {rowLabel(props.rowNumber(error.rowId))}: {error.field}
                 </div>
                 <div class="mt-1 text-muted">{error.message}</div>
               </button>

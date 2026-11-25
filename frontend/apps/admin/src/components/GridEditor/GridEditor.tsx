@@ -26,6 +26,7 @@ import UButton from '@nuxt/ui/components/Button.vue';
 import UModal from '@nuxt/ui/components/Modal.vue';
 import { gridEngineProps } from 'components/gridEngineProps';
 import { useGridEditor } from 'composables/useGridEditor';
+import { rowLabel } from 'utils/gridApi';
 import { computed, defineComponent, ref } from 'vue';
 import type { PropType, VNode } from 'vue';
 
@@ -118,6 +119,7 @@ export default defineComponent({
       handleExportCSV,
       clearGrid,
       scrollToError,
+      rowNumber,
     } = grid;
     props.onReady?.({
       getRows: grid.getRows,
@@ -225,11 +227,18 @@ export default defineComponent({
 
         {/* ── Grid host (flex-1 min-h-0 — fills remaining space below the toolbar) ── */}
         <div class="relative min-h-0 flex-1 overflow-hidden">
-          <div ref={tableEl} class="h-full w-full" />
+          {/* tabindex -1: Tabulator listens for `paste` on this element, so
+              it must be able to take focus when the grid has no cells. */}
+          <div ref={tableEl} tabindex={-1} class="h-full w-full" />
 
-          {/* ── Empty-state paste overlay ── */}
+          {/* ── Empty-state paste overlay: a press focuses the grid ── */}
           {rowCount.value === 0 && !isSaving.value && (
-            <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-muted/80 backdrop-blur-sm">
+            <div
+              role="presentation"
+              data-testid="grid-empty"
+              class="absolute inset-0 flex cursor-text flex-col items-center justify-center gap-3 bg-muted/80 backdrop-blur-sm"
+              onClick={() => tableEl.value?.focus()}
+            >
               <div class="text-4xl text-muted">📋</div>
               <p class="text-lg font-medium text-default">
                 Paste your Excel data here
@@ -263,7 +272,7 @@ export default defineComponent({
                     onClick={() => scrollToError(err)}
                   >
                     <div class="font-semibold text-error">
-                      Row {err.row + 1}: {err.field}
+                      {rowLabel(rowNumber(err.rowId))}: {err.field}
                     </div>
                     <div class="mt-1 text-muted">{err.message}</div>
                   </button>

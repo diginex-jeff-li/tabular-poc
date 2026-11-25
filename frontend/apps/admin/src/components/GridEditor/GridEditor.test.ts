@@ -36,6 +36,9 @@ vi.mock('composables/useGridEditor', async () => {
     handleExportCSV: _vi.fn(),
     clearGrid: _vi.fn(),
     scrollToError: _vi.fn(),
+    // Where each row sits in the grid as shown; r3 is filtered out.
+    rowNumber: (rowId: string) =>
+      ({ r1: 5 } as Record<string, number>)[rowId] ?? null,
   };
   return {
     useGridEditor: () => mockState.refs,
@@ -302,6 +305,28 @@ describe('GridEditor — empty-state paste overlay', () => {
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).not.toContain('Paste your Excel data here');
   });
+
+  it('a click on the overlay focuses the element Tabulator listens on for paste', async () => {
+    const wrapper = mount(GridEditor, {
+      attachTo: document.body,
+      props: {
+        columns: [{ field: 'issue' }],
+        data: [],
+        onSave: vi.fn(),
+        title: 'Test Editor',
+        exportFilename: 'test-export.csv',
+      },
+    });
+    try {
+      await wrapper.get('[data-testid="grid-empty"]').trigger('click');
+      // The overlay's sibling is the element `new Tabulator(el)` builds on.
+      const tableEl = wrapper.get('[data-testid="grid-empty"]').element
+        .previousElementSibling;
+      expect(document.activeElement).toBe(tableEl);
+    } finally {
+      wrapper.unmount();
+    }
+  });
 });
 
 describe('GridEditor — toolbarActions render prop', () => {
@@ -376,7 +401,7 @@ describe('GridEditor — error sidebar', () => {
     expect(wrapper.text()).not.toContain('Validation Errors');
   });
 
-  it('shows the error sidebar with a count and entries when errorList is non-empty', async () => {
+  it('labels each error with the row’s place in the grid, not its index in the request', async () => {
     const wrapper = mountGridEditor();
     mockState.refs.errorList.value = [
       { row: 0, rowId: 'r1', field: 'issue', message: 'issue is required' },
@@ -384,8 +409,8 @@ describe('GridEditor — error sidebar', () => {
     ];
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain('Validation Errors (2)');
-    expect(wrapper.text()).toContain('Row 1: issue');
-    expect(wrapper.text()).toContain('Row 3: riskLevel');
+    expect(wrapper.text()).toContain('Row 5: issue');
+    expect(wrapper.text()).toContain('Hidden row: riskLevel');
   });
 
   it('clicking an error entry calls scrollToError', async () => {

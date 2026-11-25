@@ -615,7 +615,14 @@ export default defineComponent({
               focused.value = true;
             }}
           />
-          <ErrorSidebar grid={grid} onPick={showError} />
+          <ErrorSidebar
+            grid={grid}
+            onPick={showError}
+            rowNumber={(rowId: string) => {
+              const index = order.value.rowIds.indexOf(rowId);
+              return index === -1 ? null : index + 1;
+            }}
+          />
         </div>
       </div>
     );

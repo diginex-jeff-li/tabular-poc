@@ -124,6 +124,12 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   const saveResult = ref<GridSaveResponse | null>(null);
   const errorList = ref<Array<GridSaveError>>([]);
   const rowCount = ref(0);
+  // Bumped after every Tabulator render (sort, filter, data change), so
+  // `rowNumber` is re-read when a row's place on screen can have moved.
+  const renderTick = ref(0);
+  function onRenderComplete() {
+    renderTick.value += 1;
+  }
 
   // Dirty tracking — delegates to the existing composable. The tabulator ref
   // exists (null initially); the watch inside useDirtyTracking fires with
@@ -263,6 +269,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
       tab.on('clipboardPasted', onClipboardPasted);
 
       tab.on('cellEdited', onCellEdited);
+      tab.on('renderComplete', onRenderComplete);
 
       // Delete/Backspace clears the range unless focus is in an editor or a
       // header filter (there the key edits text). The key is swallowed either
@@ -283,6 +290,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
         tab.off('dataProcessed');
         tab.off('clipboardPasted', onClipboardPasted);
         tab.off('cellEdited', onCellEdited);
+        tab.off('renderComplete', onRenderComplete);
         el.removeEventListener('keydown', onKeyDown);
       });
     },
@@ -416,6 +424,21 @@ export function useGridEditor(opts: UseGridEditorOptions) {
         }, 2000);
       }
     }
+  }
+
+  /**
+   * The row's 1-based place in the grid as shown (sorted, filtered), or null
+   * when it is filtered out or gone. Save errors carry the row's index in the
+   * request, which is not where it sits on screen.
+   */
+  function rowNumber(rowId: string): number | null {
+    void renderTick.value;
+    // getRow(id) warns and returns false for an unknown id; search instead.
+    const row = tabulator.value
+      ?.getRows()
+      .find((r) => r.getData().id === rowId);
+    const position = row?.getPosition();
+    return typeof position === 'number' ? position : null;
   }
 
   // ── VAL-GRID-029: clear the "Saved N" badge when a new change occurs ──
@@ -607,6 +630,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
     handleExportCSV,
     clearGrid,
     scrollToError,
+    rowNumber,
     getRows,
     addRows,
     updateRows,
