@@ -6,16 +6,23 @@
 import UBadge from '@nuxt/ui/components/Badge.vue';
 import UButton from '@nuxt/ui/components/Button.vue';
 import UModal from '@nuxt/ui/components/Modal.vue';
-import { useConfirmDialog } from '@vueuse/core';
-import { defineComponent } from 'vue';
+import { useConfirmDialog, useObjectUrl } from '@vueuse/core';
+import { buildCsv } from 'utils/csv';
+import { defineComponent, nextTick, shallowRef } from 'vue';
 import type { DataGridState } from 'composables/useDataGrid';
+import type { GridColumn } from 'utils/zodToColumnDefs';
 import type { PropType, VNode } from 'vue';
 
 export default defineComponent({
   name: 'DataGridToolbar',
   props: {
     grid: { type: Object as PropType<DataGridState>, required: true },
+    columns: {
+      type: Array as PropType<ReadonlyArray<GridColumn>>,
+      required: true,
+    },
     title: { type: String, required: true },
+    exportFilename: { type: String, required: true },
     saveLabel: { type: String, required: true },
     savedLabel: {
       type: Function as PropType<(saved: number) => string>,
@@ -34,6 +41,23 @@ export default defineComponent({
       if (!isCanceled) {
         props.grid.clearAll();
       }
+    }
+
+    // The URL is made by useObjectUrl's watcher (hence the nextTick) and
+    // revoked when the next export replaces the blob, or on unmount.
+    const csv = shallowRef<Blob>();
+    const csvUrl = useObjectUrl(csv);
+
+    /** Every row, whatever the sort and filters show (VAL-GRID-022). */
+    async function exportCsv() {
+      csv.value = new Blob([buildCsv(props.grid.rows.value, props.columns)], {
+        type: 'text/csv;charset=utf-8',
+      });
+      await nextTick();
+      const link = document.createElement('a');
+      link.href = csvUrl.value ?? '';
+      link.download = props.exportFilename;
+      link.click();
     }
 
     const renderStatus = (): VNode => {
@@ -102,6 +126,13 @@ export default defineComponent({
           onClick={props.grid.deleteSelected}
         />
         <div class="mx-1 h-5 w-px bg-default" />
+        <UButton
+          label="Export"
+          color="neutral"
+          variant="outline"
+          size="xs"
+          onClick={exportCsv}
+        />
         <UButton
           label="Clear"
           color="neutral"

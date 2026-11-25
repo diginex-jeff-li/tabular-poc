@@ -1,4 +1,5 @@
 import { useEventListener } from '@vueuse/core';
+import { clearCells as clearCellsIn } from 'utils/gridClear';
 import { buildSavePayload, diffRows } from 'utils/gridDiff';
 import { computed, readonly, ref, shallowRef, watch } from 'vue';
 import type {
@@ -7,6 +8,7 @@ import type {
 } from 'composables/useGridEditor';
 import type { SavePayload } from 'utils/gridDiff';
 import type { CellPos } from 'utils/gridRange';
+import type { GridColumn } from 'utils/zodToColumnDefs';
 import type { ComputedRef, Ref, ShallowRef } from 'vue';
 
 /** A grid row. Rows are never mutated; every change replaces the row and the array. */
@@ -41,6 +43,12 @@ export interface DataGridState {
   setRowSelected: (rowId: string, selected: boolean) => void;
   /** Inserts an empty row at the top. */
   addRow: () => void;
+  /**
+   * Appends rows, each with a fresh id and through `normalizeRow`, and
+   * returns their ids. Not reported to `onUserEdit`: a paste reports them,
+   * an agent write does not.
+   */
+  addRows: (rows: ReadonlyArray<Record<string, unknown>>) => Array<string>;
   /** Removes the ticked rows. */
   deleteSelected: () => void;
   /** Removes every row; saved ones are sent as deletes on the next save. */
@@ -51,6 +59,16 @@ export interface DataGridState {
    * when the value is unchanged (blank equals blank).
    */
   editCell: (pos: CellPos, value: string) => boolean;
+  /**
+   * A person's Delete/Backspace over a block: empties its editable,
+   * non-blank cells, rebuilds each touched row through `normalizeRow`, and
+   * reports the touched rows to `onUserEdit` once. Nothing touched, nothing
+   * reported.
+   */
+  clearCells: (
+    cells: ReadonlyArray<ReadonlyArray<CellPos>>,
+    columns: ReadonlyArray<GridColumn>,
+  ) => void;
   save: () => Promise<void>;
 }
 
@@ -100,6 +118,11 @@ export function useDataGrid(opts: {
     }
   });
 
+  /** `row` through `normalizeRow`, keeping its id. */
+  function normalized(row: Row): Row {
+    return { ...(opts.normalizeRow?.(row) ?? row), id: row.id };
+  }
+
   function setRowSelected(rowId: string, selected: boolean) {
     const { [rowId]: _, ...rest } = rowSelection.value;
     rowSelection.value = selected ? { ...rest, [rowId]: true } : rest;
@@ -109,6 +132,14 @@ export function useDataGrid(opts: {
     const row: Row = { id: crypto.randomUUID() };
     rows.value = [row, ...rows.value];
     opts.onUserEdit?.([row.id]);
+  }
+
+  function addRows(added: ReadonlyArray<Record<string, unknown>>) {
+    const fresh = added.map((row) =>
+      normalized({ ...row, id: crypto.randomUUID() }),
+    );
+    rows.value = [...rows.value, ...fresh];
+    return fresh.map((row) => row.id);
   }
 
   function deleteSelected() {
@@ -137,14 +168,25 @@ export function useDataGrid(opts: {
     if (!row || sameValue(row[pos.colId], value)) {
       return false;
     }
-    const edited = { ...row, [pos.colId]: value };
-    const next: Row = {
-      ...(opts.normalizeRow?.(edited) ?? edited),
-      id: row.id,
-    };
+    const next = normalized({ ...row, [pos.colId]: value });
     rows.value = rows.value.map((r) => (r === row ? next : r));
     opts.onUserEdit?.([row.id]);
     return true;
+  }
+
+  function clearCells(
+    cells: ReadonlyArray<ReadonlyArray<CellPos>>,
+    columns: ReadonlyArray<GridColumn>,
+  ) {
+    const cleared = clearCellsIn(rows.value, cells, columns);
+    if (cleared.touchedIds.length === 0) {
+      return;
+    }
+    const touched = new Set(cleared.touchedIds);
+    rows.value = cleared.rows.map((row) =>
+      touched.has(row.id) ? normalized(row) : row,
+    );
+    opts.onUserEdit?.(cleared.touchedIds);
   }
 
   async function save() {
@@ -187,9 +229,11 @@ export function useDataGrid(opts: {
     errorList,
     setRowSelected,
     addRow,
+    addRows,
     deleteSelected,
     clearAll,
     editCell,
+    clearCells,
     save,
   };
 }

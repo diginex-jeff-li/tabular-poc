@@ -31,12 +31,13 @@ import {
   onKeyStroke,
   refAutoReset,
   useEventListener,
+  useFocus,
   useMousePressed,
 } from '@vueuse/core';
 import { gridEngineProps } from 'components/gridEngineProps';
 import { ROW_HEIGHT, useDataGrid } from 'composables/useDataGrid';
 import { useGridSelection } from 'composables/useGridSelection';
-import { serializeTsv } from 'utils/gridClipboard';
+import { parsePositionalPaste, serializeTsv } from 'utils/gridClipboard';
 import { indexSaveErrors, validateRows } from 'utils/gridValidation';
 import {
   computed,
@@ -47,6 +48,7 @@ import {
   shallowRef,
 } from 'vue';
 import DataGridToolbar from './DataGridToolbar';
+import EmptyState from './EmptyState';
 import ErrorSidebar from './ErrorSidebar';
 import GridCell from './GridCell';
 import HeaderCell from './HeaderCell';
@@ -255,6 +257,7 @@ export default defineComponent({
       touch: false,
       drag: false,
     });
+    const { focused } = useFocus(gridEl);
 
     /** Scrolls the least distance that shows the whole cell, left of `rightInset` px. */
     function reveal(pos: CellPos, rightInset = 0) {
@@ -352,20 +355,27 @@ export default defineComponent({
           navigate(e, dir);
           return;
         }
-        if (!pos) {
-          return;
-        }
         switch (e.key) {
-          case 'Enter':
-            e.preventDefault();
-            startEdit(pos, null);
-            return;
           case 'Delete':
           case 'Backspace':
-            // Ticket 08: clear the range's editable cells.
+            // Swallowed even with nothing to clear: some browsers go back.
+            e.preventDefault();
+            grid.clearCells(selection.cells(), props.columns);
+            return;
+          case 'Enter':
+            if (pos) {
+              e.preventDefault();
+              startEdit(pos, null);
+            }
             return;
           default:
-            if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            if (
+              pos &&
+              e.key.length === 1 &&
+              !e.ctrlKey &&
+              !e.metaKey &&
+              !e.altKey
+            ) {
               // Typing replaces the value, as in Excel.
               e.preventDefault();
               startEdit(pos, e.key);
@@ -386,8 +396,20 @@ export default defineComponent({
       e.preventDefault();
     });
 
-    // Ticket 07: `useEventListener(gridEl, 'paste', …)` goes here, with the
-    // same `fromControl` bail-out.
+    // Paste always inserts new rows at the bottom (Tabulator's `insert`
+    // action); it never writes over the selected range.
+    useEventListener(gridEl, 'paste', (e: ClipboardEvent) => {
+      if (fromControl(e)) {
+        return;
+      }
+      e.preventDefault();
+      const text = e.clipboardData?.getData('text/plain') ?? '';
+      const positional = () => parsePositionalPaste(text, props.columns);
+      const ids = grid.addRows(
+        props.pasteParser?.(text, positional) ?? positional(),
+      );
+      props.onUserEdit?.(ids);
+    });
 
     /** A sidebar error: bring its row into view, select and outline the cell. */
     function showError(error: GridSaveError) {
@@ -417,7 +439,9 @@ export default defineComponent({
       <div class="flex h-full flex-col overflow-hidden">
         <DataGridToolbar
           grid={grid}
+          columns={props.columns}
           title={props.title}
+          exportFilename={props.exportFilename}
           saveLabel={props.saveLabel}
           savedLabel={props.savedLabel}
           toolbarActions={props.toolbarActions}
@@ -444,6 +468,12 @@ export default defineComponent({
             rowSelection={grid.rowSelection.value}
             onUpdate:rowSelection={(value: Record<string, boolean>) => {
               grid.rowSelection.value = value;
+            }}
+          />
+          <EmptyState
+            grid={grid}
+            onActivate={() => {
+              focused.value = true;
             }}
           />
           <ErrorSidebar grid={grid} onPick={showError} />

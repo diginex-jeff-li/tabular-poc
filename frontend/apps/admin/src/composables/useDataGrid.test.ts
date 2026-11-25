@@ -3,6 +3,7 @@ import { effectScope, nextTick } from 'vue';
 import { useDataGrid } from './useDataGrid';
 import type { GridSaveResponse } from './useGridEditor';
 import type { SavePayload } from 'utils/gridDiff';
+import type { GridColumn } from 'utils/zodToColumnDefs';
 import type { EffectScope } from 'vue';
 
 // Each grid runs in its own scope, stopped after the test, so window
@@ -218,4 +219,94 @@ describe('useDataGrid', () => {
     expect(grid.rows.value).toBe(before);
     expect(onUserEdit).not.toHaveBeenCalled();
   });
+
+  it('appends added rows with fresh ids through normalizeRow, without reporting them', () => {
+    const onUserEdit = vi.fn();
+    const scope = effectScope();
+    scopes.push(scope);
+    const grid = scope.run(() =>
+      useDataGrid({
+        data: [{ id: 'a', name: 'Ann' }],
+        onSave: vi.fn(),
+        normalizeRow: (row) => ({ ...row, name: String(row.name).trim() }),
+        onUserEdit,
+      }),
+    );
+
+    const ids = grid.addRows([{ id: 'a', name: ' Bo ' }, { name: 'Cy' }]);
+
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+    expect(ids).not.toContain('a');
+    expect(grid.rows.value).toEqual([
+      { id: 'a', name: 'Ann' },
+      { id: ids[0], name: 'Bo' },
+      { id: ids[1], name: 'Cy' },
+    ]);
+    expect(grid.dirtyCount.value).toBe(2);
+    expect(onUserEdit).not.toHaveBeenCalled();
+  });
+
+  it('clears the editable cells of a block through normalizeRow and reports the touched rows once', () => {
+    const onUserEdit = vi.fn();
+    const scope = effectScope();
+    scopes.push(scope);
+    const normalizeRow = vi.fn((row: Record<string, unknown>) => ({
+      ...row,
+      full: [row.first, row.last].filter(Boolean).join(' '),
+    }));
+    const grid = scope.run(() =>
+      useDataGrid({
+        data: [
+          { id: 'a', status: 'Ready', first: 'Ann', last: 'Lee' },
+          { id: 'b', status: 'Ready', first: '', last: 'Ng' },
+          { id: 'c', status: 'Ready', first: 'Cy', last: 'Oh' },
+        ],
+        onSave: vi.fn(),
+        normalizeRow,
+        onUserEdit,
+      }),
+    );
+    const columns: Array<GridColumn> = [
+      { ...TEXT, id: 'status', editor: null, filter: null },
+      { ...TEXT, id: 'first' },
+      { ...TEXT, id: 'last' },
+    ];
+    const untouched = grid.rows.value[2];
+    const block = ['a', 'b'].map((rowId) =>
+      ['__select', 'status', 'first'].map((colId) => ({ rowId, colId })),
+    );
+
+    grid.clearCells(block, columns);
+
+    expect(grid.rows.value).toEqual([
+      { id: 'a', status: 'Ready', first: null, last: 'Lee', full: 'Lee' },
+      { id: 'b', status: 'Ready', first: '', last: 'Ng' },
+      untouched,
+    ]);
+    expect(grid.rows.value[2]).toBe(untouched);
+    expect(normalizeRow).toHaveBeenCalledWith({
+      id: 'a',
+      status: 'Ready',
+      first: null,
+      last: 'Lee',
+    });
+    expect(onUserEdit).toHaveBeenCalledTimes(1);
+    expect(onUserEdit).toHaveBeenCalledWith(['a']);
+
+    const before = grid.rows.value;
+    grid.clearCells(block, columns);
+    expect(grid.rows.value).toBe(before);
+    expect(onUserEdit).toHaveBeenCalledTimes(1);
+  });
 });
+
+const TEXT: GridColumn = {
+  id: '',
+  title: '',
+  editor: 'text',
+  filter: 'text',
+  validate: () => null,
+  paste: true,
+  export: true,
+};

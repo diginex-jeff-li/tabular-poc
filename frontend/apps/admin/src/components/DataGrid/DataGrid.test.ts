@@ -317,3 +317,199 @@ describe('DataGrid save errors', () => {
     expect(w.get('[role="alert"]').text()).toBe('NetworkSave failed');
   });
 });
+
+/**
+ * Pastes `text` on `target` and lets the grid re-render. A real paste
+ * carries its text on `clipboardData`; happy-dom's ClipboardEvent does not.
+ */
+async function paste(target: Element, text: string): Promise<Event> {
+  // The grid's root listeners attach after the first render's post flush.
+  await flushPromises();
+  const event = new Event('paste', { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'clipboardData', {
+    value: { getData: (type: string) => (type === 'text/plain' ? text : '') },
+  });
+  target.dispatchEvent(event);
+  await flushPromises();
+  return event;
+}
+
+/** Body row ids, top to bottom. */
+function rowIds(w: VueWrapper): Array<string> {
+  return w
+    .findAll('[data-col-id="topic"]')
+    .map((c) => c.attributes('data-row-id') ?? '');
+}
+
+describe('DataGrid paste', () => {
+  it('appends pasted lines as new rows, positionally, through normalizeRow', async () => {
+    const onUserEdit = vi.fn();
+    const normalizeRow = vi.fn((row: Record<string, unknown>) => ({
+      ...row,
+      topic: String(row.topic).trim(),
+    }));
+    const { wrapper: w } = mountGrid(undefined, { onUserEdit, normalizeRow });
+
+    const event = await paste(
+      root(w).element,
+      ' Fire safety \tHigh\nNoise\tLow\textra\n',
+    );
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(visibleTopics(w)).toEqual([
+      'Child labor',
+      'Wages',
+      'Air quality',
+      'Fire safety',
+      'Noise',
+    ]);
+    expect(cell(w, rowIds(w)[4], 'risk').text()).toBe('Low');
+    const added = rowIds(w).slice(3);
+    expect(new Set([...added, 'r1', 'r2', 'r3']).size).toBe(5);
+    expect(onUserEdit).toHaveBeenCalledTimes(1);
+    expect(onUserEdit).toHaveBeenCalledWith(added);
+    expect(w.get('[role="status"]').text()).toContain('2 changes');
+  });
+
+  it('inserts what the page’s pasteParser returns instead', async () => {
+    const onUserEdit = vi.fn();
+    const pasteParser = vi.fn(
+      (text: string, positional: () => Array<Record<string, unknown>>) =>
+        text.startsWith('Topic\t')
+          ? []
+          : positional().map((row) => ({ ...row, risk: 'Medium' })),
+    );
+    const { wrapper: w } = mountGrid(undefined, { onUserEdit, pasteParser });
+
+    await paste(root(w).element, 'Topic\tRisk\nNoise\tLow');
+    expect(pasteParser).toHaveBeenCalledWith(
+      'Topic\tRisk\nNoise\tLow',
+      expect.any(Function),
+    );
+    expect(visibleTopics(w)).toHaveLength(3);
+    expect(onUserEdit).toHaveBeenLastCalledWith([]);
+
+    await paste(root(w).element, 'Noise\tLow');
+    const [added] = rowIds(w).slice(3);
+    expect(cell(w, added, 'topic').text()).toBe('Noise');
+    expect(cell(w, added, 'risk').text()).toBe('Medium');
+    expect(onUserEdit).toHaveBeenLastCalledWith([added]);
+  });
+
+  it('leaves a paste into a header filter to the filter', async () => {
+    const onUserEdit = vi.fn();
+    const { wrapper: w } = mountGrid(undefined, { onUserEdit });
+    const event = await paste(
+      w.get('input[aria-label="Filter Topic"]').element,
+      'Noise\tLow',
+    );
+    expect(event.defaultPrevented).toBe(false);
+    expect(visibleTopics(w)).toHaveLength(3);
+    expect(onUserEdit).not.toHaveBeenCalled();
+  });
+
+  it('focuses the grid from the empty-state overlay, so a paste lands in it', async () => {
+    const { wrapper: w } = mountGrid(undefined, { data: [] });
+    const overlay = w.get('[data-testid="grid-empty"]');
+    expect(overlay.text()).toContain('Paste your Excel data here');
+
+    await overlay.trigger('click');
+    expect(document.activeElement).toBe(root(w).element);
+
+    await paste(root(w).element, 'Noise\tLow\nWages\tHigh');
+    expect(visibleTopics(w)).toEqual(['Noise', 'Wages']);
+    expect(w.find('[data-testid="grid-empty"]').exists()).toBe(false);
+  });
+});
+
+const STATUS: GridColumn = {
+  id: 'status',
+  title: 'Status',
+  editor: null,
+  filter: null,
+  paste: false,
+  export: false,
+  validate: () => null,
+};
+
+describe('DataGrid range clear', () => {
+  it('Backspace empties only the editable cells of the range and reports the rows once', async () => {
+    const onUserEdit = vi.fn();
+    const { wrapper: w } = mountGrid(undefined, {
+      onUserEdit,
+      columns: [STATUS, ...COLUMNS],
+      data: DATA.map((row) => ({ ...row, status: 'Ready' })),
+    });
+    await w.findAll('[aria-label="Select row"]')[0].trigger('click');
+    // A press beside a row's checkbox selects its cells, Status included.
+    w.findAll(
+      '[aria-label="Select row"]',
+    )[0].element.parentElement?.dispatchEvent(
+      new PointerEvent('pointerdown', { button: 0, bubbles: true }),
+    );
+    await root(w).trigger('keydown', { key: 'ArrowDown', shiftKey: true });
+
+    const key = new KeyboardEvent('keydown', {
+      key: 'Backspace',
+      bubbles: true,
+      cancelable: true,
+    });
+    root(w).element.dispatchEvent(key);
+    await flushPromises();
+
+    expect(key.defaultPrevented).toBe(true);
+    for (const rowId of ['r1', 'r2']) {
+      expect(cell(w, rowId, 'status').text()).toBe('Ready');
+      expect(cell(w, rowId, 'topic').text()).toBe('');
+      expect(cell(w, rowId, 'risk').text()).toBe('');
+      expect(cell(w, rowId, 'topic').attributes('aria-invalid')).toBe('true');
+    }
+    expect(cell(w, 'r3', 'topic').text()).toBe('Air quality');
+    expect(
+      w.findAll('[aria-label="Select row"]')[0].attributes('aria-checked'),
+    ).toBe('true');
+    expect(onUserEdit).toHaveBeenCalledTimes(1);
+    expect(onUserEdit).toHaveBeenCalledWith(['r1', 'r2']);
+
+    await root(w).trigger('keydown', { key: 'Delete' });
+    expect(onUserEdit).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('DataGrid CSV export', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('downloads every row, filtered-out ones included, without read-only columns', async () => {
+    // happy-dom's Blob is foreign to Node's URL.createObjectURL: stub it.
+    const blobs: Array<Blob> = [];
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((blob) => {
+      blobs.push(blob as Blob);
+      return 'blob:csv';
+    });
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const clicked: Array<HTMLAnchorElement> = [];
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      clicked.push(this);
+    });
+    const { wrapper: w } = mountGrid(undefined, {
+      columns: [STATUS, ...COLUMNS],
+      data: DATA.map((row) => ({ ...row, status: 'Ready' })),
+    });
+    await w.get('input[aria-label="Filter Topic"]').setValue('w');
+    expect(visibleTopics(w)).toEqual(['Wages']);
+
+    await button(w, 'Export')?.trigger('click');
+    await flushPromises();
+
+    expect(clicked).toHaveLength(1);
+    expect(clicked[0].download).toBe('grid.csv');
+    expect(clicked[0].href).toBe('blob:csv');
+    expect(await blobs[0].text()).toBe(
+      'Topic,Risk\r\nChild labor,Low\r\nWages,High\r\nAir quality,High',
+    );
+  });
+});
