@@ -107,7 +107,6 @@ export default defineConfig({
       'no-promise-executor-return': 'off', // 1
       'unicorn/catch-error-name': 'off', // 1
       'typescript/no-non-null-assertion': 'off', // 1
-      'unicorn/prefer-array-some': 'off', // 1
     },
     // The preset's TypeScript override re-enables these; keep the baseline.
     overrides: [

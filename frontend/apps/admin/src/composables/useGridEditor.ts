@@ -193,7 +193,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
         for (const row of updated) {
           if (
             row.id &&
-            !current.find((r: Record<string, unknown>) => r.id === row.id)
+            !current.some((r: Record<string, unknown>) => r.id === row.id)
           ) {
             markDirty(row.id as string, 'added');
             pastedIds.push(row.id as string);
