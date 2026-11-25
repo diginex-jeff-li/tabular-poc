@@ -3,15 +3,15 @@ import { zodToColumnDefs } from 'utils/zodToColumnDefs';
 import type { ComplianceLibraryType } from 'contracts';
 import type { GridColumn } from 'utils/zodToColumnDefs';
 
-// Fixed widths in px, wide enough for the seed data and the header titles, so
-// filtering never reflows them.
+// Fixed widths in px, wide enough for the seed data and for each header title
+// beside its sort button, so filtering never reflows them.
 const WIDTHS: Partial<Record<keyof ComplianceLibraryType, number>> = {
-  categoryCode: 140,
-  complianceCategory: 180,
+  categoryCode: 164,
+  complianceCategory: 204,
   topic: 240,
-  riskLevel: 110,
+  riskLevel: 134,
   issue: 560,
-  closureTiming: 140,
+  closureTiming: 164,
   evidenceExpectation: 250,
   bestPractice: 520,
 };

@@ -22,9 +22,9 @@ import UBadge from '@nuxt/ui/components/Badge.vue';
  */
 import UButton from '@nuxt/ui/components/Button.vue';
 import UModal from '@nuxt/ui/components/Modal.vue';
+import { gridEngineProps } from 'components/gridEngineProps';
 import { useGridEditor } from 'composables/useGridEditor';
 import { computed, defineComponent, ref } from 'vue';
-import type { GridApi, GridSaveResponse } from 'composables/useGridEditor';
 import type { PropType, VNode } from 'vue';
 
 // ── Licensing comparison data (generic marketing content, stays in the engine) ──
@@ -87,68 +87,7 @@ export default defineComponent({
       type: Array as PropType<Array<Record<string, unknown>>>,
       required: true,
     },
-    data: {
-      type: Array as PropType<Array<Record<string, unknown>>>,
-      required: true,
-    },
-    onSave: {
-      type: Function as PropType<
-        (payload: {
-          upserts: Array<Record<string, unknown>>;
-          deletes: Array<string>;
-        }) => Promise<GridSaveResponse>
-      >,
-      required: true,
-    },
-    title: {
-      type: String,
-      required: true,
-    },
-    exportFilename: {
-      type: String,
-      required: true,
-    },
-    toolbarActions: {
-      type: Function as PropType<() => VNode | Array<VNode>>,
-      default: undefined,
-    },
-    /** Save button label (e.g. "Send invites"). */
-    saveLabel: {
-      type: String,
-      default: 'Save',
-    },
-    /** Success badge text for N saved rows. */
-    savedLabel: {
-      type: Function as PropType<(saved: number) => string>,
-      default: (saved: number) => `Saved ${saved}`,
-    },
-    /** Receives the programmatic grid API (agent tools, file import). */
-    onReady: {
-      type: Function as PropType<(api: GridApi) => void>,
-      default: undefined,
-    },
-    /** Applied to every row that enters or is edited in the grid. */
-    normalizeRow: {
-      type: Function as PropType<
-        (row: Record<string, unknown>) => Record<string, unknown>
-      >,
-      default: undefined,
-    },
-    /** Called with row ids after a person adds, pastes, edits or deletes rows. */
-    onUserEdit: {
-      type: Function as PropType<(rowIds: Array<string>) => void>,
-      default: undefined,
-    },
-    /** Replaces the positional paste parser (see useGridEditor). */
-    pasteParser: {
-      type: Function as PropType<
-        (
-          clipboard: string,
-          positional: () => Array<Record<string, unknown>>,
-        ) => Array<Record<string, unknown>>
-      >,
-      default: undefined,
-    },
+    ...gridEngineProps,
   },
   setup(props) {
     const tableEl = ref<HTMLDivElement | null>(null);
