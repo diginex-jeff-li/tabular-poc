@@ -110,13 +110,10 @@ export function createInviteDraft(
     by: Actor,
   ): Promise<{ updated: Array<string>; missing: Array<string> }> {
     const wasReview = new Set(
-      patches
-        .values()
-        .filter((p) => {
-          const row = rowById(p.id);
-          return row !== undefined && needsReview(row);
-        })
-        .map((p) => p.id),
+      patches.flatMap((p) => {
+        const row = rowById(p.id);
+        return row !== undefined && needsReview(row) ? [p.id] : [];
+      }),
     );
     const merged = patches.map(({ id, ...fields }) => {
       const current = rowById(id);
