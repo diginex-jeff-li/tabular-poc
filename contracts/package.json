@@ -52,12 +52,12 @@
     "test:watch": "vp test"
   },
   "dependencies": {
-    "zod": "3.25.76"
+    "zod": "4.6.7"
   },
   "devDependencies": {
-    "@swc/cli": "0.8.1",
-    "@swc/core": "1.7.36",
-    "typescript": "6.0.3",
+    "@swc/cli": "0.8.2",
+    "@swc/core": "1.16.22",
+    "typescript": "7.0.2",
     "vite-plus": "1.8.0"
   }
 }

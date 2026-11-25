@@ -18,15 +18,14 @@ import type { ColumnDefinition } from 'tabulator-tables';
  * Hidden fields (uuid, datetime) are excluded from the output entirely.
  */
 export function zodToTabulatorColumns(
-  schema: z.ZodObject<z.ZodRawShape>,
+  schema: z.ZodObject,
   options: { titles?: Readonly<Record<string, string>> } = {},
 ): ColumnDefinition[] {
-  const shape = schema.shape;
   const columns: ColumnDefinition[] = [];
 
-  for (const [key, type] of Object.entries(shape)) {
+  for (const [key, type] of Object.entries(schema.shape)) {
     const title = options.titles?.[key] ?? fieldToTitle(key);
-    const column = deriveColumn(key, type as z.ZodTypeAny, title);
+    const column = deriveColumn(key, type as z.ZodType, title);
     if (column) {
       columns.push(column);
     }
@@ -49,7 +48,7 @@ function schemaValidator(type: z.ZodString) {
 
 function deriveColumn(
   field: string,
-  type: z.ZodTypeAny,
+  type: z.ZodType,
   title: string,
 ): ColumnDefinition | null {
   // Unwrap nullable
@@ -58,17 +57,17 @@ function deriveColumn(
 
   if (innerType instanceof z.ZodNullable) {
     isNullable = true;
-    innerType = innerType._def.innerType;
+    innerType = innerType.unwrap() as z.ZodType;
   }
 
   // Unwrap optional
   if (innerType instanceof z.ZodOptional) {
-    innerType = innerType._def.innerType;
+    innerType = innerType.unwrap() as z.ZodType;
   }
 
   // Enum → list editor
   if (innerType instanceof z.ZodEnum) {
-    const values = innerType._def.values as string[];
+    const values = innerType.options as string[];
     return {
       title,
       field,
@@ -85,16 +84,11 @@ function deriveColumn(
 
   // String
   if (innerType instanceof z.ZodString) {
-    const checks = innerType._def.checks;
-
     // uuid or datetime → hidden
-    if (
-      checks.some(
-        (c: { kind: string }) => c.kind === 'uuid' || c.kind === 'datetime',
-      )
-    ) {
+    if (innerType.format === 'uuid' || innerType.format === 'datetime') {
       return null; // exclude from visible columns
     }
+    const checks = innerType._zod.def.checks ?? [];
 
     // Regular string
     const col: Record<string, unknown> = {

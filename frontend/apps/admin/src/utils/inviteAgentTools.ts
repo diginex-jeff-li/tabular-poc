@@ -9,7 +9,6 @@ import {
 import { mappingProblems } from 'utils/columnMapping';
 import { INVITE_ROW_STATUSES } from 'utils/draftRow';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { InviteDraft } from 'utils/inviteDraft';
 
 /**
@@ -87,10 +86,11 @@ export const DeleteRowsOutputSchema = CheckResultSchema.extend({
 
 type CheckResult = z.infer<typeof CheckResultSchema>;
 
-function jsonSchema(schema: z.ZodTypeAny): Record<string, unknown> {
-  const { $schema: _draft, ...rest } = zodToJsonSchema(schema, {
-    $refStrategy: 'none',
-  }) as Record<string, unknown>;
+function jsonSchema(schema: z.ZodType): Record<string, unknown> {
+  const { $schema: _draft, ...rest } = z.toJSONSchema(schema) as Record<
+    string,
+    unknown
+  >;
   return rest;
 }
 
