@@ -40,7 +40,7 @@ export function useAgentTools(globalName: string, tools: Array<AgentTool>) {
         { ...tool, execute: (args) => tool.execute(args ?? {}) },
         { signal: controller.signal },
       );
-      Promise.resolve(registered).catch((err) =>
+      Promise.resolve(registered).catch((err: unknown) =>
         console.warn(`WebMCP: ${tool.name} not registered`, err),
       );
     }
