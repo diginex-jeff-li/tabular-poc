@@ -149,7 +149,7 @@ export default defineComponent({
   props: {
     engine: {
       type: String as PropType<'tanstack' | 'tabulator'>,
-      default: 'tabulator',
+      required: true,
     },
   },
   setup(props) {

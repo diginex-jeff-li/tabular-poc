@@ -14,7 +14,8 @@ import type { VNode } from 'vue';
  * edge. No `100vh` arithmetic — the flex chain carries the height.
  *
  * Nav links: "Compliance Library" → `/` and "Invite Users" → `/invite-users`
- * (SC15-706 + WebMCP prototype). The active route is visually indicated via
+ * (TanStack `DataGrid`), plus the same two pages on Tabulator under
+ * `/tabulator` for comparison. The active route is visually indicated via
  * `activeClass`.
  *
  * PROTOTYPE — throwaway prototype code.
@@ -44,6 +45,23 @@ export default defineComponent({
                 activeClass="font-semibold text-primary"
               >
                 Invite Users
+              </RouterLink>
+              <span class="ml-4 text-xs text-dimmed">
+                Tabulator (comparison):
+              </span>
+              <RouterLink
+                to="/tabulator"
+                class="text-sm text-muted hover:text-default"
+                activeClass="font-semibold text-primary"
+              >
+                Compliance
+              </RouterLink>
+              <RouterLink
+                to="/tabulator/invite-users"
+                class="text-sm text-muted hover:text-default"
+                activeClass="font-semibold text-primary"
+              >
+                Invite
               </RouterLink>
             </nav>
           </header>

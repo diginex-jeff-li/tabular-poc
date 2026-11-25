@@ -33,7 +33,7 @@ const PlaceholderPage = defineComponent({
 // ── Helper to mount Application with a real router ──
 //
 // createMemoryHistory avoids URL/history issues under happy-dom. The router
-// includes the nav targets registered in config/router.ts: '/' and '/invite-users'.
+// includes the nav targets registered in config/router.ts.
 
 async function mountApplication(initialPath = '/') {
   const router = createRouter({
@@ -41,6 +41,8 @@ async function mountApplication(initialPath = '/') {
     routes: [
       { path: '/', component: PlaceholderPage },
       { path: '/invite-users', component: PlaceholderPage },
+      { path: '/tabulator', component: PlaceholderPage },
+      { path: '/tabulator/invite-users', component: PlaceholderPage },
     ],
   });
   await router.push(initialPath);
@@ -89,12 +91,14 @@ describe('Application — nav shell', () => {
     // — either way it is a link, not a dead-end
   });
 
-  it('the header nav links are exactly "Compliance Library" and "Invite Users"', async () => {
+  it('the header nav links are the two TanStack pages, then the two Tabulator comparison pages', async () => {
     const wrapper = await mountApplication();
     const links = wrapper.findAll('header a[href]');
-    expect(links.map((l) => l.text())).toEqual([
-      'Compliance Library',
-      'Invite Users',
+    expect(links.map((l) => [l.text(), l.attributes('href')])).toEqual([
+      ['Compliance Library', '/'],
+      ['Invite Users', '/invite-users'],
+      ['Compliance', '/tabulator'],
+      ['Invite', '/tabulator/invite-users'],
     ]);
   });
 
