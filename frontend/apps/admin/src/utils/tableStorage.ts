@@ -1,6 +1,6 @@
 import { TableDefinitionSchema, TableRowSchema } from 'src/types/customTable';
-import { z } from 'zod';
 import type { TableDefinition, TableRow } from 'src/types/customTable';
+import type { z } from 'zod';
 
 /**
  * The key under which a single table's row data is stored.

@@ -83,7 +83,6 @@ export default defineConfig({
       'quality/no-known-value-widening': 'off', // 23
       'typescript/no-unsafe-assignment': 'off', // 22
       'quality/no-chained-type-assertions': 'off', // 19
-      'typescript/consistent-type-imports': 'off', // 13
       'typescript/no-base-to-string': 'off', // 13
       'unicorn/consistent-function-scoping': 'off', // 10
       'react/jsx-key': 'off', // 9
