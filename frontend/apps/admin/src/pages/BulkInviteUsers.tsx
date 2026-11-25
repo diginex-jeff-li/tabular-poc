@@ -51,7 +51,7 @@ const STATUS_CLASS: Record<InviteRowStatus, string> = {
 function buildColumns(
   statusOf: (row: Record<string, unknown>) => InviteRowStatus,
   confirm: (rowId: string) => void,
-): Record<string, unknown>[] {
+): Array<Record<string, unknown>> {
   return [
     {
       title: 'Status',
@@ -92,7 +92,7 @@ function buildColumns(
     },
     ...(zodToTabulatorColumns(InviteRowSchema, {
       titles: INVITE_TITLES,
-    }) as unknown as Record<string, unknown>[]),
+    }) as unknown as Array<Record<string, unknown>>),
   ];
 }
 
@@ -130,8 +130,8 @@ export default defineComponent({
 
     function pasteParser(
       clipboard: string,
-      positional: () => Record<string, unknown>[],
-    ): Record<string, unknown>[] {
+      positional: () => Array<Record<string, unknown>>,
+    ): Array<Record<string, unknown>> {
       const { rows, ignored } = draft.paste(
         clipboard,
         { autoMatch: autoMatch.value },
@@ -166,7 +166,7 @@ export default defineComponent({
           : '');
     }
 
-    const toolbarActions = (): VNode[] => [
+    const toolbarActions = (): Array<VNode> => [
       <div class="mx-1 h-5 w-px bg-default" />,
       <UButton
         label="Download template"

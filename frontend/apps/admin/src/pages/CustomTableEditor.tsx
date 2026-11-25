@@ -87,7 +87,7 @@ function slugifyFilename(name: string): string {
   return `${slug || 'table'}.csv`;
 }
 
-const TYPE_ITEMS: { label: string; value: ColumnDef['type'] }[] = [
+const TYPE_ITEMS: Array<{ label: string; value: ColumnDef['type'] }> = [
   { label: 'Text', value: 'text' },
   { label: 'Dropdown', value: 'dropdown' },
   { label: 'Number', value: 'number' },
@@ -111,7 +111,7 @@ export default defineComponent({
     const columns = computed(() =>
       definition.value ? definitionToColumns(definition.value.columns) : [],
     );
-    const rows = computed<Record<string, unknown>[]>(() =>
+    const rows = computed<Array<Record<string, unknown>>>(() =>
       definition.value ? readTableRows(definition.value.id) : [],
     );
     const exportFilename = computed(() =>
@@ -160,8 +160,8 @@ export default defineComponent({
     // highlighting and scroll-to-row all work unchanged because the error
     // objects carry `rowId`.
     async function onSave(payload: {
-      upserts: Record<string, unknown>[];
-      deletes: string[];
+      upserts: Array<Record<string, unknown>>;
+      deletes: Array<string>;
     }): Promise<GridSaveResponse> {
       const def = definition.value;
       const currentSchema = validationSchema.value;
@@ -178,8 +178,8 @@ export default defineComponent({
       // z.coerce.number() in the schema coerces numeric strings to numbers
       // during parsing — we keep the parsed data (result.data) so the coerced
       // values are what gets persisted, not the raw string input.
-      const errors: GridSaveError[] = [];
-      const validatedRows: Record<string, unknown>[] = [];
+      const errors: Array<GridSaveError> = [];
+      const validatedRows: Array<Record<string, unknown>> = [];
       for (let i = 0; i < payload.upserts.length; i++) {
         const row = payload.upserts[i];
         const result = currentSchema.safeParse(row);
@@ -255,7 +255,7 @@ export default defineComponent({
     const newColumnType = ref<ColumnDef['type']>('text');
     const newColumnRequired = ref(false);
     const newColumnChoicesText = ref('');
-    const addColumnErrors = ref<string[]>([]);
+    const addColumnErrors = ref<Array<string>>([]);
 
     function openAddColumnModal(): void {
       // Reset to blank defaults each time the modal opens.
@@ -297,8 +297,8 @@ export default defineComponent({
      * uniqueness against the table's EXISTING columns (case-insensitive,
      * trimmed). Returns an array of error messages; empty means valid.
      */
-    function validateNewColumn(): string[] {
-      const errors: string[] = [];
+    function validateNewColumn(): Array<string> {
+      const errors: Array<string> = [];
       const def = definition.value;
       if (!def) return errors;
 
@@ -368,10 +368,12 @@ export default defineComponent({
       // Add the new field with value null to every existing row. Existing
       // row data must not be lost — only the new field is added.
       const existingRows = readTableRows(def.id);
-      const updatedRows: TableRow[] = existingRows.map((row): TableRow => ({
-        ...row,
-        [newColumn.name]: null,
-      }));
+      const updatedRows: Array<TableRow> = existingRows.map(
+        (row): TableRow => ({
+          ...row,
+          [newColumn.name]: null,
+        }),
+      );
       writeTableRows(def.id, updatedRows);
 
       // Close the modal. The grid remounts via the gridKey change (column

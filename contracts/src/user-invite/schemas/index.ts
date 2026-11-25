@@ -32,7 +32,7 @@ export const InviteRoleEnum = z.enum(INVITE_ROLES);
 export const InviteGroupEnum = z.enum(INVITE_GROUPS);
 
 /** Split a "; "-separated groups cell into trimmed, non-empty names. */
-export function parseInviteGroups(value: unknown): string[] {
+export function parseInviteGroups(value: unknown): Array<string> {
   if (typeof value !== 'string') return [];
   return value
     .split(';')
@@ -62,7 +62,9 @@ const { id: _id, ...INVITE_FIELD_SHAPE } = InviteRowSchema.shape;
 export type InviteField = keyof typeof INVITE_FIELD_SHAPE;
 
 /** The template's columns, in order. */
-export const INVITE_FIELDS = Object.keys(INVITE_FIELD_SHAPE) as InviteField[];
+export const INVITE_FIELDS = Object.keys(
+  INVITE_FIELD_SHAPE,
+) as Array<InviteField>;
 
 /**
  * What the schema cannot hold: each column's header, and the other header
@@ -81,7 +83,7 @@ const INVITE_COLUMN_META = {
   groups: { header: 'Groups', aliases: ['group', 'teams'] },
 } as const satisfies Record<
   InviteField,
-  { header: string; aliases: readonly string[] }
+  { header: string; aliases: ReadonlyArray<string> }
 >;
 
 export const INVITE_COLUMNS = INVITE_FIELDS.map((field) => ({

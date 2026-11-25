@@ -19,7 +19,7 @@ import type { ColumnDef } from 'src/types/customTable';
  * The returned schema always requires id (uuid), createdAt (datetime) and
  * updatedAt (datetime).
  */
-export function buildRuntimeSchema(columns: ColumnDef[]): z.ZodObject {
+export function buildRuntimeSchema(columns: Array<ColumnDef>): z.ZodObject {
   const shape: Record<string, z.ZodType> = {
     id: z.string().uuid(),
     createdAt: z.string().datetime(),
@@ -59,6 +59,6 @@ function baseSchema(col: ColumnDef): z.ZodTypeAny {
     case 'number':
       return z.coerce.number();
     case 'dropdown':
-      return z.enum(col.choices as [string, ...string[]]);
+      return z.enum(col.choices as [string, ...Array<string>]);
   }
 }

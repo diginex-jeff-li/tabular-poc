@@ -268,7 +268,7 @@ describe('zodToTabulatorColumns', () => {
       [column.validator]
         .flat()
         .filter(
-          (v): v is { type: (...a: unknown[]) => boolean } =>
+          (v): v is { type: (...a: Array<unknown>) => boolean } =>
             typeof (v as { type?: unknown } | null)?.type === 'function',
         )
         .every((v) => v.type({}, value, undefined));
@@ -278,7 +278,7 @@ describe('zodToTabulatorColumns', () => {
         email: z.string().email(),
         name: z.string().min(1).max(100),
       }),
-    ) as unknown as Record<string, unknown>[];
+    ) as unknown as Array<Record<string, unknown>>;
 
     it('checks a cell with the same rule the schema uses', () => {
       expect(passes(email, 'ann@x.co')).toBe(true);
@@ -301,7 +301,7 @@ describe('zodToTabulatorColumns', () => {
       {
         titles: { firstName: 'Given name' },
       },
-    ) as unknown as Record<string, unknown>[];
+    ) as unknown as Array<Record<string, unknown>>;
     expect(column.title).toBe('Given name');
   });
 });

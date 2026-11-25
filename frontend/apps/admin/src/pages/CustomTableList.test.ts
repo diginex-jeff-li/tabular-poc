@@ -114,7 +114,7 @@ function col(
     name,
     type: 'text' as const,
     required: false,
-    choices: [] as string[],
+    choices: [] as Array<string>,
     ...over,
   };
 }
@@ -195,7 +195,7 @@ function seedDef(d: TableDefinition) {
   localStorage.setItem('sc-table-defs', JSON.stringify(list));
 }
 
-function seedRows(tableId: string, rows: Record<string, unknown>[]) {
+function seedRows(tableId: string, rows: Array<Record<string, unknown>>) {
   localStorage.setItem(`sc-table-data-${tableId}`, JSON.stringify(rows));
 }
 

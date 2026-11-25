@@ -110,7 +110,7 @@ vi.mock('@nuxt/ui/components/Modal.vue', () => ({
 function mountGridEditor(
   options: {
     title?: string;
-    toolbarActions?: () => VNode | VNode[];
+    toolbarActions?: () => VNode | Array<VNode>;
   } = {},
 ) {
   const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 0 });

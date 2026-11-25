@@ -15,7 +15,7 @@ import { RESERVED_COLUMN_NAMES } from 'src/types/customTable';
  * Parse a comma-separated choices string: split on ',', trim, drop empties.
  * "a, ,b," → ["a", "b"].
  */
-export function parseChoices(raw: string): string[] {
+export function parseChoices(raw: string): Array<string> {
   return raw
     .split(',')
     .map((c) => c.trim())
@@ -42,7 +42,7 @@ export function isReservedName(name: string): boolean {
  */
 export function isDuplicateName(
   name: string,
-  existingNames: string[],
+  existingNames: Array<string>,
 ): boolean {
   const trimmed = name.trim();
   if (!trimmed) return false;

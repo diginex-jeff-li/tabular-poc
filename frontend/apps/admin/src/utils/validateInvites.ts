@@ -24,11 +24,11 @@ const ALLOWED_GROUPS: ReadonlySet<string> = new Set(INVITE_GROUPS);
  * sorting or filtering.
  */
 export function validateInvites(
-  rows: Record<string, unknown>[],
+  rows: Array<Record<string, unknown>>,
   existingEmails: ReadonlySet<string>,
   agentProposed: ReadonlySet<string> = new Set(),
-): GridSaveError[] {
-  const errors: GridSaveError[] = [];
+): Array<GridSaveError> {
+  const errors: Array<GridSaveError> = [];
   const firstRowByEmail = new Map<string, number>();
 
   rows.forEach((raw, row) => {

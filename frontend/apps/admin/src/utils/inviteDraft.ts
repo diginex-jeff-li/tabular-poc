@@ -47,7 +47,7 @@ export interface HeldPaste {
   table: UnmappedTable;
   mapping: ColumnMapping;
   /** Columns whose mapping the agent proposed and no person has changed. */
-  agentColumns: number[];
+  agentColumns: Array<number>;
 }
 
 type Row = Record<string, unknown>;
@@ -57,7 +57,7 @@ export function createInviteDraft(
   { existingEmails }: { existingEmails: ReadonlySet<string> },
 ) {
   const agentProposed = new Set<string>();
-  let errors: GridSaveError[] = [];
+  let errors: Array<GridSaveError> = [];
   const held: ShallowRef<HeldPaste | null> = shallowRef(null);
 
   const api = (): GridApi => {
@@ -70,7 +70,7 @@ export function createInviteDraft(
       .getRows()
       .find((r) => r.id === id);
 
-  function check(): GridSaveError[] {
+  function check(): Array<GridSaveError> {
     const g = grid();
     if (!g) return errors;
     errors = validateInvites(g.getRows(), existingEmails, agentProposed);
@@ -82,7 +82,7 @@ export function createInviteDraft(
     return inviteRowStatus(row, errors, agentProposed);
   }
 
-  function rows(): DraftRowView[] {
+  function rows(): Array<DraftRowView> {
     return api()
       .getRows()
       .map((row) => ({
@@ -94,16 +94,16 @@ export function createInviteDraft(
 
   // Who added rows changes no rule today; the actor stays in the interface so
   // every write names it (agreed design, spec decision Q31).
-  async function add(newRows: Row[], _by: Actor): Promise<string[]> {
+  async function add(newRows: Array<Row>, _by: Actor): Promise<Array<string>> {
     const ids = await api().addRows(newRows.map(normalizeInviteRow));
     check();
     return ids;
   }
 
   async function update(
-    patches: ({ id: string } & Row)[],
+    patches: Array<{ id: string } & Row>,
     by: Actor,
-  ): Promise<{ updated: string[]; missing: string[] }> {
+  ): Promise<{ updated: Array<string>; missing: Array<string> }> {
     const wasReview = new Set(
       patches
         .filter((p) => {
@@ -130,9 +130,9 @@ export function createInviteDraft(
   }
 
   function remove(
-    ids: string[],
+    ids: Array<string>,
     by: Actor,
-  ): { deleted: string[]; missing: string[] } {
+  ): { deleted: Array<string>; missing: Array<string> } {
     if (by === 'agent') {
       // Either kind of row waits on a person; deleting it would let an agent
       // replace it with an unmarked copy.
@@ -159,7 +159,7 @@ export function createInviteDraft(
   }
 
   /** A person changed these rows directly in the grid (paste, edit, add, delete). */
-  function edited(ids: string[]) {
+  function edited(ids: Array<string>) {
     for (const id of ids) agentProposed.delete(id);
     check();
   }
@@ -172,8 +172,8 @@ export function createInviteDraft(
   function paste(
     text: string,
     { autoMatch }: { autoMatch: boolean },
-    positional: () => Row[],
-  ): { rows: Row[]; ignored: string[] } {
+    positional: () => Array<Row>,
+  ): { rows: Array<Row>; ignored: Array<string> } {
     const plan = planPaste(text, { autoMatch });
     if (plan.kind === 'positional') return { rows: positional(), ignored: [] };
     if (plan.kind === 'insert')
@@ -190,7 +190,7 @@ export function createInviteDraft(
   }
 
   /** The agent fills the mapping panel; nothing enters the draft. */
-  function proposeMapping(mapping: unknown[]): string[] {
+  function proposeMapping(mapping: Array<unknown>): Array<string> {
     const { table } = heldOrThrow();
     if (mapping.length !== table.headers.length) {
       throw new Error(
@@ -198,7 +198,7 @@ export function createInviteDraft(
       );
     }
     const unknown = mapping.find(
-      (f) => f !== null && !(INVITE_FIELDS as unknown[]).includes(f),
+      (f) => f !== null && !(INVITE_FIELDS as Array<unknown>).includes(f),
     );
     if (unknown !== undefined) {
       throw new Error(`Unknown template column "${String(unknown)}".`);
@@ -225,7 +225,10 @@ export function createInviteDraft(
   }
 
   /** A person applies the mapping: the pasted rows enter the draft. */
-  async function applyMapping(): Promise<{ added: number; ignored: string[] }> {
+  async function applyMapping(): Promise<{
+    added: number;
+    ignored: Array<string>;
+  }> {
     const { table, mapping } = heldOrThrow();
     const problems = mappingProblems(mapping);
     if (problems.length > 0) throw new Error(problems.join('; '));

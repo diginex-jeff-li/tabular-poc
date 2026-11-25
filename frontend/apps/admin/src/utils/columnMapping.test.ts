@@ -5,7 +5,8 @@ import {
   planPaste,
 } from './columnMapping';
 
-const tsv = (...lines: string[][]) => lines.map((l) => l.join('\t')).join('\n');
+const tsv = (...lines: Array<Array<string>>) =>
+  lines.map((l) => l.join('\t')).join('\n');
 
 // The client export from the user's screenshot: 10 columns, template
 // columns out of order, extra HR columns.

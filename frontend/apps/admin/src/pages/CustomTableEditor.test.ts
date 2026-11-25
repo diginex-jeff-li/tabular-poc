@@ -27,10 +27,13 @@ vi.mock('components/GridEditor', () => ({
     name: 'GridEditor',
     props: {
       columns: {
-        type: Array as () => Record<string, unknown>[],
+        type: Array as () => Array<Record<string, unknown>>,
         required: true,
       },
-      data: { type: Array as () => Record<string, unknown>[], required: true },
+      data: {
+        type: Array as () => Array<Record<string, unknown>>,
+        required: true,
+      },
       onSave: { type: Function, required: true },
       title: { type: String, required: true },
       exportFilename: { type: String, required: true },
@@ -52,7 +55,7 @@ vi.mock('components/GridEditor', () => ({
             h(
               'div',
               { 'data-test': 'column-fields' },
-              (props.columns as Record<string, unknown>[])
+              (props.columns as Array<Record<string, unknown>>)
                 .map((c) => String(c.field))
                 .join(','),
             ),
@@ -122,13 +125,16 @@ vi.mock('@nuxt/ui/components/Select.vue', () => ({
     name: 'USelect',
     props: {
       modelValue: { type: [String, Number, Boolean], default: '' },
-      items: { type: Array as () => unknown[], default: (): unknown[] => [] },
+      items: {
+        type: Array as () => Array<unknown>,
+        default: (): Array<unknown> => [],
+      },
       placeholder: { type: String, default: '' },
     },
     emits: ['update:modelValue'],
     setup(props, { emit }) {
       return (): VNode => {
-        const items = (props.items as unknown[]).map((item) => {
+        const items = (props.items as Array<unknown>).map((item) => {
           if (typeof item === 'object' && item !== null) {
             return {
               label: (item as Record<string, unknown>).label as string,
@@ -280,12 +286,12 @@ async function mountEditor(tableId: string) {
 
 function seedDef(d: TableDefinition) {
   const existing = localStorage.getItem('sc-table-defs');
-  const list: TableDefinition[] = existing ? JSON.parse(existing) : [];
+  const list: Array<TableDefinition> = existing ? JSON.parse(existing) : [];
   list.push(d);
   localStorage.setItem('sc-table-defs', JSON.stringify(list));
 }
 
-function seedRows(tableId: string, rows: TableRow[]) {
+function seedRows(tableId: string, rows: Array<TableRow>) {
   localStorage.setItem(`sc-table-data-${tableId}`, JSON.stringify(rows));
 }
 
@@ -657,7 +663,7 @@ describe('CustomTableEditor', () => {
       });
       const defs = JSON.parse(
         localStorage.getItem('sc-table-defs') || '[]',
-      ) as TableDefinition[];
+      ) as Array<TableDefinition>;
       expect(defs).toHaveLength(1);
       expect(defs[0].name).toBe('My Table');
       expect(defs[0].columns).toEqual(makeDef().columns);
@@ -1094,7 +1100,7 @@ describe('CustomTableEditor', () => {
 
       const defs = JSON.parse(
         localStorage.getItem('sc-table-defs') || '[]',
-      ) as TableDefinition[];
+      ) as Array<TableDefinition>;
       expect(defs).toHaveLength(1);
       expect(defs[0].updatedAt).not.toBe('2020-01-01T00:00:00.000Z');
       expect(defs[0].updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
@@ -1121,7 +1127,7 @@ describe('CustomTableEditor', () => {
 
       const defs = JSON.parse(
         localStorage.getItem('sc-table-defs') || '[]',
-      ) as TableDefinition[];
+      ) as Array<TableDefinition>;
       const cols = defs[0].columns;
       expect(cols).toHaveLength(4);
       const newCol = cols[3];

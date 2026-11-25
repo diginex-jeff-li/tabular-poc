@@ -11,21 +11,21 @@ import { INVITE_COLUMNS, matchInviteHeader, type InviteField } from 'contracts';
  * column mapping — their own, or one the agent proposed.
  */
 export interface UnmappedTable {
-  headers: string[];
-  rows: string[][];
+  headers: Array<string>;
+  rows: Array<Array<string>>;
 }
 
 /** Per pasted column: the template column it fills, or null to ignore it. */
-export type ColumnMapping = (InviteField | null)[];
+export type ColumnMapping = Array<InviteField | null>;
 
 type DraftRow = Partial<Record<InviteField, string | null>>;
 
 export type PastePlan =
-  | { kind: 'insert'; rows: DraftRow[]; ignored: string[] }
+  | { kind: 'insert'; rows: Array<DraftRow>; ignored: Array<string> }
   | { kind: 'hold'; table: UnmappedTable; mapping: ColumnMapping }
   | { kind: 'positional' };
 
-function readTable(text: string): string[][] {
+function readTable(text: string): Array<Array<string>> {
   return text
     .split('\n')
     .map((line) => line.replace(/\r$/, ''))
@@ -65,7 +65,7 @@ export function planPaste(
 export function applyColumnMapping(
   table: UnmappedTable,
   mapping: ColumnMapping,
-): { rows: DraftRow[]; ignored: string[] } {
+): { rows: Array<DraftRow>; ignored: Array<string> } {
   const rows = table.rows.map((cells) => {
     const row: DraftRow = {};
     mapping.forEach((field, i) => {
@@ -78,8 +78,8 @@ export function applyColumnMapping(
 }
 
 /** Why a mapping cannot be applied yet; empty when it can. */
-export function mappingProblems(mapping: ColumnMapping): string[] {
-  const problems: string[] = [];
+export function mappingProblems(mapping: ColumnMapping): Array<string> {
+  const problems: Array<string> = [];
   for (const column of INVITE_COLUMNS) {
     const uses = mapping.filter((f) => f === column.field).length;
     if (uses > 1) {

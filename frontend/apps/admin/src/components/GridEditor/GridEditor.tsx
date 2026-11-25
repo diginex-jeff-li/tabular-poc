@@ -86,18 +86,18 @@ export default defineComponent({
   name: 'GridEditor',
   props: {
     columns: {
-      type: Array as PropType<Record<string, unknown>[]>,
+      type: Array as PropType<Array<Record<string, unknown>>>,
       required: true,
     },
     data: {
-      type: Array as PropType<Record<string, unknown>[]>,
+      type: Array as PropType<Array<Record<string, unknown>>>,
       required: true,
     },
     onSave: {
       type: Function as PropType<
         (payload: {
-          upserts: Record<string, unknown>[];
-          deletes: string[];
+          upserts: Array<Record<string, unknown>>;
+          deletes: Array<string>;
         }) => Promise<GridSaveResponse>
       >,
       required: true,
@@ -111,7 +111,7 @@ export default defineComponent({
       required: true,
     },
     toolbarActions: {
-      type: Function as PropType<() => VNode | VNode[]>,
+      type: Function as PropType<() => VNode | Array<VNode>>,
       default: undefined,
     },
     /** Save button label (e.g. "Send invites"). */
@@ -138,7 +138,7 @@ export default defineComponent({
     },
     /** Called with row ids after a person adds, pastes, edits or deletes rows. */
     onUserEdit: {
-      type: Function as PropType<(rowIds: string[]) => void>,
+      type: Function as PropType<(rowIds: Array<string>) => void>,
       default: undefined,
     },
     /** Replaces the positional paste parser (see useGridEditor). */
@@ -146,8 +146,8 @@ export default defineComponent({
       type: Function as PropType<
         (
           clipboard: string,
-          positional: () => Record<string, unknown>[],
-        ) => Record<string, unknown>[]
+          positional: () => Array<Record<string, unknown>>,
+        ) => Array<Record<string, unknown>>
       >,
       default: undefined,
     },

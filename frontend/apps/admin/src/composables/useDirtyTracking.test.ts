@@ -12,18 +12,18 @@ interface MockRow {
   delete: () => void;
 }
 
-function createMockTabulator(initialData: Record<string, unknown>[] = []) {
-  const handlers: Record<string, Array<(...args: unknown[]) => void>> = {};
+function createMockTabulator(initialData: Array<Record<string, unknown>> = []) {
+  const handlers: Record<string, Array<(...args: Array<unknown>) => void>> = {};
   let data = [...initialData];
 
-  const mockRows: MockRow[] = data.map((d, i) => ({
+  const mockRows: Array<MockRow> = data.map((d, i) => ({
     getData: () => ({ ...d }),
     getIndex: () => i,
     delete: vi.fn(),
   }));
 
   const tabulator = {
-    on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+    on: vi.fn((event: string, handler: (...args: Array<unknown>) => void) => {
       if (!handlers[event]) handlers[event] = [];
       handlers[event].push(handler);
     }),
@@ -42,7 +42,7 @@ function createMockTabulator(initialData: Record<string, unknown>[] = []) {
       return mockRow;
     }),
     // Helper to simulate events
-    _emit: (event: string, ...args: unknown[]) => {
+    _emit: (event: string, ...args: Array<unknown>) => {
       // For rowAdded, also add to internal data so getData() reflects it
       if (event === 'rowAdded' && args[0]) {
         const row = args[0] as { getData: () => Record<string, unknown> };

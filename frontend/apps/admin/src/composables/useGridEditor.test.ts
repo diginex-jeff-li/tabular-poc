@@ -71,13 +71,13 @@ function createMockRow(d: Record<string, unknown>, index: number): MockRow {
 }
 
 function createMockTabulator(
-  initialData: Record<string, unknown>[] = [],
-  _columns: Record<string, unknown>[] = [],
+  initialData: Array<Record<string, unknown>> = [],
+  _columns: Array<Record<string, unknown>> = [],
 ) {
-  const handlers: Record<string, Array<(...args: unknown[]) => void>> = {};
+  const handlers: Record<string, Array<(...args: Array<unknown>) => void>> = {};
   let data = [...initialData];
-  let mockRows: MockRow[] = [];
-  let selectedRows: MockRow[] = [];
+  let mockRows: Array<MockRow> = [];
+  let selectedRows: Array<MockRow> = [];
 
   function rebuildRows() {
     mockRows = data.map((d, i) => {
@@ -94,15 +94,15 @@ function createMockTabulator(
   rebuildRows();
 
   const mockElement = {
-    querySelectorAll: vi.fn((_sel: string) => [] as Element[]),
+    querySelectorAll: vi.fn((_sel: string) => [] as Array<Element>),
   };
 
   const tabulator = {
-    on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+    on: vi.fn((event: string, handler: (...args: Array<unknown>) => void) => {
       if (!handlers[event]) handlers[event] = [];
       handlers[event].push(handler);
     }),
-    off: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+    off: vi.fn((event: string, handler: (...args: Array<unknown>) => void) => {
       if (handlers[event]) {
         handlers[event] = handlers[event].filter((h) => h !== handler);
       }
@@ -116,7 +116,7 @@ function createMockTabulator(
       rebuildRows();
       return mockRows[0];
     }),
-    replaceData: vi.fn((newData: Record<string, unknown>[]) => {
+    replaceData: vi.fn((newData: Array<Record<string, unknown>>) => {
       data = [...newData];
       rebuildRows();
     }),
@@ -127,23 +127,23 @@ function createMockTabulator(
     getDataCount: vi.fn(() => data.length),
     download: vi.fn(),
     element: mockElement,
-    _emit: (event: string, ...args: unknown[]) => {
+    _emit: (event: string, ...args: Array<unknown>) => {
       handlers[event]?.forEach((h) => h(...args));
     },
     _getData: () => data,
     _getRows: () => mockRows,
-    _setSelectedRows: (rows: MockRow[]) => {
+    _setSelectedRows: (rows: Array<MockRow>) => {
       selectedRows = rows;
     },
-    _setSelectedByRowIds: (rowIds: string[]) => {
+    _setSelectedByRowIds: (rowIds: Array<string>) => {
       selectedRows = mockRows.filter((r) =>
         rowIds.includes(r.getData().id as string),
       );
     },
-    _setMockRows: (rows: MockRow[]) => {
+    _setMockRows: (rows: Array<MockRow>) => {
       mockRows = rows;
     },
-    _setElementCells: (cells: Element[]) => {
+    _setElementCells: (cells: Array<Element>) => {
       mockElement.querySelectorAll.mockReturnValue(cells);
     },
   };
@@ -176,8 +176,8 @@ function createMockRowForEvent(
 
 // ── Helper: set up the composable with a mock Tabulator ──
 function setupGridEditor(options: {
-  initialData?: Record<string, unknown>[];
-  columns?: Record<string, unknown>[];
+  initialData?: Array<Record<string, unknown>>;
+  columns?: Array<Record<string, unknown>>;
   onSave?: ReturnType<typeof vi.fn>;
 }) {
   const {
@@ -206,7 +206,7 @@ function setupGridEditor(options: {
 }
 
 // ── Test columns matching the compliance shape ──
-const TEST_COLUMNS: Record<string, unknown>[] = [
+const TEST_COLUMNS: Array<Record<string, unknown>> = [
   { field: '__select', clipboard: false, visible: true, headerSort: false },
   { field: 'categoryCode', editor: 'list', clipboard: true, visible: true },
   { field: 'issue', editor: 'input', clipboard: true, visible: true },
@@ -374,7 +374,7 @@ describe('useGridEditor', () => {
 
   it('clipboardPasted handler assigns UUIDs to rows without id and marks them added', async () => {
     // Simulate paste: tabulator data has rows without ids (freshly pasted)
-    const initialData: Record<string, unknown>[] = [
+    const initialData: Array<Record<string, unknown>> = [
       { categoryCode: 'A', issue: 'pasted 1' },
       { categoryCode: 'B', issue: 'pasted 2' },
     ];
@@ -397,7 +397,7 @@ describe('useGridEditor', () => {
   });
 
   it('clipboardPasted handler does not assign new UUIDs to rows that already have one', async () => {
-    const initialData: Record<string, unknown>[] = [
+    const initialData: Array<Record<string, unknown>> = [
       { id: 'existing-1', categoryCode: 'A', issue: 'existing row' },
       { categoryCode: 'B', issue: 'pasted row' },
     ];
@@ -448,7 +448,7 @@ describe('useGridEditor', () => {
   // require the in-cell highlight on paste.
 
   it('clipboardPasted calls row.validate() on each row so invalid cells get highlighted', async () => {
-    const initialData: Record<string, unknown>[] = [
+    const initialData: Array<Record<string, unknown>> = [
       { status: 'Critical' }, // outside the choices ['Open', 'Closed']
     ];
     const { mockTab, tableEl } = setupGridEditor({
@@ -470,7 +470,7 @@ describe('useGridEditor', () => {
   });
 
   it('clipboardPasted does not call validate when there are no rows', async () => {
-    const initialData: Record<string, unknown>[] = [];
+    const initialData: Array<Record<string, unknown>> = [];
     const { mockTab, tableEl } = setupGridEditor({
       initialData,
       columns: TEST_COLUMNS,
@@ -1178,10 +1178,10 @@ describe('useGridEditor', () => {
     mockState.ctorCalls = [];
 
     const tableEl = ref<HTMLElement | null>(null);
-    const cols = ref<Record<string, unknown>[]>([
+    const cols = ref<Array<Record<string, unknown>>>([
       { field: 'issue', editor: 'input' },
     ]);
-    const data = ref<Record<string, unknown>[]>([]);
+    const data = ref<Array<Record<string, unknown>>>([]);
     const filenameRef = ref('dynamic-name.csv');
     const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 0 });
 

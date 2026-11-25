@@ -65,13 +65,16 @@ vi.mock('@nuxt/ui/components/Select.vue', () => ({
     name: 'USelect',
     props: {
       modelValue: { type: [String, Number, Boolean], default: '' },
-      items: { type: Array as () => unknown[], default: (): unknown[] => [] },
+      items: {
+        type: Array as () => Array<unknown>,
+        default: (): Array<unknown> => [],
+      },
       placeholder: { type: String, default: '' },
     },
     emits: ['update:modelValue'],
     setup(props, { emit }) {
       return (): VNode => {
-        const items = (props.items as unknown[]).map((item) => {
+        const items = (props.items as Array<unknown>).map((item) => {
           if (typeof item === 'object' && item !== null) {
             return {
               label: (item as Record<string, unknown>).label as string,
@@ -159,7 +162,7 @@ async function mountBuilder() {
   return { wrapper, router };
 }
 
-function getDefs(): unknown[] {
+function getDefs(): Array<unknown> {
   const raw = localStorage.getItem('sc-table-defs');
   if (!raw) return [];
   try {
@@ -619,7 +622,7 @@ describe('CustomTableBuilder', () => {
       await wrapper.find('[data-label="Create Table"]').trigger('click');
       await flushPromises();
       await nextTick();
-      const defs = getDefs() as Record<string, unknown>[];
+      const defs = getDefs() as Array<Record<string, unknown>>;
       expect(defs).toHaveLength(1);
       const def = defs[0];
       expect(def.name).toBe('My Schema');
@@ -628,7 +631,7 @@ describe('CustomTableBuilder', () => {
       );
       expect(def.createdAt).toMatch(/\d{4}-\d{2}-\d{2}T/);
       expect(def.updatedAt).toMatch(/\d{4}-\d{2}-\d{2}T/);
-      const cols = def.columns as Record<string, unknown>[];
+      const cols = def.columns as Array<Record<string, unknown>>;
       expect(cols).toHaveLength(1);
       expect(cols[0].id).toMatch(
         /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/,
@@ -664,8 +667,8 @@ describe('CustomTableBuilder', () => {
       await wrapper.find('[data-label="Create Table"]').trigger('click');
       await flushPromises();
       await nextTick();
-      const defs = getDefs() as Record<string, unknown>[];
-      const cols = defs[0].columns as Record<string, unknown>[];
+      const defs = getDefs() as Array<Record<string, unknown>>;
+      const cols = defs[0].columns as Array<Record<string, unknown>>;
       expect(cols).toHaveLength(3);
       expect(cols[0].name).toBe('Name');
       expect(cols[0].type).toBe('text');
@@ -695,8 +698,8 @@ describe('CustomTableBuilder', () => {
       await wrapper.find('[data-label="Create Table"]').trigger('click');
       await flushPromises();
       await nextTick();
-      const defs = getDefs() as Record<string, unknown>[];
-      const cols = defs[0].columns as Record<string, unknown>[];
+      const defs = getDefs() as Array<Record<string, unknown>>;
+      const cols = defs[0].columns as Array<Record<string, unknown>>;
       expect(cols[0].choices).toEqual(['Apple', 'Banana']);
     });
 
@@ -716,8 +719,8 @@ describe('CustomTableBuilder', () => {
       await wrapper.find('[data-label="Create Table"]').trigger('click');
       await flushPromises();
       await nextTick();
-      const defs = getDefs() as Record<string, unknown>[];
-      const cols = defs[0].columns as Record<string, unknown>[];
+      const defs = getDefs() as Array<Record<string, unknown>>;
+      const cols = defs[0].columns as Array<Record<string, unknown>>;
       expect(cols[0].choices).toEqual(['a', 'b']);
     });
 
@@ -737,8 +740,8 @@ describe('CustomTableBuilder', () => {
       await wrapper.find('[data-label="Create Table"]').trigger('click');
       await flushPromises();
       await nextTick();
-      const defs = getDefs() as Record<string, unknown>[];
-      const cols = defs[0].columns as Record<string, unknown>[];
+      const defs = getDefs() as Array<Record<string, unknown>>;
+      const cols = defs[0].columns as Array<Record<string, unknown>>;
       expect(cols[0].choices).toEqual(['Only']);
     });
   });
@@ -777,7 +780,7 @@ describe('CustomTableBuilder', () => {
       await w2.find('[data-label="Create Table"]').trigger('click');
       await flushPromises();
       await nextTick();
-      const defs = getDefs() as Record<string, unknown>[];
+      const defs = getDefs() as Array<Record<string, unknown>>;
       expect(defs).toHaveLength(2);
       expect(defs[0].name).toBe('Table A');
       expect(defs[1].name).toBe('Table B');
@@ -809,7 +812,7 @@ describe('CustomTableBuilder', () => {
       await w2.find('[data-label="Create Table"]').trigger('click');
       await flushPromises();
       await nextTick();
-      const defs = getDefs() as Record<string, unknown>[];
+      const defs = getDefs() as Array<Record<string, unknown>>;
       expect(defs).toHaveLength(2);
       expect(defs[0].name).toBe('My Table');
       expect(defs[1].name).toBe('My Table');
@@ -850,7 +853,7 @@ describe('CustomTableBuilder', () => {
             name: 'Old',
             type: 'text',
             required: true,
-            choices: [] as string[],
+            choices: [] as Array<string>,
           },
         ],
         createdAt: '2026-01-01T00:00:00.000Z',
@@ -870,7 +873,7 @@ describe('CustomTableBuilder', () => {
       await flushPromises();
       await nextTick();
 
-      const defs = getDefs() as Record<string, unknown>[];
+      const defs = getDefs() as Array<Record<string, unknown>>;
       expect(defs).toHaveLength(2);
       // The existing one is unchanged
       const old = defs.find((d) => d.id === existing.id);
@@ -878,7 +881,7 @@ describe('CustomTableBuilder', () => {
       expect(old!.name).toBe('Existing');
       expect(old!.createdAt).toBe('2026-01-01T00:00:00.000Z');
       expect(old!.updatedAt).toBe('2026-01-01T00:00:00.000Z');
-      const oldCols = old!.columns as Record<string, unknown>[];
+      const oldCols = old!.columns as Array<Record<string, unknown>>;
       expect(oldCols[0].name).toBe('Old');
     });
   });
@@ -901,8 +904,8 @@ describe('CustomTableBuilder', () => {
       await wrapper.find('[data-label="Create Table"]').trigger('click');
       await flushPromises();
       await nextTick();
-      const defs = getDefs() as Record<string, unknown>[];
-      const cols = defs[0].columns as Record<string, unknown>[];
+      const defs = getDefs() as Array<Record<string, unknown>>;
+      const cols = defs[0].columns as Array<Record<string, unknown>>;
       expect(cols.map((c) => c.name)).toEqual(['Z', 'A', 'M']);
     });
   });
@@ -922,7 +925,7 @@ describe('CustomTableBuilder', () => {
       await wrapper.find('[data-label="Create Table"]').trigger('click');
       await flushPromises();
       await nextTick();
-      const defs = getDefs() as Record<string, unknown>[];
+      const defs = getDefs() as Array<Record<string, unknown>>;
       expect(defs[0].name).toBe(name);
     });
 
@@ -939,7 +942,7 @@ describe('CustomTableBuilder', () => {
       await wrapper.find('[data-label="Create Table"]').trigger('click');
       await flushPromises();
       await nextTick();
-      const defs = getDefs() as Record<string, unknown>[];
+      const defs = getDefs() as Array<Record<string, unknown>>;
       expect(defs[0].name).toBe(name);
     });
   });

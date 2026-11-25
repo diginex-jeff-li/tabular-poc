@@ -59,7 +59,7 @@ interface BuilderRow {
   choicesText: string;
 }
 
-const TYPE_ITEMS: { label: string; value: ColumnDef['type'] }[] = [
+const TYPE_ITEMS: Array<{ label: string; value: ColumnDef['type'] }> = [
   { label: 'Text', value: 'text' },
   { label: 'Dropdown', value: 'dropdown' },
   { label: 'Number', value: 'number' },
@@ -75,8 +75,11 @@ const TYPE_ITEMS: { label: string; value: ColumnDef['type'] }[] = [
  * Column modal via `utils/columnValidation` so the two surfaces enforce
  * identical rules.
  */
-function validateBuilder(tableName: string, rows: BuilderRow[]): string[] {
-  const errors: string[] = [];
+function validateBuilder(
+  tableName: string,
+  rows: Array<BuilderRow>,
+): Array<string> {
+  const errors: Array<string> = [];
 
   // ── Table name required ──
   if (!tableName.trim()) {
@@ -135,8 +138,8 @@ export default defineComponent({
 
     // ── State ──
     const tableName = ref('');
-    const rows = ref<BuilderRow[]>([]);
-    const errors = ref<string[]>([]);
+    const rows = ref<Array<BuilderRow>>([]);
+    const errors = ref<Array<string>>([]);
 
     // ── Row mutations ──
     function addColumn(): void {
@@ -193,7 +196,7 @@ export default defineComponent({
       }
 
       // Build ColumnDef[] from the builder rows, parsing choices.
-      const columns: ColumnDef[] = rows.value.map((row) => ({
+      const columns: Array<ColumnDef> = rows.value.map((row) => ({
         id: row.id, // createDefinition overwrites this with a fresh uuid
         name: row.name.trim(),
         type: row.type,

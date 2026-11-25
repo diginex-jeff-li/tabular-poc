@@ -20,8 +20,8 @@ import type { ColumnDefinition } from 'tabulator-tables';
 export function zodToTabulatorColumns(
   schema: z.ZodObject,
   options: { titles?: Readonly<Record<string, string>> } = {},
-): ColumnDefinition[] {
-  const columns: ColumnDefinition[] = [];
+): Array<ColumnDefinition> {
+  const columns: Array<ColumnDefinition> = [];
 
   for (const [key, type] of Object.entries(schema.shape)) {
     const title = options.titles?.[key] ?? fieldToTitle(key);
@@ -67,7 +67,7 @@ function deriveColumn(
 
   // Enum → list editor
   if (innerType instanceof z.ZodEnum) {
-    const values = innerType.options as string[];
+    const values = innerType.options as Array<string>;
     return {
       title,
       field,
@@ -99,7 +99,7 @@ function deriveColumn(
       headerSortTristate: true,
     };
 
-    const validators: unknown[] = [];
+    const validators: Array<unknown> = [];
     if (!isNullable) validators.push('required');
     if (checks.length > 0) validators.push(schemaValidator(innerType));
     if (validators.length === 1) col.validator = validators[0];

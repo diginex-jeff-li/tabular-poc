@@ -75,7 +75,6 @@ export default defineConfig({
 
       // @cloudflare/oxlint-config migration baseline: rules the existing code
       // breaks (count at adoption). Remove one per commit, fix or justify.
-      'typescript/array-type': 'off', // 241
       'quality/no-unsafe-dictionary-type': 'off', // 144
       'typescript/no-unsafe-type-assertion': 'off', // 125
       curly: 'off', // 77

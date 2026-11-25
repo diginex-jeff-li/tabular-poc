@@ -19,7 +19,7 @@ export default defineComponent({
   props: {
     table: { type: Object as PropType<UnmappedTable>, required: true },
     mapping: { type: Array as PropType<ColumnMapping>, required: true },
-    agentColumns: { type: Array as PropType<number[]>, required: true },
+    agentColumns: { type: Array as PropType<Array<number>>, required: true },
     onChange: {
       type: Function as PropType<
         (column: number, field: InviteField | null) => void

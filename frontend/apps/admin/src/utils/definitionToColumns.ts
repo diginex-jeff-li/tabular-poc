@@ -22,8 +22,8 @@ import type { ColumnDef } from 'src/types/customTable';
  *              the 'in' validator when optional
  */
 export function definitionToColumns(
-  columns: ColumnDef[],
-): Record<string, unknown>[] {
+  columns: Array<ColumnDef>,
+): Array<Record<string, unknown>> {
   const checkboxColumn: Record<string, unknown> = {
     field: '__select',
     clipboard: false,

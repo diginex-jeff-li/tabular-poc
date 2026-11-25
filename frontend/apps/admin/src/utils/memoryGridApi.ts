@@ -6,15 +6,15 @@ import type { GridApi, GridSaveError } from 'composables/useGridEditor';
  * `shown` records the last errors painted, as the grid would show them.
  */
 export function createMemoryGrid(): GridApi & {
-  rows: Record<string, unknown>[];
-  shown: GridSaveError[];
+  rows: Array<Record<string, unknown>>;
+  shown: Array<GridSaveError>;
 } {
   let next = 0;
   const grid = {
-    rows: [] as Record<string, unknown>[],
-    shown: [] as GridSaveError[],
+    rows: [] as Array<Record<string, unknown>>,
+    shown: [] as Array<GridSaveError>,
     getRows: () => grid.rows.map((r) => ({ ...r })),
-    addRows: async (added: Record<string, unknown>[]) => {
+    addRows: async (added: Array<Record<string, unknown>>) => {
       const ids = added.map(
         () => `00000000-0000-4000-8000-${String(++next).padStart(12, '0')}`,
       );
@@ -22,9 +22,12 @@ export function createMemoryGrid(): GridApi & {
       return ids;
     },
     updateRows: async (
-      patches: ({ id: string } & Record<string, unknown>)[],
+      patches: Array<{ id: string } & Record<string, unknown>>,
     ) => {
-      const result = { updated: [] as string[], missing: [] as string[] };
+      const result = {
+        updated: [] as Array<string>,
+        missing: [] as Array<string>,
+      };
       for (const { id, ...fields } of patches) {
         const row = grid.rows.find((r) => r.id === id);
         if (row) {
@@ -34,8 +37,11 @@ export function createMemoryGrid(): GridApi & {
       }
       return result;
     },
-    deleteRows: (ids: string[]) => {
-      const result = { deleted: [] as string[], missing: [] as string[] };
+    deleteRows: (ids: Array<string>) => {
+      const result = {
+        deleted: [] as Array<string>,
+        missing: [] as Array<string>,
+      };
       for (const id of ids) {
         const index = grid.rows.findIndex((r) => r.id === id);
         if (index < 0) result.missing.push(id);
@@ -46,7 +52,7 @@ export function createMemoryGrid(): GridApi & {
       }
       return result;
     },
-    showErrors: (errors: GridSaveError[]) => {
+    showErrors: (errors: Array<GridSaveError>) => {
       grid.shown = errors;
     },
   };

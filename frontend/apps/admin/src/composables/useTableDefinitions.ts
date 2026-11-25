@@ -20,21 +20,28 @@ const DEFINITIONS_KEY = 'sc-table-defs';
  * is orphaned when a table is removed.
  */
 export function useTableDefinitions(): {
-  definitions: Ref<TableDefinition[]>;
+  definitions: Ref<Array<TableDefinition>>;
   getDefinition: (id: string) => TableDefinition | undefined;
-  createDefinition: (name: string, columns: ColumnDef[]) => TableDefinition;
+  createDefinition: (
+    name: string,
+    columns: Array<ColumnDef>,
+  ) => TableDefinition;
   updateDefinition: (
     id: string,
     patch: Partial<Omit<TableDefinition, 'id' | 'createdAt'>>,
   ) => void;
   deleteDefinition: (id: string) => void;
 } {
-  const definitions = useLocalStorage<TableDefinition[]>(DEFINITIONS_KEY, [], {
-    serializer: {
-      read: parseTableDefinitions,
-      write: JSON.stringify,
+  const definitions = useLocalStorage<Array<TableDefinition>>(
+    DEFINITIONS_KEY,
+    [],
+    {
+      serializer: {
+        read: parseTableDefinitions,
+        write: JSON.stringify,
+      },
     },
-  });
+  );
 
   function getDefinition(id: string): TableDefinition | undefined {
     return definitions.value.find((d) => d.id === id);
@@ -42,7 +49,7 @@ export function useTableDefinitions(): {
 
   function createDefinition(
     name: string,
-    columns: ColumnDef[],
+    columns: Array<ColumnDef>,
   ): TableDefinition {
     const now = new Date().toISOString();
     const definition: TableDefinition = {

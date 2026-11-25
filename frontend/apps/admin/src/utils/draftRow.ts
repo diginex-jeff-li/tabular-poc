@@ -16,7 +16,7 @@ import {
  */
 const DRAFT_FIELDS = INVITE_FIELDS;
 
-const byLowerCase = (values: readonly string[]) =>
+const byLowerCase = (values: ReadonlyArray<string>) =>
   new Map(values.map((v) => [v.toLowerCase(), v]));
 const ROLE_BY_KEY = byLowerCase(INVITE_ROLES);
 const GROUP_BY_KEY = byLowerCase(INVITE_GROUPS);
@@ -90,8 +90,8 @@ function parseSeparated(line: string, separator: string): Fields | null {
 }
 
 function parseSpaced(line: string): Fields | null {
-  const roles: string[] = [];
-  const groups: { value: string; at: number }[] = [];
+  const roles: Array<string> = [];
+  const groups: Array<{ value: string; at: number }> = [];
   let rest = ` ${line.replace(/;/g, ' ')} `;
   for (const { value, kind, pattern } of PHRASES) {
     // Blank the match out at equal length so offsets keep the typed order.
@@ -148,7 +148,7 @@ export function normalizeInviteRow(
   );
   const others = Object.fromEntries(
     Object.entries(row).filter(
-      ([k]) => !(DRAFT_FIELDS as readonly string[]).includes(k),
+      ([k]) => !(DRAFT_FIELDS as ReadonlyArray<string>).includes(k),
     ),
   );
   return { ...others, ...kept };
@@ -171,7 +171,7 @@ export type InviteRowStatus = (typeof INVITE_ROW_STATUSES)[number];
 /** Status shown in the grid and to the agent; `errors` from `validateInvites`. */
 export function inviteRowStatus(
   row: Record<string, unknown>,
-  errors: readonly { rowId: string }[],
+  errors: ReadonlyArray<{ rowId: string }>,
   agentProposed: ReadonlySet<string>,
 ): InviteRowStatus {
   const id = String(row.id);

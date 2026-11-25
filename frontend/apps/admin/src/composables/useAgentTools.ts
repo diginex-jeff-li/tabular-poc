@@ -29,7 +29,7 @@ declare global {
   }
 }
 
-export function useAgentTools(globalName: string, tools: AgentTool[]) {
+export function useAgentTools(globalName: string, tools: Array<AgentTool>) {
   const controller = new AbortController();
 
   onMounted(() => {

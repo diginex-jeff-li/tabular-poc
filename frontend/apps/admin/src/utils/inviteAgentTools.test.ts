@@ -70,7 +70,7 @@ describe('invite agent tools', () => {
         { firstName: 42 },
       ],
     });
-    const [first, second] = (added as { added: string[] }).added;
+    const [first, second] = (added as { added: Array<string> }).added;
     const updated = await call('update_rows', {
       rows: [
         { id: first, role: 'Owner' },

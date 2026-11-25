@@ -16,15 +16,15 @@ const ENUM_FIELDS = new Set([
   'closureTiming',
 ]);
 
-export function buildComplianceColumns(): Record<string, unknown>[] {
+export function buildComplianceColumns(): Array<Record<string, unknown>> {
   const dataColumns = zodToTabulatorColumns(
     ComplianceLibrarySchema,
-  ) as unknown as Record<string, unknown>[];
+  ) as unknown as Array<Record<string, unknown>>;
 
   for (const col of dataColumns) {
     const field = col.field as string;
     if (ENUM_FIELDS.has(field)) {
-      const enumValues = (col.editorParams as { values: string[] }).values;
+      const enumValues = (col.editorParams as { values: Array<string> }).values;
       col.headerFilter = 'list';
       col.headerFilterParams = { values: enumValues, clearable: true };
     } else {

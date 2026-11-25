@@ -22,7 +22,9 @@ export function tableDataKey(tableId: string): string {
  * schema must yield an empty array (or drop just the bad entries) and
  * must never throw. A single `console.warn` per problem is acceptable.
  */
-export function parseTableDefinitions(raw: string | null): TableDefinition[] {
+export function parseTableDefinitions(
+  raw: string | null,
+): Array<TableDefinition> {
   if (raw === null) return [];
   return parseArray(raw, TableDefinitionSchema);
 }
@@ -34,7 +36,7 @@ export function parseTableDefinitions(raw: string | null): TableDefinition[] {
  * Zod schema must yield an empty array (or drop just the bad entries) and
  * must never throw.
  */
-export function parseTableRows(raw: string | null): TableRow[] {
+export function parseTableRows(raw: string | null): Array<TableRow> {
   if (raw === null) return [];
   return parseArray(raw, TableRowSchema);
 }
@@ -45,7 +47,7 @@ export function parseTableRows(raw: string | null): TableRow[] {
  *
  * @param tableId — the table definition's uuid id
  */
-export function readTableRows(tableId: string): TableRow[] {
+export function readTableRows(tableId: string): Array<TableRow> {
   const raw = localStorage.getItem(tableDataKey(tableId));
   return parseTableRows(raw);
 }
@@ -57,7 +59,7 @@ export function readTableRows(tableId: string): TableRow[] {
  * @param tableId — the table definition's uuid id
  * @param rows — the rows to persist
  */
-export function writeTableRows(tableId: string, rows: TableRow[]): void {
+export function writeTableRows(tableId: string, rows: Array<TableRow>): void {
   localStorage.setItem(tableDataKey(tableId), JSON.stringify(rows));
 }
 
@@ -83,7 +85,7 @@ export function deleteTableData(tableId: string): void {
  * is honoured — even though the current schemas have none, future additions
  * would silently lose transformed values if the raw entry were used.
  */
-function parseArray<T>(raw: string, schema: z.ZodType<T>): T[] {
+function parseArray<T>(raw: string, schema: z.ZodType<T>): Array<T> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -101,7 +103,7 @@ function parseArray<T>(raw: string, schema: z.ZodType<T>): T[] {
     return [];
   }
 
-  const valid: T[] = [];
+  const valid: Array<T> = [];
   for (const entry of parsed) {
     const result = schema.safeParse(entry);
     if (result.success) {

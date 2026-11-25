@@ -30,7 +30,7 @@ type SaveResponse = BulkSaveResponseType;
 
 // ── Mock backend with in-memory persistence ──
 
-const SEED_ROWS: Record<string, unknown>[] = [
+const SEED_ROWS: Array<Record<string, unknown>> = [
   {
     id: crypto.randomUUID(),
     categoryCode: 'A',
@@ -166,18 +166,18 @@ const SEED_ROWS: Record<string, unknown>[] = [
   },
 ];
 
-let store: Record<string, unknown>[] = [...SEED_ROWS];
+let store: Array<Record<string, unknown>> = [...SEED_ROWS];
 
-function mockList(): Record<string, unknown>[] {
+function mockList(): Array<Record<string, unknown>> {
   return [...store];
 }
 
 async function mockBulkSave(payload: {
-  upserts: Record<string, unknown>[];
-  deletes: string[];
+  upserts: Array<Record<string, unknown>>;
+  deletes: Array<string>;
 }): Promise<SaveResponse> {
   await new Promise((r) => setTimeout(r, 300));
-  const errors: BackendError[] = [];
+  const errors: Array<BackendError> = [];
 
   for (let i = 0; i < payload.upserts.length; i++) {
     const row = payload.upserts[i];

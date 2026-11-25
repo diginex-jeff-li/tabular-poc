@@ -105,16 +105,19 @@ function toDraftRow(raw: unknown): Record<string, unknown> {
   );
 }
 
-function requireArray(args: Record<string, unknown>, key: string): unknown[] {
+function requireArray(
+  args: Record<string, unknown>,
+  key: string,
+): Array<unknown> {
   const value = args[key];
   if (!Array.isArray(value)) throw new Error(`"${key}" must be an array`);
   return value;
 }
 
-export function createInviteTools(draft: InviteDraft): AgentTool[] {
+export function createInviteTools(draft: InviteDraft): Array<AgentTool> {
   // The draft has just checked every row; report errors by row id, scoped
   // to the rows a call touched when given.
-  const result = (ids?: string[]): CheckResult => {
+  const result = (ids?: Array<string>): CheckResult => {
     const errors = draft.errors();
     const scoped = ids ? errors.filter((e) => ids.includes(e.rowId)) : errors;
     return {
@@ -269,7 +272,7 @@ export function createInviteTools(draft: InviteDraft): AgentTool[] {
         z
           .object({
             mapping: z.array(
-              z.enum(INVITE_FIELDS as [string, ...string[]]).nullable(),
+              z.enum(INVITE_FIELDS as [string, ...Array<string>]).nullable(),
             ),
           })
           .strict(),

@@ -27,19 +27,22 @@ export interface GridSaveError {
 }
 
 export interface GridSaveResponse {
-  errors: GridSaveError[];
+  errors: Array<GridSaveError>;
   saved: number;
 }
 
 /** Programmatic grid access for agent tools and file import. Rows by `id`. */
 export interface GridApi {
-  getRows(): Record<string, unknown>[];
-  addRows(rows: Record<string, unknown>[]): Promise<string[]>;
+  getRows(): Array<Record<string, unknown>>;
+  addRows(rows: Array<Record<string, unknown>>): Promise<Array<string>>;
   updateRows(
-    patches: ({ id: string } & Record<string, unknown>)[],
-  ): Promise<{ updated: string[]; missing: string[] }>;
-  deleteRows(ids: string[]): { deleted: string[]; missing: string[] };
-  showErrors(errors: GridSaveError[]): void;
+    patches: Array<{ id: string } & Record<string, unknown>>,
+  ): Promise<{ updated: Array<string>; missing: Array<string> }>;
+  deleteRows(ids: Array<string>): {
+    deleted: Array<string>;
+    missing: Array<string>;
+  };
+  showErrors(errors: Array<GridSaveError>): void;
 }
 
 // ── Clipboard paste parser (pure, exported for unit testing) ──
@@ -52,8 +55,8 @@ export interface GridApi {
 
 export function parseClipboardPaste(
   clipboard: string,
-  columns: Record<string, unknown>[],
-): Record<string, unknown>[] {
+  columns: Array<Record<string, unknown>>,
+): Array<Record<string, unknown>> {
   const dataColumns = columns.filter(
     (c) => c.clipboard !== false && c.visible !== false,
   );
@@ -75,25 +78,25 @@ type AnyTabulator = any;
 
 interface UseGridEditorOptions {
   tableEl: Ref<HTMLElement | null>;
-  columns: Ref<Record<string, unknown>[]>;
-  data: Ref<Record<string, unknown>[]>;
+  columns: Ref<Array<Record<string, unknown>>>;
+  data: Ref<Array<Record<string, unknown>>>;
   onSave: (payload: {
-    upserts: Record<string, unknown>[];
-    deletes: string[];
+    upserts: Array<Record<string, unknown>>;
+    deletes: Array<string>;
   }) => Promise<GridSaveResponse>;
   exportFilename: Ref<string> | string;
   /** Applied to every row that enters or is edited in the grid. */
   normalizeRow?: (row: Record<string, unknown>) => Record<string, unknown>;
   /** Called with row ids after a person adds, pastes, edits or deletes rows. */
-  onUserEdit?: (rowIds: string[]) => void;
+  onUserEdit?: (rowIds: Array<string>) => void;
   /**
    * Replaces the positional paste parser; call `positional()` for the
    * default. Return [] to insert nothing (e.g. to hold the paste elsewhere).
    */
   pasteParser?: (
     clipboard: string,
-    positional: () => Record<string, unknown>[],
-  ) => Record<string, unknown>[];
+    positional: () => Array<Record<string, unknown>>,
+  ) => Array<Record<string, unknown>>;
 }
 
 export function useGridEditor(opts: UseGridEditorOptions) {
@@ -107,7 +110,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   const tabulator = shallowRef<any>(null);
   const isSaving = ref(false);
   const saveResult = ref<GridSaveResponse | null>(null);
-  const errorList = ref<GridSaveError[]>([]);
+  const errorList = ref<Array<GridSaveError>>([]);
   const rowCount = ref(0);
 
   // Dirty tracking — delegates to the existing composable. The tabulator ref
@@ -183,7 +186,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
           tab.replaceData(updated);
         }
         // Only mark rows that got a new UUID (were newly pasted)
-        const pastedIds: string[] = [];
+        const pastedIds: Array<string> = [];
         for (const row of updated) {
           if (
             row.id &&
@@ -260,7 +263,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
 
   // ── Error highlighting ──
   // Locate rows by rowId (regression guard for f7bd853), never by array index.
-  function applyErrorHighlights(errors: GridSaveError[]) {
+  function applyErrorHighlights(errors: Array<GridSaveError>) {
     if (!tabulator.value) return;
     clearErrorHighlights();
     const rows = tabulator.value.getRows();
@@ -373,10 +376,9 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   // were never persisted and need no delete sent to the backend.
   function clearGrid() {
     if (tabulator.value) {
-      const currentData = tabulator.value.getData() as Record<
-        string,
-        unknown
-      >[];
+      const currentData = tabulator.value.getData() as Array<
+        Record<string, unknown>
+      >;
       for (const row of currentData) {
         const rowId = row.id as string | undefined;
         if (rowId) {
@@ -421,11 +423,13 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   // Every mutation goes through dirty tracking so Save sees it, rows are
   // addressed by `id` (never by position), and touched rows are validated so
   // the in-cell highlight matches what a human edit would show.
-  function getRows(): Record<string, unknown>[] {
-    return (tabulator.value?.getData() ?? []) as Record<string, unknown>[];
+  function getRows(): Array<Record<string, unknown>> {
+    return (tabulator.value?.getData() ?? []) as Array<Record<string, unknown>>;
   }
 
-  async function addRows(rows: Record<string, unknown>[]): Promise<string[]> {
+  async function addRows(
+    rows: Array<Record<string, unknown>>,
+  ): Promise<Array<string>> {
     const tab = tabulator.value;
     if (!tab) return [];
     const withIds = rows.map((r) => ({
@@ -440,10 +444,13 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   }
 
   async function updateRows(
-    patches: ({ id: string } & Record<string, unknown>)[],
-  ): Promise<{ updated: string[]; missing: string[] }> {
+    patches: Array<{ id: string } & Record<string, unknown>>,
+  ): Promise<{ updated: Array<string>; missing: Array<string> }> {
     const tab = tabulator.value;
-    const result = { updated: [] as string[], missing: [] as string[] };
+    const result = {
+      updated: [] as Array<string>,
+      missing: [] as Array<string>,
+    };
     if (!tab) return result;
     for (const { id, ...fields } of patches) {
       const row = tab.getRow(id);
@@ -459,9 +466,15 @@ export function useGridEditor(opts: UseGridEditorOptions) {
     return result;
   }
 
-  function deleteRows(ids: string[]): { deleted: string[]; missing: string[] } {
+  function deleteRows(ids: Array<string>): {
+    deleted: Array<string>;
+    missing: Array<string>;
+  } {
     const tab = tabulator.value;
-    const result = { deleted: [] as string[], missing: [] as string[] };
+    const result = {
+      deleted: [] as Array<string>,
+      missing: [] as Array<string>,
+    };
     if (!tab) return result;
     for (const id of ids) {
       const row = tab.getRow(id);
@@ -483,7 +496,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   // Re-run formatters first (they may show per-row state such as a status
   // column), then paint the error cells on the fresh DOM. Reformatting
   // rebuilds a row's cells, so skip a row a person is editing right now.
-  function showErrors(errors: GridSaveError[]) {
+  function showErrors(errors: Array<GridSaveError>) {
     errorList.value = errors;
     for (const row of tabulator.value?.getRows() ?? []) {
       if (!row.getElement()?.querySelector('.tabulator-editing'))

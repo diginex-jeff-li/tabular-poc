@@ -39,16 +39,16 @@ export function useDirtyTracking(tabulatorRef: Ref<TabulatorFull | null>) {
   }
 
   function buildSavePayload(): {
-    upserts: Record<string, unknown>[];
-    deletes: string[];
+    upserts: Array<Record<string, unknown>>;
+    deletes: Array<string>;
   } {
     const tabulator = tabulatorRef.value;
     if (!tabulator) return { upserts: [], deletes: [] };
 
-    const upserts: Record<string, unknown>[] = [];
-    const deletes: string[] = [];
+    const upserts: Array<Record<string, unknown>> = [];
+    const deletes: Array<string> = [];
 
-    const allRows = tabulator.getData() as Record<string, unknown>[];
+    const allRows = tabulator.getData() as Array<Record<string, unknown>>;
 
     for (const [rowId, status] of dirtyMap.value) {
       if (status === 'deleted') {

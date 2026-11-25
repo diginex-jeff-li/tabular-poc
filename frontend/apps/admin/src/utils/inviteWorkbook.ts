@@ -38,7 +38,7 @@ interface RangeValidations {
 }
 
 export async function buildInviteWorkbook(
-  rows: Record<string, unknown>[] = [],
+  rows: Array<Record<string, unknown>> = [],
 ): Promise<ArrayBuffer> {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Invites', {
@@ -138,9 +138,9 @@ export async function buildInviteWorkbook(
 }
 
 export interface ParsedInviteWorkbook {
-  rows: Record<string, string | null>[];
+  rows: Array<Record<string, string | null>>;
   /** Header cells that match no invite column (their data is ignored). */
-  ignoredHeaders: string[];
+  ignoredHeaders: Array<string>;
 }
 
 /**
@@ -159,7 +159,7 @@ export async function parseInviteWorkbook(
   if (!sheet) return { rows: [], ignoredHeaders: [] };
 
   const fieldByColumn = new Map<number, string>();
-  const ignoredHeaders: string[] = [];
+  const ignoredHeaders: Array<string> = [];
   sheet.getRow(1).eachCell((cell, col) => {
     const header = cell.text.trim();
     const field = matchInviteHeader(header);
@@ -167,7 +167,7 @@ export async function parseInviteWorkbook(
     else if (header) ignoredHeaders.push(header);
   });
 
-  const rows: Record<string, string | null>[] = [];
+  const rows: Array<Record<string, string | null>> = [];
   for (let r = 2; r <= sheet.rowCount; r++) {
     const excelRow = sheet.getRow(r);
     const row: Record<string, string | null> = {};

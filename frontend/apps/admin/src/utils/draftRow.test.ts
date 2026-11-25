@@ -47,7 +47,7 @@ describe('normalizeInviteRow — cleaning a structured row', () => {
 // Rebuilt from the 19-line Codex demo paste (tabs lost, so each line landed
 // whole in Email), plus multi-word role/group cases.
 describe('normalizeInviteRow — splitting a whole line in one cell', () => {
-  const cases: [string, Record<string, string | null>][] = [
+  const cases: Array<[string, Record<string, string | null>]> = [
     // the 12 rows Codex split by hand
     [
       'Ann Lee ann@x.com Account Admin',
