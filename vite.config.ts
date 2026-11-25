@@ -1,3 +1,4 @@
+import cloudflare from '@cloudflare/oxlint-config/vite-plus';
 import { defineConfig } from 'vite-plus';
 
 export default defineConfig({
@@ -36,7 +37,18 @@ export default defineConfig({
     ],
   },
   lint: {
-    plugins: ['typescript', 'unicorn', 'oxc', 'import'],
+    extends: [cloudflare],
+    env: cloudflare.env,
+    ignorePatterns: cloudflare.ignorePatterns,
+    jsPlugins: [
+      ...(cloudflare.jsPlugins ?? []),
+      {
+        name: 'vite-plus',
+        specifier: 'vite-plus/oxlint-plugin',
+      },
+    ],
+    // Carried forward from the pre-preset config: the preset turns category
+    // defaults off, the project has linted every correctness rule.
     categories: {
       correctness: 'error',
     },
@@ -51,14 +63,68 @@ export default defineConfig({
       'import/no-dynamic-require': 'error',
       'import/no-commonjs': 'error',
       'vite-plus/prefer-vite-plus-imports': 'error',
+
+      // @cloudflare/oxlint-config: stays off (doesn't fit this project).
+      // React rules misfire on Vue TSX: `class`/`onClick` attributes, Vue
+      // composables named use*, and React Compiler immutability.
+      'react/no-unknown-property': 'off',
+      'react/rules-of-hooks': 'off',
+      'react/immutability': 'off',
+      // Needs strictNullChecks; frontend/apps/admin/tsconfig.json sets it false.
+      'typescript/no-useless-default-assignment': 'off',
+
+      // @cloudflare/oxlint-config migration baseline: rules the existing code
+      // breaks (count at adoption). Remove one per commit, fix or justify.
+      'typescript/array-type': 'off', // 241
+      'quality/no-unsafe-dictionary-type': 'off', // 144
+      'typescript/no-unsafe-type-assertion': 'off', // 125
+      curly: 'off', // 77
+      'typescript/no-unsafe-call': 'off', // 63
+      'typescript/no-unnecessary-type-assertion': 'off', // 53
+      'vitest/require-mock-type-parameters': 'off', // 45
+      'typescript/no-unsafe-member-access': 'off', // 39
+      'import/consistent-type-specifier-style': 'off', // 38
+      'quality/no-known-value-widening': 'off', // 23
+      'typescript/no-unsafe-assignment': 'off', // 22
+      'quality/no-chained-type-assertions': 'off', // 19
+      'typescript/consistent-type-imports': 'off', // 13
+      'typescript/no-base-to-string': 'off', // 13
+      'unicorn/consistent-function-scoping': 'off', // 10
+      'react/jsx-key': 'off', // 9
+      'quality/no-unknown-returns': 'off', // 9
+      'no-console': 'off', // 8
+      'unicorn/prefer-string-replace-all': 'off', // 6
+      'vitest/no-conditional-expect': 'off', // 5
+      'jsx-a11y/label-has-associated-control': 'off', // 5
+      'typescript/no-misused-promises': 'off', // 5
+      'typescript/no-floating-promises': 'off', // 5
+      'react/jsx-no-undef': 'off', // 4
+      '@nkzw/no-instanceof': 'off', // 4
+      'typescript/no-unsafe-argument': 'off', // 3
+      'jsx-a11y/prefer-tag-over-role': 'off', // 2
+      'react/no-unescaped-entities': 'off', // 2
+      'jsx-a11y/click-events-have-key-events': 'off', // 2
+      'jsx-a11y/no-static-element-interactions': 'off', // 2
+      'unicorn/no-abusive-eslint-disable': 'off', // 2
+      'unicorn/prefer-string-raw': 'off', // 2
+      'typescript/no-unsafe-return': 'off', // 2
+      'prefer-const': 'off', // 1
+      'no-promise-executor-return': 'off', // 1
+      'unicorn/catch-error-name': 'off', // 1
+      'typescript/no-non-null-assertion': 'off', // 1
+      'unicorn/prefer-array-some': 'off', // 1
+      'unicorn/numeric-separators-style': 'off', // 1
+      eqeqeq: 'off', // 1
+      'quality/no-array-filter-map': 'off', // 1
+      'unicorn/prefer-node-protocol': 'off', // 1
+      'typescript/use-unknown-in-catch-callback-variable': 'off', // 1
+      'typescript/unbound-method': 'off', // 1
     },
-    env: {
-      builtin: true,
-    },
-    jsPlugins: [
+    // The preset's TypeScript override re-enables these; keep the baseline.
+    overrides: [
       {
-        name: 'vite-plus',
-        specifier: 'vite-plus/oxlint-plugin',
+        files: ['**/*.ts', '**/*.tsx', '**/*.mts', '**/*.cts'],
+        rules: { 'typescript/no-floating-promises': 'off' }, // 5
       },
     ],
   },

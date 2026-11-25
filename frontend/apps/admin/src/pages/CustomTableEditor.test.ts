@@ -20,7 +20,6 @@ import type { TableDefinition, TableRow } from 'src/types/customTable';
 // hoisted `saveCapture` object on mount, so save-path tests can invoke the
 // handler directly. It renders the toolbarActions render prop so the Add
 // Column button (supplied by the editor page) is present in the test tree.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const saveCapture = vi.hoisted(() => ({ onSave: null as any }));
 
 vi.mock('components/GridEditor', () => ({

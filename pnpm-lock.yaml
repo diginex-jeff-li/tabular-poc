@@ -215,6 +215,9 @@ importers:
 
   .:
     devDependencies:
+      '@cloudflare/oxlint-config':
+        specifier: 0.2.0
+        version: 0.2.0(oxlint@1.94.0(vite-plus@1.8.0(@types/node@26.0.0)(@vitest/browser-preview@5.1.1)(@vitest/ui@5.1.1)(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.0.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(vitest@5.1.1)(yaml@2.9.1)))(tsrs@7.1.0-beta.tsrs4)(vite-plus@1.8.0(@types/node@26.0.0)(@vitest/browser-preview@5.1.1)(@vitest/ui@5.1.1)(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.0.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(vitest@5.1.1)(yaml@2.9.1))
       jscpd:
         specifier: 5.4.3
         version: 5.4.3
@@ -518,6 +521,21 @@ packages:
   '@capsizecss/unpack@4.0.1':
     resolution: {integrity: sha512-CuNiSqg7+e1cO/GjffyMOm5Tt2jUF9CWHHnvQ/UkqvtkGfHdgwEC0wpmq7fkN3gxwpRnrAN0WzO3vREKmNolMQ==}
     engines: {node: '>=18'}
+
+  '@cloudflare/oxlint-config@0.2.0':
+    resolution: {integrity: sha512-HENc8yIzCuIPvUyQbX47UKv2kgA26iZt1XRsrlQXayJG6cWmBNlnHXfPy7oNCghqWpTBcbFRdGwsHd1Ahe3zhw==}
+    engines: {node: ^22.18.0 || >=24.0.0}
+    peerDependencies:
+      oxlint: ^1.94.0
+      tsrs: '>=7.1.0-beta.tsrs2'
+      vite-plus: '>=1.7.0'
+    peerDependenciesMeta:
+      oxlint:
+        optional: true
+      tsrs:
+        optional: true
+      vite-plus:
+        optional: true
 
   '@emnapi/core@1.11.2':
     resolution: {integrity: sha512-TC8MkTuZUtcTSiFeuC0ksCh9QIJ5+F21MvZ4Wn4ORfYaFJ/0dsiudv5tVkejgwZlwQ39jL9WWDe2lz8x0WglOA==}
@@ -874,6 +892,31 @@ packages:
     peerDependencies:
       '@emnapi/core': ^1.7.1 || 2.0.0-beta.2
       '@emnapi/runtime': ^1.7.1 || 2.0.0-beta.2
+
+  '@nkzw/eslint-plugin@3.0.0':
+    resolution: {integrity: sha512-J6Ms/OzUxx7BNBggCKOqFWbESgAJYjvXvekCjjpxVJA2fBv5xOsC5P+2WDYqQUMCvDOU3GxBgG/jrmbqf+/wQA==}
+    peerDependencies:
+      eslint: '>= 9'
+    peerDependenciesMeta:
+      eslint:
+        optional: true
+
+  '@nkzw/oxlint-config@4.1.0':
+    resolution: {integrity: sha512-uFJxSqD8LPGe+uYVh+EC9BwndUGr3h7+aHQhKcdUANNSV4c1vvRoOqqHUTlML5RnHtvABtapW1ZyY4gkz6sKOA==}
+    peerDependencies:
+      eslint-plugin-perfectionist: ^5.14.0
+      oxlint: '>=1.94.0'
+      tsrs: '>=0.25.0-ts7.1.0-beta || ^7.1.0-beta.tsrs2'
+      vite-plus: '>=1.7.0'
+    peerDependenciesMeta:
+      eslint-plugin-perfectionist:
+        optional: true
+      oxlint:
+        optional: true
+      tsrs:
+        optional: true
+      vite-plus:
+        optional: true
 
   '@nuxt/devtools-kit@4.2.0':
     resolution: {integrity: sha512-HU4RUZIp7i+5oVnnxOFoSGuWdKGjHfVz2azGb0vSpjLy65/gmBjiYVvFdxfDSg4152e16BAk1qQgGrfMJ2WjWA==}
@@ -3336,6 +3379,10 @@ packages:
     resolution: {integrity: sha512-/veY75JbMK4j1yjvuUxuVsiS/hr/4iHs9FTT6cgTexxdE0Ly/glccBAkloH/DofkjRbZU3bnoj38mOmhkZ0lHw==}
     engines: {node: '>=12'}
 
+  eslint-plugin-no-only-tests@3.4.0:
+    resolution: {integrity: sha512-4S3/9Nb7A2tiMcpzEQE9bQSlpeOz6WJkgryBuou/SA8W2x2c8Zf4j0NvTKBjv6qNhF9T79tmkecm/0CHqV0UGg==}
+    engines: {node: '>=5.0.0'}
+
   estree-walker@2.0.2:
     resolution: {integrity: sha512-Rfkk/Mp/DL7JVje3u18FxFujQlTNR2q6QfMSMB7AvCBx91NGj/ba3kCfza0f6dVDbw7YlRf/nDrn7pQrCCyQ/w==}
 
@@ -5528,6 +5575,17 @@ snapshots:
     dependencies:
       fontkitten: 1.0.3
 
+  '@cloudflare/oxlint-config@0.2.0(oxlint@1.94.0(vite-plus@1.8.0(@types/node@26.0.0)(@vitest/browser-preview@5.1.1)(@vitest/ui@5.1.1)(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.0.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(vitest@5.1.1)(yaml@2.9.1)))(tsrs@7.1.0-beta.tsrs4)(vite-plus@1.8.0(@types/node@26.0.0)(@vitest/browser-preview@5.1.1)(@vitest/ui@5.1.1)(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.0.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(vitest@5.1.1)(yaml@2.9.1))':
+    dependencies:
+      '@nkzw/oxlint-config': 4.1.0(oxlint@1.94.0(vite-plus@1.8.0(@types/node@26.0.0)(@vitest/browser-preview@5.1.1)(@vitest/ui@5.1.1)(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.0.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(vitest@5.1.1)(yaml@2.9.1)))(tsrs@7.1.0-beta.tsrs4)(vite-plus@1.8.0(@types/node@26.0.0)(@vitest/browser-preview@5.1.1)(@vitest/ui@5.1.1)(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.0.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(vitest@5.1.1)(yaml@2.9.1))
+    optionalDependencies:
+      oxlint: 1.94.0(vite-plus@1.8.0(@types/node@26.0.0)(@vitest/browser-preview@5.1.1)(@vitest/ui@5.1.1)(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.0.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(vitest@5.1.1)(yaml@2.9.1))
+      tsrs: 7.1.0-beta.tsrs4
+      vite-plus: 1.8.0(@types/node@26.0.0)(@vitest/browser-preview@5.1.1)(@vitest/ui@5.1.1)(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.0.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(vitest@5.1.1)(yaml@2.9.1)
+    transitivePeerDependencies:
+      - eslint
+      - eslint-plugin-perfectionist
+
   '@emnapi/core@1.11.2':
     dependencies:
       '@emnapi/wasi-threads': 1.2.2
@@ -5807,6 +5865,19 @@ snapshots:
       '@emnapi/runtime': 2.0.0-beta.2
       '@tybys/wasm-util': 0.10.3
     optional: true
+
+  '@nkzw/eslint-plugin@3.0.0': {}
+
+  '@nkzw/oxlint-config@4.1.0(oxlint@1.94.0(vite-plus@1.8.0(@types/node@26.0.0)(@vitest/browser-preview@5.1.1)(@vitest/ui@5.1.1)(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.0.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(vitest@5.1.1)(yaml@2.9.1)))(tsrs@7.1.0-beta.tsrs4)(vite-plus@1.8.0(@types/node@26.0.0)(@vitest/browser-preview@5.1.1)(@vitest/ui@5.1.1)(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.0.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(vitest@5.1.1)(yaml@2.9.1))':
+    dependencies:
+      '@nkzw/eslint-plugin': 3.0.0
+      eslint-plugin-no-only-tests: 3.4.0
+    optionalDependencies:
+      oxlint: 1.94.0(vite-plus@1.8.0(@types/node@26.0.0)(@vitest/browser-preview@5.1.1)(@vitest/ui@5.1.1)(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.0.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(vitest@5.1.1)(yaml@2.9.1))
+      tsrs: 7.1.0-beta.tsrs4
+      vite-plus: 1.8.0(@types/node@26.0.0)(@vitest/browser-preview@5.1.1)(@vitest/ui@5.1.1)(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.0.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(vitest@5.1.1)(yaml@2.9.1)
+    transitivePeerDependencies:
+      - eslint
 
   '@nuxt/devtools-kit@4.2.0(@nuxt/kit@4.7.0(@nuxt/schema@4.7.0)(confbox@0.3.2)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.156.0)(rolldown@1.2.19)(unplugin@3.7.0(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.10)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.27.7)(rolldown@1.2.19)))(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.10)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))':
     dependencies:
@@ -8172,6 +8243,8 @@ snapshots:
   escalade@3.2.0: {}
 
   escape-string-regexp@5.0.0: {}
+
+  eslint-plugin-no-only-tests@3.4.0: {}
 
   estree-walker@2.0.2: {}
 

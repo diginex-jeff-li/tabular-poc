@@ -105,6 +105,12 @@ config live in the root `vite.config.ts`.
 (typecheck), knip (dead code), jscpd (duplicate code). Run `pnpm validate`
 before committing.
 
+**Lint preset** — `vite.config.ts` extends `@cloudflare/oxlint-config` (Vite+
+entry, type-aware). Rules the code broke at adoption are `'off'` in a commented
+baseline block: enable one per commit (fix its findings or record why it stays
+off), following `node_modules/@cloudflare/oxlint-config/skills/migrate-oxlint-config/SKILL.md`.
+React-only rules stay off because the app is Vue TSX.
+
 **Pre-commit hooks** — `.vite-hooks/pre-commit` runs `vp staged`, which lints
 and format-checks staged TS files (the `staged` block in `vite.config.ts`).
 AGENTS.md is validated for documented commands on every commit via
