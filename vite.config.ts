@@ -102,7 +102,6 @@ export default defineConfig({
       'jsx-a11y/no-static-element-interactions': 'off', // 2
       'unicorn/no-abusive-eslint-disable': 'off', // 2
       'unicorn/prefer-string-raw': 'off', // 2
-      'typescript/no-unsafe-return': 'off', // 2
     },
     // The preset's TypeScript override re-enables these; keep the baseline.
     overrides: [

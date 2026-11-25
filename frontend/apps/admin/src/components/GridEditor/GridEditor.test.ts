@@ -17,7 +17,9 @@ import type { VNode } from 'vue';
 // populates it with real refs via a dynamic import of vue, and the tests
 // mutate those refs through the same container.
 
-const mockState = vi.hoisted(() => ({ refs: null as any }));
+const mockState = vi.hoisted(() => ({
+  refs: null as Record<string, any> | null,
+}));
 
 vi.mock('composables/useGridEditor', async () => {
   const { ref } = await import('vue');

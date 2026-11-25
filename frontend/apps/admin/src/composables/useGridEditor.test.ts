@@ -8,7 +8,7 @@ import { useGridEditor, parseClipboardPaste } from './useGridEditor';
 // returns whatever instance the test has placed in mockState.instance.
 
 const mockState = vi.hoisted(() => ({
-  instance: null as any,
+  instance: null as Record<string, any> | null,
   ctorCalls: [] as Array<{ el: any; opts: any }>,
 }));
 
