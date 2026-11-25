@@ -32,17 +32,17 @@
  * NOT PRODUCTION — throwaway prototype code.
  */
 import UButton from '@nuxt/ui/components/Button.vue';
+import UCheckbox from '@nuxt/ui/components/Checkbox.vue';
 import UInput from '@nuxt/ui/components/Input.vue';
 import USelect from '@nuxt/ui/components/Select.vue';
-import UCheckbox from '@nuxt/ui/components/Checkbox.vue';
-import { defineComponent, ref, type VNode } from 'vue';
-import { useRouter } from 'vue-router';
 import { useTableDefinitions } from 'composables/useTableDefinitions';
 import {
   parseChoices,
   isReservedName,
   hasValidChoices,
 } from 'utils/columnValidation';
+import { defineComponent, ref, type VNode } from 'vue';
+import { useRouter } from 'vue-router';
 import type { ColumnDef } from 'src/types/customTable';
 
 // ── Row model ──
@@ -75,10 +75,7 @@ const TYPE_ITEMS: { label: string; value: ColumnDef['type'] }[] = [
  * Column modal via `utils/columnValidation` so the two surfaces enforce
  * identical rules.
  */
-function validateBuilder(
-  tableName: string,
-  rows: BuilderRow[],
-): string[] {
+function validateBuilder(tableName: string, rows: BuilderRow[]): string[] {
   const errors: string[] = [];
 
   // ── Table name required ──

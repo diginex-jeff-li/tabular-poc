@@ -6,7 +6,12 @@ import { z } from 'zod';
  * this single list. The `__select` entry is the checkbox column's field key;
  * the others are the row metadata fields that every TableRow carries.
  */
-export const RESERVED_COLUMN_NAMES = ['id', 'createdAt', 'updatedAt', '__select'] as const;
+export const RESERVED_COLUMN_NAMES = [
+  'id',
+  'createdAt',
+  'updatedAt',
+  '__select',
+] as const;
 
 /**
  * A single column definition in a custom table.

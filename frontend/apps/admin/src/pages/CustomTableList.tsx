@@ -23,12 +23,12 @@
  * NOT PRODUCTION — throwaway prototype code.
  */
 import UButton from '@nuxt/ui/components/Button.vue';
-import UModal from '@nuxt/ui/components/Modal.vue';
 import UCard from '@nuxt/ui/components/Card.vue';
-import { defineComponent, ref, type VNode } from 'vue';
-import { useRouter } from 'vue-router';
+import UModal from '@nuxt/ui/components/Modal.vue';
 import { useTableDefinitions } from 'composables/useTableDefinitions';
 import { readTableRows } from 'utils/tableStorage';
+import { defineComponent, ref, type VNode } from 'vue';
+import { useRouter } from 'vue-router';
 import type { TableDefinition } from 'src/types/customTable';
 
 export default defineComponent({
@@ -87,7 +87,9 @@ export default defineComponent({
         <div class="flex h-full flex-col overflow-auto bg-muted">
           {/* ── Page header ── */}
           <div class="flex items-center justify-between border-b border-default bg-default px-6 py-4">
-            <h1 class="text-lg font-semibold text-highlighted">Custom Tables</h1>
+            <h1 class="text-lg font-semibold text-highlighted">
+              Custom Tables
+            </h1>
             <UButton
               label="New Table"
               color="primary"
@@ -133,15 +135,21 @@ export default defineComponent({
                       <dl class="mt-3 space-y-1 text-sm text-muted">
                         <div class="flex justify-between">
                           <dt>Columns</dt>
-                          <dd class="font-medium text-default">{d.columns.length}</dd>
+                          <dd class="font-medium text-default">
+                            {d.columns.length}
+                          </dd>
                         </div>
                         <div class="flex justify-between">
                           <dt>Rows</dt>
-                          <dd class="font-medium text-default">{rowCountFor(d.id)}</dd>
+                          <dd class="font-medium text-default">
+                            {rowCountFor(d.id)}
+                          </dd>
                         </div>
                         <div class="flex justify-between">
                           <dt>Last modified</dt>
-                          <dd class="font-medium text-default">{formatUpdatedAt(d.updatedAt)}</dd>
+                          <dd class="font-medium text-default">
+                            {formatUpdatedAt(d.updatedAt)}
+                          </dd>
                         </div>
                       </dl>
                     </div>
@@ -155,9 +163,10 @@ export default defineComponent({
                   No custom tables yet
                 </h2>
                 <p class="max-w-md text-sm text-muted">
-                  Custom tables let you define your own columns (text, dropdown, or
-                  number) and fill them with the same grid editor that powers the
-                  compliance library. Create your first table to get started.
+                  Custom tables let you define your own columns (text, dropdown,
+                  or number) and fill them with the same grid editor that powers
+                  the compliance library. Create your first table to get
+                  started.
                 </p>
                 <UButton
                   label="New Table"
@@ -183,9 +192,11 @@ export default defineComponent({
                 </h3>
                 <p class="mt-2 text-sm text-muted">
                   Are you sure you want to delete{' '}
-                  <strong class="text-default">{deleteTarget.value.name}</strong>?
-                  This removes the table definition and all of its saved rows. This
-                  action cannot be undone.
+                  <strong class="text-default">
+                    {deleteTarget.value.name}
+                  </strong>
+                  ? This removes the table definition and all of its saved rows.
+                  This action cannot be undone.
                 </p>
                 <div class="mt-4 flex justify-end gap-2">
                   <UButton

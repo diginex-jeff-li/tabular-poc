@@ -90,7 +90,10 @@ function dropdownColumn(col: ColumnDef): Record<string, unknown> {
   };
 
   if (col.required) {
-    column.validator = ['required', { type: 'in', parameters: choices.join('|') }];
+    column.validator = [
+      'required',
+      { type: 'in', parameters: choices.join('|') },
+    ];
   } else {
     column.validator = [{ type: 'in', parameters: choices.join('|') }];
   }
@@ -104,7 +107,11 @@ function dropdownColumn(col: ColumnDef): Record<string, unknown> {
  * runtime Zod schema (z.coerce.number()) rejects them downstream.
  */
 function coerceNumber(value: unknown): unknown {
-  if (typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value))) {
+  if (
+    typeof value === 'string' &&
+    value.trim() !== '' &&
+    !Number.isNaN(Number(value))
+  ) {
     return Number(value);
   }
   return value;

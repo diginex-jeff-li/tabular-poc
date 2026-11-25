@@ -3,7 +3,10 @@ import { PaginationSchema } from '../../common/schemas/index.js';
 import { ComplianceLibrarySchema } from '../schemas/index.js';
 
 export const BulkSaveRequestSchema = z.object({
-  upserts: ComplianceLibrarySchema.omit({ createdAt: true, updatedAt: true }).array(),
+  upserts: ComplianceLibrarySchema.omit({
+    createdAt: true,
+    updatedAt: true,
+  }).array(),
   deletes: z.string().uuid().array(),
 });
 

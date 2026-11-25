@@ -40,7 +40,10 @@ export function isReservedName(name: string): boolean {
  * comparison so trailing whitespace and case variants collide. An empty
  * `name` is never a duplicate — the empty-name rule catches it first.
  */
-export function isDuplicateName(name: string, existingNames: string[]): boolean {
+export function isDuplicateName(
+  name: string,
+  existingNames: string[],
+): boolean {
   const trimmed = name.trim();
   if (!trimmed) return false;
   const lower = trimmed.toLowerCase();

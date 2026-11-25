@@ -9,11 +9,17 @@ import { zodToTabulatorColumns } from 'utils/zodToTabulatorColumns';
  */
 
 const ENUM_FIELDS = new Set([
-  'categoryCode', 'complianceCategory', 'topic', 'riskLevel', 'closureTiming',
+  'categoryCode',
+  'complianceCategory',
+  'topic',
+  'riskLevel',
+  'closureTiming',
 ]);
 
 export function buildComplianceColumns(): Record<string, unknown>[] {
-  const dataColumns = zodToTabulatorColumns(ComplianceLibrarySchema) as unknown as Record<string, unknown>[];
+  const dataColumns = zodToTabulatorColumns(
+    ComplianceLibrarySchema,
+  ) as unknown as Record<string, unknown>[];
 
   for (const col of dataColumns) {
     const field = col.field as string;

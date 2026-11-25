@@ -1,1 +1,1 @@
-export * as commonSchemas from "./schemas/index.js";
+export * as commonSchemas from './schemas/index.js';

@@ -1,5 +1,10 @@
+import {
+  TableDefinitionSchema,
+  TableRowSchema,
+  type TableDefinition,
+  type TableRow,
+} from 'src/types/customTable';
 import { z } from 'zod';
-import { TableDefinitionSchema, TableRowSchema, type TableDefinition, type TableRow } from 'src/types/customTable';
 
 /**
  * The key under which a single table's row data is stored.
@@ -78,20 +83,21 @@ export function deleteTableData(tableId: string): void {
  * is honoured — even though the current schemas have none, future additions
  * would silently lose transformed values if the raw entry were used.
  */
-function parseArray<T>(
-  raw: string,
-  schema: z.ZodType<T>,
-): T[] {
+function parseArray<T>(raw: string, schema: z.ZodType<T>): T[] {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    console.warn('[sc-table] failed to parse stored JSON, returning empty array');
+    console.warn(
+      '[sc-table] failed to parse stored JSON, returning empty array',
+    );
     return [];
   }
 
   if (!Array.isArray(parsed)) {
-    console.warn('[sc-table] stored payload is not an array, returning empty array');
+    console.warn(
+      '[sc-table] stored payload is not an array, returning empty array',
+    );
     return [];
   }
 

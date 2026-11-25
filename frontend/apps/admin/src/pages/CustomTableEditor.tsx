@@ -46,24 +46,27 @@
  * NOT PRODUCTION — throwaway prototype code.
  */
 import UButton from '@nuxt/ui/components/Button.vue';
-import UInput from '@nuxt/ui/components/Input.vue';
-import USelect from '@nuxt/ui/components/Select.vue';
 import UCheckbox from '@nuxt/ui/components/Checkbox.vue';
+import UInput from '@nuxt/ui/components/Input.vue';
 import UModal from '@nuxt/ui/components/Modal.vue';
-import { computed, defineComponent, ref, type VNode } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import USelect from '@nuxt/ui/components/Select.vue';
 import GridEditor from 'components/GridEditor';
 import { useTableDefinitions } from 'composables/useTableDefinitions';
-import { definitionToColumns } from 'utils/definitionToColumns';
 import { buildRuntimeSchema } from 'utils/buildRuntimeSchema';
-import { readTableRows, writeTableRows } from 'utils/tableStorage';
 import {
   parseChoices,
   isReservedName,
   isDuplicateName,
   hasValidChoices,
 } from 'utils/columnValidation';
-import type { GridSaveError, GridSaveResponse } from 'composables/useGridEditor';
+import { definitionToColumns } from 'utils/definitionToColumns';
+import { readTableRows, writeTableRows } from 'utils/tableStorage';
+import { computed, defineComponent, ref, type VNode } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import type {
+  GridSaveError,
+  GridSaveResponse,
+} from 'composables/useGridEditor';
 import type { ColumnDef, TableRow } from 'src/types/customTable';
 
 /**
@@ -312,10 +315,15 @@ export default defineComponent({
 
       const existingNames = def.columns.map((c) => c.name);
       if (isDuplicateName(trimmedName, existingNames)) {
-        errors.push(`Duplicate column name "${trimmedName}". Names must be unique.`);
+        errors.push(
+          `Duplicate column name "${trimmedName}". Names must be unique.`,
+        );
       }
 
-      if (newColumnType.value === 'dropdown' && !hasValidChoices(newColumnChoicesText.value)) {
+      if (
+        newColumnType.value === 'dropdown' &&
+        !hasValidChoices(newColumnChoicesText.value)
+      ) {
         errors.push('Dropdown column needs at least one choice.');
       }
 
@@ -360,12 +368,10 @@ export default defineComponent({
       // Add the new field with value null to every existing row. Existing
       // row data must not be lost — only the new field is added.
       const existingRows = readTableRows(def.id);
-      const updatedRows: TableRow[] = existingRows.map(
-        (row): TableRow => ({
-          ...row,
-          [newColumn.name]: null,
-        }),
-      );
+      const updatedRows: TableRow[] = existingRows.map((row): TableRow => ({
+        ...row,
+        [newColumn.name]: null,
+      }));
       writeTableRows(def.id, updatedRows);
 
       // Close the modal. The grid remounts via the gridKey change (column
@@ -406,8 +412,7 @@ export default defineComponent({
               Table not found
             </h1>
             <p class="max-w-md text-sm text-muted">
-              The table you are looking for does not exist or has been
-              deleted.
+              The table you are looking for does not exist or has been deleted.
             </p>
             <UButton
               label="Back to Custom Tables"
@@ -453,14 +458,19 @@ export default defineComponent({
                 <div class="space-y-4">
                   {/* Name */}
                   <div class="flex flex-col gap-1">
-                    <label class="text-sm font-medium text-default" for="new-col-name">
+                    <label
+                      class="text-sm font-medium text-default"
+                      for="new-col-name"
+                    >
                       Column name
                     </label>
                     <UInput
                       id="new-col-name"
                       modelValue={newColumnName.value}
                       placeholder="Column name"
-                      onUpdate:modelValue={(v: string) => updateNewColumnName(v)}
+                      onUpdate:modelValue={(v: string) =>
+                        updateNewColumnName(v)
+                      }
                     />
                   </div>
 
@@ -490,7 +500,10 @@ export default defineComponent({
                   {/* Choices — only visible for Dropdown */}
                   {newColumnType.value === 'dropdown' ? (
                     <div class="flex flex-col gap-1">
-                      <label class="text-sm font-medium text-default" for="new-col-choices">
+                      <label
+                        class="text-sm font-medium text-default"
+                        for="new-col-choices"
+                      >
                         Choices
                       </label>
                       <UInput

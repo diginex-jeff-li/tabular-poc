@@ -38,7 +38,10 @@ export function useDirtyTracking(tabulatorRef: Ref<TabulatorFull | null>) {
     markDirty(rowId, 'deleted');
   }
 
-  function buildSavePayload(): { upserts: Record<string, unknown>[]; deletes: string[] } {
+  function buildSavePayload(): {
+    upserts: Record<string, unknown>[];
+    deletes: string[];
+  } {
     const tabulator = tabulatorRef.value;
     if (!tabulator) return { upserts: [], deletes: [] };
 
@@ -73,7 +76,10 @@ export function useDirtyTracking(tabulatorRef: Ref<TabulatorFull | null>) {
       if (!tab) return;
 
       const onCellEdited = (cell: {
-        getRow: () => { getData: () => Record<string, unknown>; getIndex: () => number };
+        getRow: () => {
+          getData: () => Record<string, unknown>;
+          getIndex: () => number;
+        };
         getField: () => string;
         getValue: () => unknown;
         getInitialValue: () => unknown;

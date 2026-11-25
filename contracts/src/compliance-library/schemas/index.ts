@@ -1,12 +1,31 @@
 import { z } from 'zod';
 
 export const CategoryCodeEnum = z.enum([
-  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
-  'K', 'L', 'M', 'N', 'O', 'P', 'Q',
+  'A',
+  'B',
+  'C',
+  'D',
+  'E',
+  'F',
+  'G',
+  'H',
+  'I',
+  'J',
+  'K',
+  'L',
+  'M',
+  'N',
+  'O',
+  'P',
+  'Q',
 ]);
 export type CategoryCodeType = z.infer<typeof CategoryCodeEnum>;
 
-export const ComplianceCategoryEnum = z.enum(['Governance', 'Social', 'Environment']);
+export const ComplianceCategoryEnum = z.enum([
+  'Governance',
+  'Social',
+  'Environment',
+]);
 export type ComplianceCategoryType = z.infer<typeof ComplianceCategoryEnum>;
 
 export const TopicEnum = z.enum([
@@ -30,7 +49,13 @@ export type TopicType = z.infer<typeof TopicEnum>;
 export const RiskLevelEnum = z.enum(['High', 'Medium', 'Low']);
 export type RiskLevelType = z.infer<typeof RiskLevelEnum>;
 
-export const ClosureTimingEnum = z.enum(['7', '30', '60', '90', 'Next assessment']);
+export const ClosureTimingEnum = z.enum([
+  '7',
+  '30',
+  '60',
+  '90',
+  'Next assessment',
+]);
 export type ClosureTimingType = z.infer<typeof ClosureTimingEnum>;
 
 export const ComplianceLibrarySchema = z.object({

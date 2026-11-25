@@ -1,10 +1,7 @@
 import { useLocalStorage } from '@vueuse/core';
-import type { Ref } from 'vue';
-import {
-  parseTableDefinitions,
-  deleteTableData,
-} from 'utils/tableStorage';
+import { parseTableDefinitions, deleteTableData } from 'utils/tableStorage';
 import type { ColumnDef, TableDefinition } from 'src/types/customTable';
+import type { Ref } from 'vue';
 
 const DEFINITIONS_KEY = 'sc-table-defs';
 
@@ -26,7 +23,10 @@ export function useTableDefinitions(): {
   definitions: Ref<TableDefinition[]>;
   getDefinition: (id: string) => TableDefinition | undefined;
   createDefinition: (name: string, columns: ColumnDef[]) => TableDefinition;
-  updateDefinition: (id: string, patch: Partial<Omit<TableDefinition, 'id' | 'createdAt'>>) => void;
+  updateDefinition: (
+    id: string,
+    patch: Partial<Omit<TableDefinition, 'id' | 'createdAt'>>,
+  ) => void;
   deleteDefinition: (id: string) => void;
 } {
   const definitions = useLocalStorage<TableDefinition[]>(DEFINITIONS_KEY, [], {
@@ -40,7 +40,10 @@ export function useTableDefinitions(): {
     return definitions.value.find((d) => d.id === id);
   }
 
-  function createDefinition(name: string, columns: ColumnDef[]): TableDefinition {
+  function createDefinition(
+    name: string,
+    columns: ColumnDef[],
+  ): TableDefinition {
     const now = new Date().toISOString();
     const definition: TableDefinition = {
       id: crypto.randomUUID(),
@@ -73,5 +76,11 @@ export function useTableDefinitions(): {
     deleteTableData(id);
   }
 
-  return { definitions, getDefinition, createDefinition, updateDefinition, deleteDefinition };
+  return {
+    definitions,
+    getDefinition,
+    createDefinition,
+    updateDefinition,
+    deleteDefinition,
+  };
 }
