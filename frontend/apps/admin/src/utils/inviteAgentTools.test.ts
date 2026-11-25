@@ -52,15 +52,18 @@ function fakeGrid(): GridApi & { rows: Record<string, unknown>[] } {
 
 function setup() {
   const grid = fakeGrid();
+  const agentProposed = new Set<string>();
   const tools = createInviteTools({
     grid: () => grid,
-    validate: (rows) => validateInvites(rows, new Set(['jane.doe@acme.com'])),
+    validate: (rows) =>
+      validateInvites(rows, new Set(['jane.doe@acme.com']), agentProposed),
+    agentProposed,
   });
   const call = (name: string, args: Record<string, unknown> = {}) =>
     tools.find((t) => t.name === name)!.execute(args) as Promise<
       Record<string, unknown>
     >;
-  return { grid, tools, call };
+  return { grid, tools, call, agentProposed };
 }
 
 const person = {
@@ -82,25 +85,20 @@ describe('invite agent tools', () => {
     ]);
   });
 
-  it('add_rows input schema carries the contract rules for each row', () => {
+  it('add_rows accepts draft rows: any text per column, no extra keys, rules as hints', () => {
     const addRows = setup().tools.find((t) => t.name === 'add_rows')!;
+    const item = (
+      addRows.inputSchema as {
+        properties: { rows: { items: Record<string, any> } };
+      }
+    ).properties.rows.items;
 
-    expect(addRows.inputSchema).toMatchObject({
-      properties: {
-        rows: {
-          items: {
-            required: ['email', 'firstName', 'lastName', 'role'],
-            additionalProperties: false,
-            properties: {
-              email: { type: 'string', format: 'email' },
-              firstName: { minLength: 1, maxLength: 100 },
-              role: { enum: expect.arrayContaining(['Viewer']) },
-              groups: { items: { enum: expect.arrayContaining(['Apparel']) } },
-            },
-          },
-        },
-      },
-    });
+    expect(item.additionalProperties).toBe(false);
+    expect(item.required ?? []).toEqual([]);
+    expect(item.properties.email).not.toHaveProperty('format');
+    expect(item.properties.role).not.toHaveProperty('enum');
+    expect(item.properties.role.description).toContain('Account Admin');
+    expect(item.properties.groups.description).toContain('Vietnam Suppliers');
   });
 
   it('results match their outputSchema even when rows hold invalid data', async () => {
@@ -108,7 +106,7 @@ describe('invite agent tools', () => {
     const added = await call('add_rows', {
       rows: [
         person,
-        { email: 'bad', role: 'Owner', groups: ['Mars'] },
+        { email: 'bad', role: 'Owner', groups: 'Mars' },
         { firstName: 42 },
       ],
     });
@@ -156,17 +154,63 @@ describe('invite agent tools', () => {
     ]);
   });
 
-  it('takes groups as an array, stores one "; " cell, and reads them back as an array', async () => {
-    const { grid, call } = setup();
+  it('takes groups as one "; " string and reads each row back with its status', async () => {
+    const { call } = setup();
     await call('add_rows', {
-      rows: [{ ...person, groups: ['Apparel', 'Electronics'] }],
+      rows: [
+        { ...person, groups: 'Apparel; Electronics' },
+        { email: 'Tom Lee tom@acme.com Owner' },
+        { ...person, email: 'bad' },
+      ],
     });
 
-    expect(grid.rows[0].groups).toBe('Apparel; Electronics');
     const { rows } = await call('read_rows');
     expect(rows).toEqual([
-      expect.objectContaining({ groups: ['Apparel', 'Electronics'] }),
+      expect.objectContaining({
+        groups: 'Apparel; Electronics',
+        status: 'Ready',
+      }),
+      expect.objectContaining({ status: 'Needs review' }),
+      expect.objectContaining({ status: 'Not ready' }),
     ]);
+  });
+
+  it('update_rows that resolves a needs-review row marks it agent proposed', async () => {
+    const { grid, call, agentProposed } = setup();
+    await call('add_rows', {
+      rows: [person, { email: 'Tom Lee tom@acme.com Owner' }],
+    });
+    const [plain, line] = grid.rows.map((r) => r.id as string);
+
+    const result = await call('update_rows', {
+      rows: [
+        { id: plain, firstName: 'Anne' },
+        { id: line, ...person, email: 'tom@acme.com', firstName: 'Tom' },
+      ],
+    });
+
+    expect([...agentProposed]).toEqual([line]);
+    expect(result.errors).toEqual([
+      expect.objectContaining({ id: line, field: 'status' }),
+    ]);
+    const { rows } = await call('read_rows');
+    expect(rows).toEqual([
+      expect.objectContaining({ id: plain, status: 'Ready' }),
+      expect.objectContaining({ id: line, status: 'Agent proposed' }),
+    ]);
+  });
+
+  it('delete_rows refuses rows that need review and deletes nothing', async () => {
+    const { grid, call } = setup();
+    await call('add_rows', {
+      rows: [person, { email: 'Kim Park kim park@acme.com Responder' }],
+    });
+    const ids = grid.rows.map((r) => r.id as string);
+
+    await expect(call('delete_rows', { ids })).rejects.toThrow(
+      /needs? review/i,
+    );
+    expect(grid.rows).toHaveLength(2);
   });
 
   it('update_rows fixes a row by id and reports ids that do not exist', async () => {

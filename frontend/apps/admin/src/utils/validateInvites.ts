@@ -1,4 +1,5 @@
 import { INVITE_GROUPS, InviteRowSchema, parseInviteGroups } from 'contracts';
+import { needsReview } from 'utils/inviteDraft';
 import type { GridSaveError } from 'composables/useGridEditor';
 
 const ALLOWED_GROUPS: ReadonlySet<string> = new Set(INVITE_GROUPS);
@@ -7,10 +8,15 @@ const ALLOWED_GROUPS: ReadonlySet<string> = new Set(INVITE_GROUPS);
  * PROTOTYPE — the "server" check for bulk invite (SC15-706).
  *
  * One function serves the Send button and the agent `validate` tool, so a
- * human and an agent always see the same errors. Checks the whole batch:
- * - each row against `InviteRowSchema` (shape, email format, role list)
- * - each name in the "; "-separated groups cell against the group list
- * - an email repeated within the batch (case-insensitive)
+ * human and an agent always see the same errors. A row is ready only when
+ * none of these apply:
+ * - needs review: a whole line in one cell that cannot be split without
+ *   guessing (reported once, instead of field errors)
+ * - agent proposed: the agent resolved a needs-review row and no person has
+ *   confirmed or edited it yet (`agentProposed`, owned by the page)
+ * - the row fails `InviteRowSchema` (email format, names, role list)
+ * - a name in the "; "-separated groups cell is not in the group list
+ * - an email repeated within the invite draft (case-insensitive)
  * - an email that already belongs to a user in the organisation
  *
  * Values are trimmed first, as a spreadsheet import would. Errors carry
@@ -20,12 +26,33 @@ const ALLOWED_GROUPS: ReadonlySet<string> = new Set(INVITE_GROUPS);
 export function validateInvites(
   rows: Record<string, unknown>[],
   existingEmails: ReadonlySet<string>,
+  agentProposed: ReadonlySet<string> = new Set(),
 ): GridSaveError[] {
   const errors: GridSaveError[] = [];
   const firstRowByEmail = new Map<string, number>();
 
   rows.forEach((raw, row) => {
     const rowId = String(raw.id ?? '');
+    if (needsReview(raw)) {
+      const field =
+        Object.keys(raw).find((k) => k !== 'id' && raw[k] != null) ?? 'email';
+      errors.push({
+        row,
+        rowId,
+        field,
+        message:
+          'Needs review: this text could not be split into columns without guessing',
+      });
+      return;
+    }
+    if (agentProposed.has(rowId)) {
+      errors.push({
+        row,
+        rowId,
+        field: 'status',
+        message: 'Agent proposed: confirm or edit this row before sending',
+      });
+    }
     const trimmed = Object.fromEntries(
       Object.entries(raw).map(([k, v]) => [
         k,

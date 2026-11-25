@@ -77,4 +77,29 @@ describe('validateInvites', () => {
       ['groups', 'Unknown group(s): Mars, Moon'],
     ]);
   });
+
+  it('reports a needs-review line once, on its cell, instead of field errors', () => {
+    const errors = validateInvites(
+      [{ id: ID(1), email: 'Tom Lee tom@acme.com Owner' }],
+      existing,
+    );
+    expect(errors).toEqual([
+      expect.objectContaining({
+        rowId: ID(1),
+        field: 'email',
+        message: expect.stringMatching(/^Needs review/),
+      }),
+    ]);
+  });
+
+  it('blocks an agent-proposed row until a person confirms it', () => {
+    const errors = validateInvites([row(ID(1))], existing, new Set([ID(1)]));
+    expect(errors).toEqual([
+      expect.objectContaining({
+        rowId: ID(1),
+        field: 'status',
+        message: expect.stringMatching(/^Agent proposed/),
+      }),
+    ]);
+  });
 });

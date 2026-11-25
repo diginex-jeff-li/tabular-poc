@@ -82,10 +82,15 @@ interface UseGridEditorOptions {
     deletes: string[];
   }) => Promise<GridSaveResponse>;
   exportFilename: Ref<string> | string;
+  /** Applied to every row that enters or is edited in the grid. */
+  normalizeRow?: (row: Record<string, unknown>) => Record<string, unknown>;
+  /** Called with row ids after a person adds, pastes, edits or deletes rows. */
+  onUserEdit?: (rowIds: string[]) => void;
 }
 
 export function useGridEditor(opts: UseGridEditorOptions) {
-  const { tableEl, columns, data, onSave, exportFilename } = opts;
+  const { tableEl, columns, data, onSave, exportFilename, onUserEdit } = opts;
+  const normalize = opts.normalizeRow ?? ((row) => row);
 
   // The tabulator shallowRef must be created BEFORE useDirtyTracking is
   // called — useDirtyTracking wires its events via watch(..., immediate: true)
@@ -127,7 +132,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
         columns: columns.value,
         clipboard: true,
         clipboardPasteParser: (clipboard: string) =>
-          parseClipboardPaste(clipboard, columns.value),
+          parseClipboardPaste(clipboard, columns.value).map(normalize),
         clipboardPasteAction: 'insert',
         clipboardCopyConfig: { columnHeaders: false },
         validationMode: 'highlight',
@@ -164,12 +169,14 @@ export function useGridEditor(opts: UseGridEditorOptions) {
           tab.replaceData(updated);
         }
         // Only mark rows that got a new UUID (were newly pasted)
+        const pastedIds: string[] = [];
         for (const row of updated) {
           if (
             row.id &&
             !current.find((r: Record<string, unknown>) => r.id === row.id)
           ) {
             markDirty(row.id as string, 'added');
+            pastedIds.push(row.id as string);
           }
         }
         // VAL-CUSTOM-005: Tabulator only runs column validators on cell edit
@@ -191,12 +198,24 @@ export function useGridEditor(opts: UseGridEditorOptions) {
           }
         }
         rowCount.value = tab.getDataCount();
+        onUserEdit?.(pastedIds);
       };
       tab.on('clipboardPasted', onClipboardPasted);
+
+      // A person's cell edit is a way in too: normalize the whole row.
+      const onCellEdited = (cell: AnyTabulator) => {
+        const row = cell.getRow();
+        const before = row.getData() as Record<string, unknown>;
+        const after = normalize(before);
+        if (JSON.stringify(after) !== JSON.stringify(before)) row.update(after);
+        onUserEdit?.([String(before.id)]);
+      };
+      tab.on('cellEdited', onCellEdited);
 
       onCleanup(() => {
         tab.off('dataProcessed');
         tab.off('clipboardPasted', onClipboardPasted);
+        tab.off('cellEdited', onCellEdited);
       });
     },
     { immediate: true },
@@ -206,9 +225,10 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   function handleAddRow() {
     if (!tabulator.value) return;
     const newRow = { id: crypto.randomUUID() };
-    tabulator.value.addRow(newRow, true);
+    const added = tabulator.value.addRow(newRow, true);
     markDirty(newRow.id, 'added');
     rowCount.value = tabulator.value.getDataCount();
+    void Promise.resolve(added).then(() => onUserEdit?.([newRow.id]));
   }
 
   // ── Export CSV ──
@@ -355,6 +375,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
     errorList.value = [];
     saveResult.value = null;
     rowCount.value = 0;
+    onUserEdit?.([]);
   }
 
   // ── Delete selected ──
@@ -379,6 +400,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
       );
     }
     rowCount.value = tabulator.value.getDataCount();
+    onUserEdit?.([...deletedRowIds]);
   }
 
   // ── Programmatic API (agent tools, file import) ──
@@ -392,7 +414,10 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   async function addRows(rows: Record<string, unknown>[]): Promise<string[]> {
     const tab = tabulator.value;
     if (!tab) return [];
-    const withIds = rows.map((r) => ({ ...r, id: crypto.randomUUID() }));
+    const withIds = rows.map((r) => ({
+      ...normalize(r),
+      id: crypto.randomUUID(),
+    }));
     const added = await tab.addData(withIds);
     for (const row of withIds) markDirty(row.id, 'added');
     for (const row of added ?? []) row.validate?.();
@@ -412,7 +437,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
         result.missing.push(id);
         continue;
       }
-      await row.update(fields);
+      await row.update(normalize({ ...row.getData(), ...fields }));
       markDirty(id, 'modified');
       row.validate?.();
       result.updated.push(id);
@@ -441,8 +466,15 @@ export function useGridEditor(opts: UseGridEditorOptions) {
     return result;
   }
 
+  // Re-run formatters first (they may show per-row state such as a status
+  // column), then paint the error cells on the fresh DOM. Reformatting
+  // rebuilds a row's cells, so skip a row a person is editing right now.
   function showErrors(errors: GridSaveError[]) {
     errorList.value = errors;
+    for (const row of tabulator.value?.getRows() ?? []) {
+      if (!row.getElement()?.querySelector('.tabulator-editing'))
+        row.reformat();
+    }
     if (errors.length > 0) applyErrorHighlights(errors);
     else clearErrorHighlights();
   }

@@ -50,3 +50,19 @@ export const InviteRowSchema = z.object({
 });
 
 export type InviteRowType = z.infer<typeof InviteRowSchema>;
+
+/**
+ * A row of the invite draft: the template's columns, any text in each.
+ * Agent tools and grid writes accept this; only Send enforces
+ * `InviteRowSchema` (docs/adr/0001-draft-rows-vs-ready-rows.md).
+ */
+export const InviteDraftRowSchema = z
+  .object({
+    id: z.string(),
+    email: z.string().nullable(),
+    firstName: z.string().nullable(),
+    lastName: z.string().nullable(),
+    role: z.string().nullable(),
+    groups: z.string().nullable(),
+  })
+  .strict();

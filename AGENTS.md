@@ -125,6 +125,8 @@ selection — all in the free core.
 | `frontend/apps/admin/src/components/GridEditor/GridEditor.tsx` | Shared grid editor component (toolbar, grid host, error sidebar) |
 | `frontend/apps/admin/src/pages/BulkInviteUsers.tsx` | SC15-706 bulk invite prototype — Excel template/import, paste, simulated send |
 | `frontend/apps/admin/src/utils/inviteAgentTools.ts` | Agent tools for the invite grid (edit-only; no send tool) |
+| `frontend/apps/admin/src/utils/inviteDraft.ts` | Invite draft cleanup + line parser (never guesses), row status |
+| `CONTEXT.md` / `docs/adr/` | Domain glossary (bulk invite terms) and ADRs |
 | `frontend/apps/admin/src/composables/useAgentTools.ts` | Registers tools on `document.modelContext` (WebMCP) + `window.scInvite` bridge |
 | `frontend/apps/admin/src/utils/test-infra.test.ts`       | Test infrastructure tests (localStorage polyfill, component mounting) |
 | `frontend/setup-localstorage.ts`                         | In-memory localStorage polyfill wired via vitest setupFiles |
@@ -132,3 +134,19 @@ selection — all in the free core.
 | `.wayfinder/map.md`                                       | Wayfinder decision map                                |
 | `knip.json`                                               | Dead code detection config                            |
 | `.jscpd.json`                                             | Duplicate code detection config                       |
+
+## Agent skills
+
+### Issue tracker
+
+Local markdown under `.scratch/<feature>/` (spec.md + issues/NN-slug.md). Earlier
+prototype tickets stay in `.wayfinder/`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five roles (needs-triage, needs-info, ready-for-agent, ready-for-human,
+wontfix), recorded as a `Status:` line. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.

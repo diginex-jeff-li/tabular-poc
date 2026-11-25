@@ -129,6 +129,18 @@ export default defineComponent({
       type: Function as PropType<(api: GridApi) => void>,
       default: undefined,
     },
+    /** Applied to every row that enters or is edited in the grid. */
+    normalizeRow: {
+      type: Function as PropType<
+        (row: Record<string, unknown>) => Record<string, unknown>
+      >,
+      default: undefined,
+    },
+    /** Called with row ids after a person adds, pastes, edits or deletes rows. */
+    onUserEdit: {
+      type: Function as PropType<(rowIds: string[]) => void>,
+      default: undefined,
+    },
   },
   setup(props) {
     const tableEl = ref<HTMLDivElement | null>(null);
@@ -141,6 +153,8 @@ export default defineComponent({
       data: ref(props.data),
       onSave: props.onSave,
       exportFilename: props.exportFilename,
+      normalizeRow: props.normalizeRow,
+      onUserEdit: props.onUserEdit,
     });
     const {
       rowCount,
