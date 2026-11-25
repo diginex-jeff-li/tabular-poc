@@ -75,7 +75,9 @@ export default defineComponent({
       // fixed; we keep it human-readable and include the year so validators
       // can match against the stored `updatedAt`.
       const d = new Date(iso);
-      if (Number.isNaN(d.getTime())) return iso;
+      if (Number.isNaN(d.getTime())) {
+        return iso;
+      }
       return d.toLocaleString();
     }
 
@@ -111,7 +113,9 @@ export default defineComponent({
                       aria-label={`Open table ${d.name}`}
                       onClick={() => goToEditor(d.id)}
                       onKeydown={(e: KeyboardEvent) => {
-                        if (e.key === 'Enter') goToEditor(d.id);
+                        if (e.key === 'Enter') {
+                          goToEditor(d.id);
+                        }
                       }}
                     >
                       {/* ── Card header: name + delete button ── */}
@@ -182,7 +186,9 @@ export default defineComponent({
           <UModal
             open={deleteTarget.value !== null}
             onUpdate:open={(v: boolean) => {
-              if (!v) closeDeleteModal();
+              if (!v) {
+                closeDeleteModal();
+              }
             }}
           >
             {deleteTarget.value && (

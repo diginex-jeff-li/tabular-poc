@@ -154,7 +154,9 @@ export default defineComponent({
       const input = event.target as HTMLInputElement;
       const file = input.files?.[0];
       input.value = '';
-      if (!file) return;
+      if (!file) {
+        return;
+      }
       const { rows, ignoredHeaders } = await parseInviteWorkbook(
         await file.arrayBuffer(),
       );

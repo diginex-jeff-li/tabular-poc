@@ -25,7 +25,9 @@ export function tableDataKey(tableId: string): string {
 export function parseTableDefinitions(
   raw: string | null,
 ): Array<TableDefinition> {
-  if (raw === null) return [];
+  if (raw === null) {
+    return [];
+  }
   return parseArray(raw, TableDefinitionSchema);
 }
 
@@ -37,7 +39,9 @@ export function parseTableDefinitions(
  * must never throw.
  */
 export function parseTableRows(raw: string | null): Array<TableRow> {
-  if (raw === null) return [];
+  if (raw === null) {
+    return [];
+  }
   return parseArray(raw, TableRowSchema);
 }
 

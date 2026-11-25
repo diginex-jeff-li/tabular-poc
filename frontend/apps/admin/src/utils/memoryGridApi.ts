@@ -33,7 +33,9 @@ export function createMemoryGrid(): GridApi & {
         if (row) {
           Object.assign(row, fields);
           result.updated.push(id);
-        } else result.missing.push(id);
+        } else {
+          result.missing.push(id);
+        }
       }
       return result;
     },
@@ -44,11 +46,13 @@ export function createMemoryGrid(): GridApi & {
       };
       for (const id of ids) {
         const index = grid.rows.findIndex((r) => r.id === id);
-        if (index < 0) result.missing.push(id);
-        else
+        if (index < 0) {
+          result.missing.push(id);
+        } else {
           result.deleted.push(
             ...grid.rows.splice(index, 1).map((r) => r.id as string),
           );
+        }
       }
       return result;
     },

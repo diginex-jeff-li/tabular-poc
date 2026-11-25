@@ -164,7 +164,9 @@ async function mountBuilder() {
 
 function getDefs(): Array<unknown> {
   const raw = localStorage.getItem('sc-table-defs');
-  if (!raw) return [];
+  if (!raw) {
+    return [];
+  }
   try {
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];

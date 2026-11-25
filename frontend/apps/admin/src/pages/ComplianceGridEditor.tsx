@@ -194,7 +194,9 @@ async function mockBulkSave(payload: {
     }
   }
 
-  if (errors.length > 0) return { errors, saved: 0 };
+  if (errors.length > 0) {
+    return { errors, saved: 0 };
+  }
 
   const deleteSet = new Set(payload.deletes);
   store = store.filter((r) => !deleteSet.has(r.id as string));

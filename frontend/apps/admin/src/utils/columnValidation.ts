@@ -29,7 +29,9 @@ export function parseChoices(raw: string): Array<string> {
  */
 export function isReservedName(name: string): boolean {
   const trimmed = name.trim();
-  if (!trimmed) return false;
+  if (!trimmed) {
+    return false;
+  }
   const lower = trimmed.toLowerCase();
   return RESERVED_COLUMN_NAMES.some((r) => r.toLowerCase() === lower);
 }
@@ -45,7 +47,9 @@ export function isDuplicateName(
   existingNames: Array<string>,
 ): boolean {
   const trimmed = name.trim();
-  if (!trimmed) return false;
+  if (!trimmed) {
+    return false;
+  }
   const lower = trimmed.toLowerCase();
   return existingNames.some((n) => n.trim().toLowerCase() === lower);
 }

@@ -12,13 +12,19 @@ export function useDirtyTracking(tabulatorRef: Ref<TabulatorFull | null>) {
     const current = dirtyMap.value.get(rowId);
 
     // If already deleted, don't downgrade
-    if (current === 'deleted' && status !== 'deleted') return;
+    if (current === 'deleted' && status !== 'deleted') {
+      return;
+    }
 
     // If already modified and we're setting modified again, keep it
-    if (current === 'modified' && status === 'modified') return;
+    if (current === 'modified' && status === 'modified') {
+      return;
+    }
 
     // If already added and we're setting added again, keep it
-    if (current === 'added' && status === 'added') return;
+    if (current === 'added' && status === 'added') {
+      return;
+    }
 
     dirtyMap.value = new Map(dirtyMap.value).set(rowId, status);
   }
@@ -43,7 +49,9 @@ export function useDirtyTracking(tabulatorRef: Ref<TabulatorFull | null>) {
     deletes: Array<string>;
   } {
     const tabulator = tabulatorRef.value;
-    if (!tabulator) return { upserts: [], deletes: [] };
+    if (!tabulator) {
+      return { upserts: [], deletes: [] };
+    }
 
     const upserts: Array<Record<string, unknown>> = [];
     const deletes: Array<string> = [];
@@ -73,7 +81,9 @@ export function useDirtyTracking(tabulatorRef: Ref<TabulatorFull | null>) {
   watch(
     () => tabulatorRef.value,
     (tab, _prev, onCleanup) => {
-      if (!tab) return;
+      if (!tab) {
+        return;
+      }
 
       const onCellEdited = (cell: {
         getRow: () => {

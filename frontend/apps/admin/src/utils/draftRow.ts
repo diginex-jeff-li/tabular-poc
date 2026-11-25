@@ -42,7 +42,9 @@ const PHRASES = [
 type Fields = Record<(typeof DRAFT_FIELDS)[number], string | null>;
 
 function text(value: unknown): string | null {
-  if (value === undefined || value === null) return null;
+  if (value === undefined || value === null) {
+    return null;
+  }
   const trimmed = String(value).trim();
   return trimmed === '' ? null : trimmed;
 }
@@ -73,7 +75,9 @@ function clean(fields: Fields): Fields {
 /** The one filled cell, when it holds more than one part. */
 function lineText(fields: Fields): string | null {
   const filled = DRAFT_FIELDS.map((f) => fields[f]).filter((v) => v !== null);
-  if (filled.length !== 1) return null;
+  if (filled.length !== 1) {
+    return null;
+  }
   return /[\t|,\s]/.test(filled[0]) ? filled[0] : null;
 }
 
@@ -96,16 +100,20 @@ function parseSpaced(line: string): Fields | null {
   for (const { value, kind, pattern } of PHRASES) {
     // Blank the match out at equal length so offsets keep the typed order.
     rest = rest.replace(pattern, (match: string, at: number) => {
-      if (kind === 'role') roles.push(value);
-      else groups.push({ value, at });
+      if (kind === 'role') {
+        roles.push(value);
+      } else {
+        groups.push({ value, at });
+      }
       return ' '.repeat(match.length);
     });
   }
   const words = rest.split(/\s+/).filter(Boolean);
   const emails = words.filter((w) => w.includes('@'));
   const names = words.filter((w) => !w.includes('@'));
-  if (emails.length !== 1 || roles.length !== 1 || names.length !== 2)
+  if (emails.length !== 1 || roles.length !== 1 || names.length !== 2) {
     return null;
+  }
   return {
     email: emails[0],
     firstName: names[0],
@@ -139,9 +147,13 @@ export function normalizeInviteRow(
 ): Record<string, unknown> {
   const fields = draftFields(row);
   const line = lineText(fields);
-  if (line === null) return { ...row, ...clean(fields) };
+  if (line === null) {
+    return { ...row, ...clean(fields) };
+  }
   const parsed = parseLine(line);
-  if (parsed) return { ...row, ...clean(parsed) };
+  if (parsed) {
+    return { ...row, ...clean(parsed) };
+  }
   // Needs review: keep the text as typed, in the cell it was typed in.
   const kept = Object.fromEntries(
     DRAFT_FIELDS.filter((f) => fields[f] !== null).map((f) => [f, fields[f]]),
@@ -175,7 +187,11 @@ export function inviteRowStatus(
   agentProposed: ReadonlySet<string>,
 ): InviteRowStatus {
   const id = String(row.id);
-  if (needsReview(row)) return 'Needs review';
-  if (agentProposed.has(id)) return 'Agent proposed';
+  if (needsReview(row)) {
+    return 'Needs review';
+  }
+  if (agentProposed.has(id)) {
+    return 'Agent proposed';
+  }
   return errors.some((e) => e.rowId === id) ? 'Not ready' : 'Ready';
 }

@@ -62,7 +62,9 @@ export function createInviteDraft(
 
   const api = (): GridApi => {
     const g = grid();
-    if (!g) throw new Error('Invite grid is not ready');
+    if (!g) {
+      throw new Error('Invite grid is not ready');
+    }
     return g;
   };
   const rowById = (id: string) =>
@@ -72,7 +74,9 @@ export function createInviteDraft(
 
   function check(): Array<GridSaveError> {
     const g = grid();
-    if (!g) return errors;
+    if (!g) {
+      return errors;
+    }
     errors = validateInvites(g.getRows(), existingEmails, agentProposed);
     g.showErrors(errors);
     return errors;
@@ -120,8 +124,9 @@ export function createInviteDraft(
     });
     const result = await api().updateRows(merged);
     for (const id of result.updated) {
-      if (by === 'person') agentProposed.delete(id);
-      else if (wasReview.has(id) && !needsReview(rowById(id) ?? {})) {
+      if (by === 'person') {
+        agentProposed.delete(id);
+      } else if (wasReview.has(id) && !needsReview(rowById(id) ?? {})) {
         agentProposed.add(id);
       }
     }
@@ -147,7 +152,9 @@ export function createInviteDraft(
       }
     }
     const result = api().deleteRows(ids);
-    for (const id of result.deleted) agentProposed.delete(id);
+    for (const id of result.deleted) {
+      agentProposed.delete(id);
+    }
     check();
     return result;
   }
@@ -160,7 +167,9 @@ export function createInviteDraft(
 
   /** A person changed these rows directly in the grid (paste, edit, add, delete). */
   function edited(ids: Array<string>) {
-    for (const id of ids) agentProposed.delete(id);
+    for (const id of ids) {
+      agentProposed.delete(id);
+    }
     check();
   }
 
@@ -175,9 +184,12 @@ export function createInviteDraft(
     positional: () => Array<Row>,
   ): { rows: Array<Row>; ignored: Array<string> } {
     const plan = planPaste(text, { autoMatch });
-    if (plan.kind === 'positional') return { rows: positional(), ignored: [] };
-    if (plan.kind === 'insert')
+    if (plan.kind === 'positional') {
+      return { rows: positional(), ignored: [] };
+    }
+    if (plan.kind === 'insert') {
       return { rows: plan.rows, ignored: plan.ignored };
+    }
     held.value = { table: plan.table, mapping: plan.mapping, agentColumns: [] };
     return { rows: [], ignored: [] };
   }
@@ -231,7 +243,9 @@ export function createInviteDraft(
   }> {
     const { table, mapping } = heldOrThrow();
     const problems = mappingProblems(mapping);
-    if (problems.length > 0) throw new Error(problems.join('; '));
+    if (problems.length > 0) {
+      throw new Error(problems.join('; '));
+    }
     const { rows: mapped, ignored } = applyColumnMapping(table, mapping);
     held.value = null;
     await add(mapped, 'person');

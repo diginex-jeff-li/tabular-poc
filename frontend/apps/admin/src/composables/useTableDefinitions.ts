@@ -77,7 +77,9 @@ export function useTableDefinitions(): {
 
   function deleteDefinition(id: string): void {
     const exists = definitions.value.some((d) => d.id === id);
-    if (!exists) return;
+    if (!exists) {
+      return;
+    }
     definitions.value = definitions.value.filter((d) => d.id !== id);
     // Drop the table's row data too so no sc-table-data-{id} key is orphaned.
     deleteTableData(id);

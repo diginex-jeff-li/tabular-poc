@@ -61,7 +61,9 @@ function createMockRow(d: Record<string, unknown>, index: number): MockRow {
     getIndex: () => index,
     delete: vi.fn(),
     getCell: vi.fn((field: string) => {
-      if (!cellElements[field]) cellElements[field] = createMockCellElement();
+      if (!cellElements[field]) {
+        cellElements[field] = createMockCellElement();
+      }
       return { getElement: () => cellElements[field] };
     }),
     scrollTo: vi.fn(),
@@ -99,7 +101,9 @@ function createMockTabulator(
 
   const tabulator = {
     on: vi.fn((event: string, handler: (...args: Array<unknown>) => void) => {
-      if (!handlers[event]) handlers[event] = [];
+      if (!handlers[event]) {
+        handlers[event] = [];
+      }
       handlers[event].push(handler);
     }),
     off: vi.fn((event: string, handler: (...args: Array<unknown>) => void) => {

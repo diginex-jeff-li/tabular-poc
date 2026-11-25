@@ -135,7 +135,9 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   watch(
     () => tableEl.value,
     (el, _prev, onCleanup) => {
-      if (!el) return;
+      if (!el) {
+        return;
+      }
 
       const tabOpts = {
         data: data.value,
@@ -224,7 +226,9 @@ export function useGridEditor(opts: UseGridEditorOptions) {
         const row = cell.getRow();
         const before = row.getData() as Record<string, unknown>;
         const after = normalize(before);
-        if (JSON.stringify(after) !== JSON.stringify(before)) row.update(after);
+        if (JSON.stringify(after) !== JSON.stringify(before)) {
+          row.update(after);
+        }
         onUserEdit?.([String(before.id)]);
       };
       tab.on('cellEdited', onCellEdited);
@@ -240,7 +244,9 @@ export function useGridEditor(opts: UseGridEditorOptions) {
 
   // ── Add Row ──
   function handleAddRow() {
-    if (!tabulator.value) return;
+    if (!tabulator.value) {
+      return;
+    }
     const newRow = { id: crypto.randomUUID() };
     const added = tabulator.value.addRow(newRow, true);
     markDirty(newRow.id, 'added');
@@ -253,7 +259,9 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   // every row regardless of active column filters. Tabulator's default range
   // is 'active', which honours filters and would omit filtered-out rows.
   function handleExportCSV() {
-    if (!tabulator.value) return;
+    if (!tabulator.value) {
+      return;
+    }
     const filename =
       typeof exportFilename === 'object' && 'value' in exportFilename
         ? exportFilename.value
@@ -264,7 +272,9 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   // ── Error highlighting ──
   // Locate rows by rowId (regression guard for f7bd853), never by array index.
   function applyErrorHighlights(errors: Array<GridSaveError>) {
-    if (!tabulator.value) return;
+    if (!tabulator.value) {
+      return;
+    }
     clearErrorHighlights();
     const rows = tabulator.value.getRows();
     for (const err of errors) {
@@ -272,16 +282,22 @@ export function useGridEditor(opts: UseGridEditorOptions) {
         (r: { getData: () => Record<string, unknown> }) =>
           r.getData().id === err.rowId,
       );
-      if (!row) continue;
+      if (!row) {
+        continue;
+      }
       const cell = row.getCell(err.field);
-      if (!cell) continue;
+      if (!cell) {
+        continue;
+      }
       const el = cell.getElement() as HTMLElement;
       el.classList.add('backend-validation-error');
     }
   }
 
   function clearErrorHighlights() {
-    if (!tabulator.value) return;
+    if (!tabulator.value) {
+      return;
+    }
     const cells = tabulator.value.element?.querySelectorAll(
       '.backend-validation-error',
     );
@@ -294,7 +310,9 @@ export function useGridEditor(opts: UseGridEditorOptions) {
 
   // ── Save loop ──
   async function handleSave() {
-    if (!tabulator.value || isSaving.value) return;
+    if (!tabulator.value || isSaving.value) {
+      return;
+    }
     isSaving.value = true;
     errorList.value = [];
     saveResult.value = null;
@@ -332,7 +350,9 @@ export function useGridEditor(opts: UseGridEditorOptions) {
 
   // ── Scroll to error ──
   function scrollToError(err: GridSaveError) {
-    if (!tabulator.value) return;
+    if (!tabulator.value) {
+      return;
+    }
     const rows = tabulator.value.getRows();
     const row = rows.find(
       (r: { getData: () => Record<string, unknown> }) =>
@@ -400,7 +420,9 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   // sidebar would keep showing entries for rows that no longer exist in the
   // grid, and the toolbar error chip would over-count.
   function handleDeleteSelected() {
-    if (!tabulator.value) return;
+    if (!tabulator.value) {
+      return;
+    }
     const selectedRows = tabulator.value.getSelectedRows();
     const deletedRowIds = new Set<string>();
     for (const row of selectedRows) {
@@ -431,14 +453,20 @@ export function useGridEditor(opts: UseGridEditorOptions) {
     rows: Array<Record<string, unknown>>,
   ): Promise<Array<string>> {
     const tab = tabulator.value;
-    if (!tab) return [];
+    if (!tab) {
+      return [];
+    }
     const withIds = rows.map((r) => ({
       ...normalize(r),
       id: crypto.randomUUID(),
     }));
     const added = await tab.addData(withIds);
-    for (const row of withIds) markDirty(row.id, 'added');
-    for (const row of added ?? []) row.validate?.();
+    for (const row of withIds) {
+      markDirty(row.id, 'added');
+    }
+    for (const row of added ?? []) {
+      row.validate?.();
+    }
     rowCount.value = tab.getDataCount();
     return withIds.map((r) => r.id);
   }
@@ -451,7 +479,9 @@ export function useGridEditor(opts: UseGridEditorOptions) {
       updated: [] as Array<string>,
       missing: [] as Array<string>,
     };
-    if (!tab) return result;
+    if (!tab) {
+      return result;
+    }
     for (const { id, ...fields } of patches) {
       const row = tab.getRow(id);
       if (!row) {
@@ -475,7 +505,9 @@ export function useGridEditor(opts: UseGridEditorOptions) {
       deleted: [] as Array<string>,
       missing: [] as Array<string>,
     };
-    if (!tab) return result;
+    if (!tab) {
+      return result;
+    }
     for (const id of ids) {
       const row = tab.getRow(id);
       if (!row) {
@@ -499,11 +531,15 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   function showErrors(errors: Array<GridSaveError>) {
     errorList.value = errors;
     for (const row of tabulator.value?.getRows() ?? []) {
-      if (!row.getElement()?.querySelector('.tabulator-editing'))
+      if (!row.getElement()?.querySelector('.tabulator-editing')) {
         row.reformat();
+      }
     }
-    if (errors.length > 0) applyErrorHighlights(errors);
-    else clearErrorHighlights();
+    if (errors.length > 0) {
+      applyErrorHighlights(errors);
+    } else {
+      clearErrorHighlights();
+    }
   }
 
   return {

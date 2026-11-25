@@ -24,7 +24,9 @@ function createMockTabulator(initialData: Array<Record<string, unknown>> = []) {
 
   const tabulator = {
     on: vi.fn((event: string, handler: (...args: Array<unknown>) => void) => {
-      if (!handlers[event]) handlers[event] = [];
+      if (!handlers[event]) {
+        handlers[event] = [];
+      }
       handlers[event].push(handler);
     }),
     off: vi.fn(),

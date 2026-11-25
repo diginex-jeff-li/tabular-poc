@@ -91,7 +91,9 @@ export function validateInvites(
 
     const email =
       typeof candidate.email === 'string' ? candidate.email.toLowerCase() : '';
-    if (!email) return;
+    if (!email) {
+      return;
+    }
     if (existingEmails.has(email)) {
       errors.push({
         row,

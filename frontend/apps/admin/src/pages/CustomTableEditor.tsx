@@ -300,7 +300,9 @@ export default defineComponent({
     function validateNewColumn(): Array<string> {
       const errors: Array<string> = [];
       const def = definition.value;
-      if (!def) return errors;
+      if (!def) {
+        return errors;
+      }
 
       const trimmedName = newColumnName.value.trim();
 
@@ -340,7 +342,9 @@ export default defineComponent({
      */
     function confirmAddColumn(): void {
       const def = definition.value;
-      if (!def) return;
+      if (!def) {
+        return;
+      }
 
       const errors = validateNewColumn();
       if (errors.length > 0) {
@@ -452,7 +456,9 @@ export default defineComponent({
             title="Add Column"
             description="The new column will be appended as the last column. Existing rows will have an empty value for it."
             onUpdate:open={(v: boolean) => {
-              if (!v) closeAddColumnModal();
+              if (!v) {
+                closeAddColumnModal();
+              }
             }}
           >
             {{

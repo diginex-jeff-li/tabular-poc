@@ -43,7 +43,9 @@ export function planPaste(
   const hasHeader = matched.some((f) => f !== null);
 
   if (!hasHeader) {
-    if (first.length <= INVITE_COLUMNS.length) return { kind: 'positional' };
+    if (first.length <= INVITE_COLUMNS.length) {
+      return { kind: 'positional' };
+    }
     return {
       kind: 'hold',
       table: { headers: first.map((_, i) => `Column ${i + 1}`), rows: lines },
@@ -69,7 +71,9 @@ export function applyColumnMapping(
   const rows = table.rows.map((cells) => {
     const row: DraftRow = {};
     mapping.forEach((field, i) => {
-      if (field) row[field] = cells[i] || null;
+      if (field) {
+        row[field] = cells[i] || null;
+      }
     });
     return row;
   });

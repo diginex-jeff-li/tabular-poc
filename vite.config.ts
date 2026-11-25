@@ -77,7 +77,6 @@ export default defineConfig({
       // breaks (count at adoption). Remove one per commit, fix or justify.
       'quality/no-unsafe-dictionary-type': 'off', // 144
       'typescript/no-unsafe-type-assertion': 'off', // 125
-      curly: 'off', // 77
       'typescript/no-unsafe-call': 'off', // 63
       'typescript/no-unnecessary-type-assertion': 'off', // 53
       'vitest/require-mock-type-parameters': 'off', // 45

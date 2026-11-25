@@ -156,15 +156,20 @@ export async function parseInviteWorkbook(
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(data);
   const sheet = workbook.worksheets[0];
-  if (!sheet) return { rows: [], ignoredHeaders: [] };
+  if (!sheet) {
+    return { rows: [], ignoredHeaders: [] };
+  }
 
   const fieldByColumn = new Map<number, string>();
   const ignoredHeaders: Array<string> = [];
   sheet.getRow(1).eachCell((cell, col) => {
     const header = cell.text.trim();
     const field = matchInviteHeader(header);
-    if (field) fieldByColumn.set(col, field);
-    else if (header) ignoredHeaders.push(header);
+    if (field) {
+      fieldByColumn.set(col, field);
+    } else if (header) {
+      ignoredHeaders.push(header);
+    }
   });
 
   const rows: Array<Record<string, string | null>> = [];
@@ -175,9 +180,13 @@ export async function parseInviteWorkbook(
     for (const [col, field] of fieldByColumn) {
       const text = excelRow.getCell(col).text.trim();
       row[field] = text || null;
-      if (text) blank = false;
+      if (text) {
+        blank = false;
+      }
     }
-    if (!blank) rows.push(row);
+    if (!blank) {
+      rows.push(row);
+    }
   }
   return { rows, ignoredHeaders };
 }

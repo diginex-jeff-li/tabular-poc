@@ -100,10 +100,17 @@ function deriveColumn(
     };
 
     const validators: Array<unknown> = [];
-    if (!isNullable) validators.push('required');
-    if (checks.length > 0) validators.push(schemaValidator(innerType));
-    if (validators.length === 1) col.validator = validators[0];
-    else if (validators.length > 1) col.validator = validators;
+    if (!isNullable) {
+      validators.push('required');
+    }
+    if (checks.length > 0) {
+      validators.push(schemaValidator(innerType));
+    }
+    if (validators.length === 1) {
+      col.validator = validators[0];
+    } else if (validators.length > 1) {
+      col.validator = validators;
+    }
 
     return col as unknown as ColumnDefinition;
   }

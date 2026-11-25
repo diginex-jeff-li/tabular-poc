@@ -50,7 +50,9 @@ export function useAgentTools(globalName: string, tools: Array<AgentTool>) {
       tools: tools.map(({ execute: _execute, ...meta }) => meta),
       call: (name: string, args: Record<string, unknown> = {}) => {
         const tool = tools.find((t) => t.name === name);
-        if (!tool) throw new Error(`Unknown tool "${name}"`);
+        if (!tool) {
+          throw new Error(`Unknown tool "${name}"`);
+        }
         return tool.execute(args);
       },
     });

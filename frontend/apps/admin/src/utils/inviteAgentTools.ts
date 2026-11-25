@@ -110,7 +110,9 @@ function requireArray(
   key: string,
 ): Array<unknown> {
   const value = args[key];
-  if (!Array.isArray(value)) throw new Error(`"${key}" must be an array`);
+  if (!Array.isArray(value)) {
+    throw new Error(`"${key}" must be an array`);
+  }
   return value;
 }
 
@@ -252,7 +254,9 @@ export function createInviteTools(draft: InviteDraft): Array<AgentTool> {
       annotations: { readOnlyHint: true },
       execute: async () => {
         const held = draft.held.value;
-        if (!held) return { pending: false };
+        if (!held) {
+          return { pending: false };
+        }
         return {
           pending: true,
           headers: held.table.headers,

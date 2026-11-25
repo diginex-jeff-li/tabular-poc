@@ -33,7 +33,9 @@ export const InviteGroupEnum = z.enum(INVITE_GROUPS);
 
 /** Split a "; "-separated groups cell into trimmed, non-empty names. */
 export function parseInviteGroups(value: unknown): Array<string> {
-  if (typeof value !== 'string') return [];
+  if (typeof value !== 'string') {
+    return [];
+  }
   return value
     .split(';')
     .map((g) => g.trim())
