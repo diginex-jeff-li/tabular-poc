@@ -103,7 +103,6 @@ export default defineConfig({
       'unicorn/no-abusive-eslint-disable': 'off', // 2
       'unicorn/prefer-string-raw': 'off', // 2
       'typescript/no-unsafe-return': 'off', // 2
-      'prefer-const': 'off', // 1
     },
     // The preset's TypeScript override re-enables these; keep the baseline.
     overrides: [

@@ -15,7 +15,7 @@ interface MockRow {
 
 function createMockTabulator(initialData: Array<Record<string, unknown>> = []) {
   const handlers: Record<string, Array<(...args: Array<unknown>) => void>> = {};
-  let data = [...initialData];
+  const data = [...initialData];
 
   const mockRows: Array<MockRow> = data.map((d, i) => ({
     getData: () => ({ ...d }),
