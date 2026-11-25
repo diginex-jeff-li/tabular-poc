@@ -117,7 +117,7 @@ describe('useTableDefinitions', () => {
       await nextTick();
       const raw = localStorage.getItem('sc-table-defs');
       expect(raw).not.toBeNull();
-      const parsed = JSON.parse(raw as string);
+      const parsed = JSON.parse(raw);
       expect(parsed).toHaveLength(1);
       expect(parsed[0].id).toBe(created.id);
       expect(parsed[0].name).toBe('New Table');
@@ -148,7 +148,7 @@ describe('useTableDefinitions', () => {
       const names = definitions.value.map((d) => d.name).sort();
       expect(names).toEqual(['Existing', 'New']);
       const raw = localStorage.getItem('sc-table-defs');
-      expect(JSON.parse(raw as string)).toHaveLength(2);
+      expect(JSON.parse(raw)).toHaveLength(2);
     });
   });
 
@@ -174,7 +174,7 @@ describe('useTableDefinitions', () => {
 
       await nextTick();
       const raw = localStorage.getItem('sc-table-defs');
-      expect(JSON.parse(raw as string)[0].name).toBe('Renamed');
+      expect(JSON.parse(raw)[0].name).toBe('Renamed');
     });
 
     it('updates only the patched fields and leaves others alone', async () => {
@@ -226,7 +226,7 @@ describe('useTableDefinitions', () => {
 
       const raw = localStorage.getItem('sc-table-defs');
       expect(raw).not.toBeNull();
-      expect(JSON.parse(raw as string)).toHaveLength(0);
+      expect(JSON.parse(raw)).toHaveLength(0);
     });
 
     it('also removes sc-table-data-{id} so no data key is orphaned', async () => {
@@ -274,8 +274,8 @@ describe('useTableDefinitions', () => {
       expect(localStorage.getItem(tableDataKey(VALID_UUID))).toBeNull();
       expect(localStorage.getItem(tableDataKey(OTHER_UUID))).not.toBeNull();
       const raw = localStorage.getItem('sc-table-defs');
-      expect(JSON.parse(raw as string)).toHaveLength(1);
-      expect(JSON.parse(raw as string)[0].id).toBe(OTHER_UUID);
+      expect(JSON.parse(raw)).toHaveLength(1);
+      expect(JSON.parse(raw)[0].id).toBe(OTHER_UUID);
     });
 
     it('is a no-op for an unknown id', async () => {

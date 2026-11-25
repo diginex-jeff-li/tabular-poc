@@ -217,9 +217,9 @@ export default defineComponent({
           surviving[idx] = {
             ...upsert,
             id: upsert.id as string,
-            createdAt: (surviving[idx] as TableRow).createdAt,
+            createdAt: surviving[idx].createdAt,
             updatedAt: now,
-          } as TableRow;
+          };
         } else {
           // A new row — stamp both timestamps.
           surviving.push({
@@ -227,7 +227,7 @@ export default defineComponent({
             id: upsert.id as string,
             createdAt: now,
             updatedAt: now,
-          } as TableRow);
+          });
         }
       }
 
@@ -488,9 +488,7 @@ export default defineComponent({
                     <USelect
                       modelValue={newColumnType.value}
                       items={TYPE_ITEMS}
-                      onUpdate:modelValue={(v) =>
-                        updateNewColumnType(v as ColumnDef['type'])
-                      }
+                      onUpdate:modelValue={(v) => updateNewColumnType(v)}
                     />
                   </div>
 

@@ -216,7 +216,7 @@ describe('GridEditor — toolbar', () => {
       .findAll('button.u-button')
       .find((b) => b.text() === 'Save');
     expect(saveButton).toBeDefined();
-    expect(saveButton!.attributes('disabled')).toBeDefined();
+    expect(saveButton.attributes('disabled')).toBeDefined();
   });
 
   it('Save button is enabled when there are unsaved changes', async () => {
@@ -226,7 +226,7 @@ describe('GridEditor — toolbar', () => {
     const saveButton = wrapper
       .findAll('button.u-button')
       .find((b) => b.text() === 'Save');
-    expect(saveButton!.attributes('disabled')).toBeUndefined();
+    expect(saveButton.attributes('disabled')).toBeUndefined();
   });
 
   it('Save button shows loading state while saving', async () => {
@@ -236,7 +236,7 @@ describe('GridEditor — toolbar', () => {
     const saveButton = wrapper
       .findAll('button.u-button')
       .find((b) => b.text() === 'Save');
-    expect(saveButton!.attributes('data-loading')).toBe('true');
+    expect(saveButton.attributes('data-loading')).toBe('true');
   });
 
   it('clicking Add Row calls handleAddRow', async () => {
@@ -244,7 +244,7 @@ describe('GridEditor — toolbar', () => {
     const addButton = wrapper
       .findAll('button.u-button')
       .find((b) => b.text() === 'Add Row');
-    await addButton!.trigger('click');
+    await addButton.trigger('click');
     expect(mockState.refs.handleAddRow).toHaveBeenCalledTimes(1);
   });
 
@@ -253,7 +253,7 @@ describe('GridEditor — toolbar', () => {
     const whyButton = wrapper
       .findAll('button.u-button')
       .find((b) => b.text() === 'Why Tabulator?');
-    await whyButton!.trigger('click');
+    await whyButton.trigger('click');
     expect(wrapper.text()).toContain('Feature & Licensing Comparison');
   });
 
@@ -262,7 +262,7 @@ describe('GridEditor — toolbar', () => {
     const whyButton = wrapper
       .findAll('button.u-button')
       .find((b) => b.text() === 'Why Tabulator?');
-    await whyButton!.trigger('click');
+    await whyButton.trigger('click');
     const bodyRows = wrapper.findAll('tbody tr');
     expect(bodyRows.length).toBe(8);
   });
@@ -410,7 +410,7 @@ describe('GridEditor — clear confirmation modal', () => {
     const clearButton = wrapper
       .findAll('button.u-button')
       .find((b) => b.text() === 'Clear');
-    await clearButton!.trigger('click');
+    await clearButton.trigger('click');
     expect(wrapper.text()).toContain('Clear all rows?');
     expect(wrapper.text()).toContain('5 rows');
   });
@@ -420,11 +420,11 @@ describe('GridEditor — clear confirmation modal', () => {
     const clearButton = wrapper
       .findAll('button.u-button')
       .find((b) => b.text() === 'Clear');
-    await clearButton!.trigger('click');
+    await clearButton.trigger('click');
     const clearAllButton = wrapper
       .findAll('button.u-button')
       .find((b) => b.text() === 'Clear All');
-    await clearAllButton!.trigger('click');
+    await clearAllButton.trigger('click');
     expect(mockState.refs.clearGrid).toHaveBeenCalledTimes(1);
   });
 });

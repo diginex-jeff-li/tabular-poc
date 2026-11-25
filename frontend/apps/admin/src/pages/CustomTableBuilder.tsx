@@ -113,7 +113,7 @@ function validateBuilder(
     // Duplicate detection — case-insensitive, trimmed
     const lowerName = trimmedName.toLowerCase();
     if (seenNames.has(lowerName)) {
-      const firstIndex = seenNames.get(lowerName)!;
+      const firstIndex = seenNames.get(lowerName);
       errors.push(
         `Column ${firstIndex + 1} and ${label}: duplicate column name "${trimmedName}". Names must be unique.`,
       );
@@ -272,9 +272,7 @@ export default defineComponent({
                       <USelect
                         modelValue={row.type}
                         items={TYPE_ITEMS}
-                        onUpdate:modelValue={(v) =>
-                          updateRowType(index, v as ColumnDef['type'])
-                        }
+                        onUpdate:modelValue={(v) => updateRowType(index, v)}
                       />
                     </td>
                     {/* Required */}

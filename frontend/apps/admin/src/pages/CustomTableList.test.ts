@@ -349,10 +349,10 @@ describe('CustomTableList', () => {
       // column counts: Alpha 1, Beta 2, Gamma 3 — at least the distinct counts appear
       const aCard = cards.find((c) => c.text().includes('Alpha'));
       expect(aCard).toBeDefined();
-      expect(aCard!.text()).toContain('1');
+      expect(aCard.text()).toContain('1');
       const gCard = cards.find((c) => c.text().includes('Gamma'));
       expect(gCard).toBeDefined();
-      expect(gCard!.text()).toContain('3');
+      expect(gCard.text()).toContain('3');
     });
   });
 
@@ -365,7 +365,7 @@ describe('CustomTableList', () => {
         (b) => b.attributes('data-label') === 'New Table',
       );
       expect(newBtn).toBeDefined();
-      await newBtn!.trigger('click');
+      await newBtn.trigger('click');
       await flushPromises();
       await nextTick();
       expect(router.currentRoute.value.path).toBe('/custom/new');
@@ -420,7 +420,7 @@ describe('CustomTableList', () => {
         .findAll('button')
         .find((b) => b.text() === 'Cancel');
       expect(cancelBtn).toBeDefined();
-      await cancelBtn!.trigger('click');
+      await cancelBtn.trigger('click');
       await nextTick();
       // modal closed
       const modal = wrapper.find('.u-modal[data-open="true"]');
@@ -428,7 +428,7 @@ describe('CustomTableList', () => {
       // definition still in storage
       const raw = localStorage.getItem('sc-table-defs');
       expect(raw).not.toBeNull();
-      expect(JSON.parse(raw as string)).toHaveLength(1);
+      expect(JSON.parse(raw)).toHaveLength(1);
       // data key still present
       expect(
         localStorage.getItem(`sc-table-data-${VALID_UUID_A}`),
@@ -453,14 +453,14 @@ describe('CustomTableList', () => {
         .findAll('button')
         .find((b) => b.text() === 'Confirm');
       expect(confirmBtn).toBeDefined();
-      await confirmBtn!.trigger('click');
+      await confirmBtn.trigger('click');
       await flushPromises();
       await nextTick();
       // card removed from DOM
       expect(wrapper.findAll('.u-card')).toHaveLength(0);
       // definition gone from storage
       const raw = localStorage.getItem('sc-table-defs');
-      expect(JSON.parse(raw as string)).toHaveLength(0);
+      expect(JSON.parse(raw)).toHaveLength(0);
       // data key gone
       expect(localStorage.getItem(`sc-table-data-${VALID_UUID_A}`)).toBeNull();
     });
@@ -493,7 +493,7 @@ describe('CustomTableList', () => {
       const confirmBtn = wrapper
         .findAll('button')
         .find((b) => b.text() === 'Confirm');
-      await confirmBtn!.trigger('click');
+      await confirmBtn.trigger('click');
       await flushPromises();
       await nextTick();
       // one card remains — the Survivor
@@ -502,7 +502,7 @@ describe('CustomTableList', () => {
       expect(wrapper.text()).toContain('Survivor');
       // storage: only survivor remains
       const raw = localStorage.getItem('sc-table-defs');
-      const parsed = JSON.parse(raw as string);
+      const parsed = JSON.parse(raw);
       expect(parsed).toHaveLength(1);
       expect(parsed[0].id).toBe(VALID_UUID_B);
       // survivor data intact

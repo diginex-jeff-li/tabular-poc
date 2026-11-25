@@ -100,7 +100,7 @@ describe('Application — nav shell', () => {
     const links = wrapper.findAll('header a');
     const complianceLink = links.find((l) => l.text() === 'Compliance Library');
     expect(complianceLink).toBeDefined();
-    const classes = complianceLink!.classes();
+    const classes = complianceLink.classes();
     // The active link must carry a distinguishing class (font-semibold + text-primary)
     expect(classes).toContain('font-semibold');
     expect(classes).toContain('text-primary');
@@ -111,7 +111,7 @@ describe('Application — nav shell', () => {
     const links = wrapper.findAll('header a');
     const customLink = links.find((l) => l.text() === 'Custom Tables');
     expect(customLink).toBeDefined();
-    const classes = customLink!.classes();
+    const classes = customLink.classes();
     expect(classes).toContain('font-semibold');
     expect(classes).toContain('text-primary');
   });

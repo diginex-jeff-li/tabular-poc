@@ -585,9 +585,9 @@ describe('useGridEditor', () => {
     const rows = mockTab._getRows();
     const targetRow = rows.find((r) => r.getData().id === 'r1');
     expect(targetRow).toBeDefined();
-    expect(
-      targetRow!._cellElements['issue'].classList.add,
-    ).toHaveBeenCalledWith('backend-validation-error');
+    expect(targetRow._cellElements['issue'].classList.add).toHaveBeenCalledWith(
+      'backend-validation-error',
+    );
   });
 
   it('handleSave rejection produces a synthetic error entry', async () => {
@@ -643,7 +643,7 @@ describe('useGridEditor', () => {
     await result.handleSave();
     expect(onSave).toHaveBeenCalledTimes(1);
 
-    resolveSave!({ errors: [], saved: 1 });
+    resolveSave({ errors: [], saved: 1 });
     await savePromise1;
 
     expect(result.isSaving.value).toBe(false);
@@ -782,13 +782,13 @@ describe('useGridEditor', () => {
       ._getRows()
       .find((r) => r.getData().id === 'added-2');
 
-    expect(added2Row!.getCell).toHaveBeenCalledWith('issue');
-    expect(
-      added2Row!._cellElements['issue'].classList.add,
-    ).toHaveBeenCalledWith('backend-validation-error');
+    expect(added2Row.getCell).toHaveBeenCalledWith('issue');
+    expect(added2Row._cellElements['issue'].classList.add).toHaveBeenCalledWith(
+      'backend-validation-error',
+    );
     // seed-1's cell should NOT have been touched — the bug from f7bd853 would
     // have looked it up via err.row (array index 0) and called getCell on it.
-    expect(seedRow!.getCell).not.toHaveBeenCalledWith('issue');
+    expect(seedRow.getCell).not.toHaveBeenCalledWith('issue');
   });
 
   it('clearErrorHighlights removes the class from all highlighted cells', async () => {
@@ -835,8 +835,8 @@ describe('useGridEditor', () => {
 
     const targetRow = mockTab._getRows().find((r) => r.getData().id === 'r2');
     expect(targetRow).toBeDefined();
-    expect(targetRow!.scrollTo).toHaveBeenCalled();
-    expect(targetRow!._cellElements['issue'].style.outline).toBe(
+    expect(targetRow.scrollTo).toHaveBeenCalled();
+    expect(targetRow._cellElements['issue'].style.outline).toBe(
       '3px solid #ef4444',
     );
   });

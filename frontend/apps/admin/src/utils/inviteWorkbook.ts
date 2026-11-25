@@ -134,7 +134,7 @@ export async function buildInviteWorkbook(
     error: `Use names from: ${INVITE_GROUPS.join('; ')}`,
   });
 
-  return workbook.xlsx.writeBuffer() as Promise<ArrayBuffer>;
+  return workbook.xlsx.writeBuffer();
 }
 
 export interface ParsedInviteWorkbook {

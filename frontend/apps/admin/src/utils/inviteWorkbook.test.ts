@@ -12,7 +12,7 @@ describe('buildInviteWorkbook', () => {
   it('carries Excel data validation for every invite column', async () => {
     const sheet = (await load(await buildInviteWorkbook())).getWorksheet(
       'Invites',
-    )!;
+    );
 
     expect(sheet.getCell('A2').dataValidation).toMatchObject({
       type: 'custom',
@@ -62,9 +62,7 @@ describe('parseInviteWorkbook', () => {
     sheet.addRow([]);
     sheet.addRow(['', '', 'b@acme.com', '', '']);
 
-    const parsed = await parseInviteWorkbook(
-      (await workbook.xlsx.writeBuffer()) as ArrayBuffer,
-    );
+    const parsed = await parseInviteWorkbook(await workbook.xlsx.writeBuffer());
 
     expect(parsed.ignoredHeaders).toEqual(['Notes']);
     expect(parsed.rows).toEqual([

@@ -55,9 +55,7 @@ vi.mock('components/GridEditor', () => ({
             h(
               'div',
               { 'data-test': 'column-fields' },
-              (props.columns as Array<Record<string, unknown>>)
-                .map((c) => String(c.field))
-                .join(','),
+              props.columns.map((c) => String(c.field)).join(','),
             ),
             // Render the toolbarActions render prop so the Add Column button
             // supplied by the editor page is present in the test tree.
@@ -134,7 +132,7 @@ vi.mock('@nuxt/ui/components/Select.vue', () => ({
     emits: ['update:modelValue'],
     setup(props, { emit }) {
       return (): VNode => {
-        const items = (props.items as Array<unknown>).map((item) => {
+        const items = props.items.map((item) => {
           if (typeof item === 'object' && item !== null) {
             return {
               label: (item as Record<string, unknown>).label as string,

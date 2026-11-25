@@ -283,7 +283,7 @@ describe('tableStorage', () => {
       writeTableRows('abc-123', [r]);
       const raw = localStorage.getItem('sc-table-data-abc-123');
       expect(raw).not.toBeNull();
-      expect(JSON.parse(raw as string)).toEqual([r]);
+      expect(JSON.parse(raw)).toEqual([r]);
     });
 
     it('overwrites existing rows', () => {

@@ -50,7 +50,7 @@ describe('test infrastructure — localStorage polyfill and mounting', () => {
 
     const raw = localStorage.getItem(key);
     expect(raw).not.toBeNull();
-    const parsed = JSON.parse(raw as string);
+    const parsed = JSON.parse(raw);
     expect(parsed).toHaveLength(3);
     expect(parsed[2]).toEqual({ id: '3', name: 'Carol', role: 'user' });
 

@@ -74,7 +74,7 @@ vi.mock('@nuxt/ui/components/Select.vue', () => ({
     emits: ['update:modelValue'],
     setup(props, { emit }) {
       return (): VNode => {
-        const items = (props.items as Array<unknown>).map((item) => {
+        const items = props.items.map((item) => {
           if (typeof item === 'object' && item !== null) {
             return {
               label: (item as Record<string, unknown>).label as string,
@@ -880,10 +880,10 @@ describe('CustomTableBuilder', () => {
       // The existing one is unchanged
       const old = defs.find((d) => d.id === existing.id);
       expect(old).toBeDefined();
-      expect(old!.name).toBe('Existing');
-      expect(old!.createdAt).toBe('2026-01-01T00:00:00.000Z');
-      expect(old!.updatedAt).toBe('2026-01-01T00:00:00.000Z');
-      const oldCols = old!.columns as Array<Record<string, unknown>>;
+      expect(old.name).toBe('Existing');
+      expect(old.createdAt).toBe('2026-01-01T00:00:00.000Z');
+      expect(old.updatedAt).toBe('2026-01-01T00:00:00.000Z');
+      const oldCols = old.columns as Array<Record<string, unknown>>;
       expect(oldCols[0].name).toBe('Old');
     });
   });

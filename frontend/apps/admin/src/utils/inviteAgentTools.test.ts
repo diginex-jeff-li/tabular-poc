@@ -18,7 +18,7 @@ function setup() {
   });
   const tools = createInviteTools(draft);
   const call = (name: string, args: Record<string, unknown> = {}) =>
-    tools.find((t) => t.name === name)!.execute(args) as Promise<
+    tools.find((t) => t.name === name).execute(args) as Promise<
       Record<string, unknown>
     >;
   return { grid, draft, tools, call };
@@ -46,7 +46,7 @@ describe('invite agent tools', () => {
   });
 
   it('add_rows accepts draft rows: any text per column, no extra keys, rules as hints', () => {
-    const addRows = setup().tools.find((t) => t.name === 'add_rows')!;
+    const addRows = setup().tools.find((t) => t.name === 'add_rows');
     const item = (
       addRows.inputSchema as {
         properties: { rows: { items: Record<string, any> } };

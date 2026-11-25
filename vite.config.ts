@@ -78,7 +78,6 @@ export default defineConfig({
       'quality/no-unsafe-dictionary-type': 'off', // 144
       'typescript/no-unsafe-type-assertion': 'off', // 125
       'typescript/no-unsafe-call': 'off', // 63
-      'typescript/no-unnecessary-type-assertion': 'off', // 53
       'vitest/require-mock-type-parameters': 'off', // 45
       'typescript/no-unsafe-member-access': 'off', // 39
       'import/consistent-type-specifier-style': 'off', // 38
