@@ -16,6 +16,7 @@ import { TabulatorFull as Tabulator } from 'tabulator-tables';
  * upserts-array index — commit f7bd853 fixed that bug; do not reintroduce it.
  */
 import { ref, shallowRef, watch } from 'vue';
+import type { ColumnDefinition, Options } from 'tabulator-tables';
 import type { Ref } from 'vue';
 
 // ── Shared save types (match contracts BulkSaveError/Response shape) ──
@@ -107,8 +108,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   // The tabulator shallowRef must be created BEFORE useDirtyTracking is
   // called — useDirtyTracking wires its events via watch(..., immediate: true)
   // and needs the ref to exist so it can observe when the instance is set.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tabulator = shallowRef<any>(null);
+  const tabulator = shallowRef<Tabulator | null>(null);
   const isSaving = ref(false);
   const saveResult = ref<GridSaveResponse | null>(null);
   const errorList = ref<Array<GridSaveError>>([]);
@@ -118,7 +118,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   // exists (null initially); the watch inside useDirtyTracking fires with
   // immediate: true and will re-fire when tabulator.value is set on mount.
   const { dirtyCount, markDirty, markDeleted, buildSavePayload, clearDirty } =
-    useDirtyTracking(tabulator as Ref<AnyTabulator>);
+    useDirtyTracking(tabulator);
 
   // ── beforeunload guard: warn on navigation with unsaved changes ──
   // VueUse useEventListener auto-cleans on unmount — no manual add/remove.
@@ -143,7 +143,9 @@ export function useGridEditor(opts: UseGridEditorOptions) {
       const tabOpts = {
         data: data.value,
         reactiveData: true,
-        columns: columns.value,
+        // Column defs travel as plain records (pages build them from Zod);
+        // typing the GridEditor `columns` prop end to end would remove this.
+        columns: columns.value as unknown as Array<ColumnDefinition>,
         clipboard: true,
         clipboardPasteParser: (clipboard: string) => {
           const positional = () =>
@@ -162,8 +164,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
         autoColumns: false,
         selectable: true,
         headerSortClickElement: 'icon',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any;
+      } as Options;
 
       const tab = new Tabulator(el, tabOpts);
       tabulator.value = tab;
@@ -290,7 +291,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
       if (!cell) {
         continue;
       }
-      const el = cell.getElement() as HTMLElement;
+      const el = cell.getElement();
       el.classList.add('backend-validation-error');
     }
   }
@@ -363,7 +364,7 @@ export function useGridEditor(opts: UseGridEditorOptions) {
       row.scrollTo();
       const cell = row.getCell(err.field);
       if (cell) {
-        const el = cell.getElement() as HTMLElement;
+        const el = cell.getElement();
         el.style.outline = '3px solid #ef4444';
         setTimeout(() => {
           el.style.outline = '';
@@ -489,7 +490,12 @@ export function useGridEditor(opts: UseGridEditorOptions) {
         result.missing.push(id);
         continue;
       }
-      await row.update(normalize({ ...row.getData(), ...fields }));
+      await row.update(
+        normalize({
+          ...(row.getData() as Record<string, unknown>),
+          ...fields,
+        }),
+      );
       markDirty(id, 'modified');
       row.validate?.();
       result.updated.push(id);
