@@ -1,4 +1,4 @@
-import type { GridApi, GridSaveError } from 'composables/useGridEditor';
+import type { GridApi, GridSaveError } from './gridApi';
 
 /**
  * In-memory adapter for the `GridApi` seam (the Tabulator grid is the other

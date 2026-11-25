@@ -55,8 +55,8 @@ import HeaderCell from './HeaderCell';
 import type { EditEnd, GridCellContext } from './GridCell';
 import type { TableColumn } from '@nuxt/ui/components/Table.vue';
 import type { DataGridState, Row } from 'composables/useDataGrid';
-import type { GridSaveError } from 'composables/useGridEditor';
 import type { GridSelection } from 'composables/useGridSelection';
+import type { GridSaveError } from 'utils/gridApi';
 import type { CellPos, Dir, GridOrder } from 'utils/gridRange';
 import type { GridColumn } from 'utils/zodToColumnDefs';
 import type { PropType, VNode } from 'vue';
@@ -188,11 +188,14 @@ function selectColumn(
   };
 }
 
+/** `colIndex` is 1-based in screen order, the checkbox column included. */
 function dataColumn(
   column: GridColumn,
-  index: number,
+  colIndex: number,
   ctx: GridCellContext,
 ): TableColumn<Row> {
+  // Pinned cells sit over scrolled ones; the theme's pinned background is translucent.
+  const opaque = column.pinned ? ' bg-default' : '';
   return {
     id: column.id,
     accessorKey: column.id,
@@ -207,20 +210,34 @@ function dataColumn(
       <GridCell
         row={row.original}
         column={column}
-        colIndex={index + 2}
+        colIndex={colIndex}
         ctx={ctx}
       />
     ),
     // UTable sets aria-sort only when this is literally true.
-    enableSorting: true,
+    enableSorting: !('render' in column && column.render),
     sortingFn: 'alphanumeric',
     sortDescFirst: false,
     enableColumnFilter: column.filter !== null,
     filterFn: column.filter === 'choice' ? 'equals' : 'includesString',
     meta: {
-      class: { th: 'p-0 align-top', td: 'p-0' },
+      class: { th: `p-0 align-top${opaque}`, td: `p-0${opaque}` },
       style: fixedWidth(column.width ?? DEFAULT_WIDTH),
     },
+  };
+}
+
+/**
+ * Screen order: pinned columns, the checkbox column, then the rest.
+ * `thIndex(i)` is the `ordered[i]` column's position among the `th`s.
+ */
+function layout(columns: ReadonlyArray<GridColumn>) {
+  const pinned = columns.filter((c) => c.pinned);
+  return {
+    ordered: [...pinned, ...columns.filter((c) => !c.pinned)],
+    pinning: { left: pinned.map((c) => c.id), right: [] as Array<string> },
+    pinnedWidth: pinned.reduce((sum, c) => sum + (c.width ?? DEFAULT_WIDTH), 0),
+    thIndex: (i: number) => (i < pinned.length ? i : i + 1),
   };
 }
 
@@ -241,7 +258,8 @@ export default defineComponent({
       onUserEdit: props.onUserEdit,
     });
     const columnsById = new Map(props.columns.map((c) => [c.id, c]));
-    const colIds = props.columns.map((c) => c.id);
+    const { ordered, pinning, pinnedWidth, thIndex } = layout(props.columns);
+    const colIds = ordered.map((c) => c.id);
     const table = shallowRef<TableHandle | null>(null);
     const gridEl = computed(() => table.value?.$el);
     // What the grid shows, in screen order: UTable's sorted and filtered rows.
@@ -259,13 +277,15 @@ export default defineComponent({
     });
     const { focused } = useFocus(gridEl);
 
-    /** Scrolls the least distance that shows the whole cell, left of `rightInset` px. */
+    /**
+     * Scrolls the least distance that shows the whole cell, right of the
+     * pinned columns and left of `rightInset` px.
+     */
     function reveal(pos: CellPos, rightInset = 0) {
       const el = gridEl.value;
       const row = order.value.rowIds.indexOf(pos.rowId);
       const ths = el?.querySelectorAll<HTMLElement>('thead th');
-      // +1: the checkbox column comes first.
-      const th = ths?.[order.value.colIds.indexOf(pos.colId) + 1];
+      const th = ths?.[thIndex(order.value.colIds.indexOf(pos.colId))];
       if (!el || row === -1 || !th) {
         return;
       }
@@ -275,10 +295,13 @@ export default defineComponent({
         Math.max(el.scrollTop, top + ROW_HEIGHT - view),
         top,
       );
+      if (columnsById.get(pos.colId)?.pinned) {
+        return;
+      }
       const width = el.clientWidth - rightInset;
       el.scrollLeft = Math.min(
         Math.max(el.scrollLeft, th.offsetLeft + th.offsetWidth - width),
-        th.offsetLeft,
+        th.offsetLeft - pinnedWidth,
       );
     }
 
@@ -317,10 +340,15 @@ export default defineComponent({
       startEdit,
       endEdit,
     };
+    const dataColumns = ordered.map((column, i) =>
+      dataColumn(column, thIndex(i) + 1, ctx),
+    );
     const tableColumns = [
+      ...dataColumns.slice(0, pinning.left.length),
       selectColumn(grid, selection),
-      ...props.columns.map((column, i) => dataColumn(column, i, ctx)),
+      ...dataColumns.slice(pinning.left.length),
     ];
+    props.onReady?.(grid.api);
 
     function navigate(e: KeyboardEvent, dir: Dir) {
       const tab = e.key === 'Tab';
@@ -465,6 +493,7 @@ export default defineComponent({
             onUpdate:columnFilters={(value: ColumnFilters) => {
               columnFilters.value = value;
             }}
+            columnPinning={pinning}
             rowSelection={grid.rowSelection.value}
             onUpdate:rowSelection={(value: Record<string, boolean>) => {
               grid.rowSelection.value = value;

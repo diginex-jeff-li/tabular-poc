@@ -1,7 +1,7 @@
 import { afterEach, describe, it, expect, vi } from 'vite-plus/test';
 import { effectScope, nextTick } from 'vue';
 import { useDataGrid } from './useDataGrid';
-import type { GridSaveResponse } from './useGridEditor';
+import type { GridSaveResponse } from 'utils/gridApi';
 import type { SavePayload } from 'utils/gridDiff';
 import type { GridColumn } from 'utils/zodToColumnDefs';
 import type { EffectScope } from 'vue';
@@ -298,6 +298,94 @@ describe('useDataGrid', () => {
     grid.clearCells(block, columns);
     expect(grid.rows.value).toBe(before);
     expect(onUserEdit).toHaveBeenCalledTimes(1);
+  });
+
+  describe('api (GridApi for agent tools and file import)', () => {
+    function setupApi() {
+      const onUserEdit = vi.fn();
+      const scope = effectScope();
+      scopes.push(scope);
+      const grid = scope.run(() =>
+        useDataGrid({
+          data: [
+            { id: 'a', name: 'Ann', role: 'admin' },
+            { id: 'b', name: 'Bo', role: 'viewer' },
+          ],
+          onSave: vi.fn(),
+          normalizeRow: (row) => ({ ...row, name: String(row.name).trim() }),
+          onUserEdit,
+        }),
+      );
+      return { grid, api: grid.api, onUserEdit };
+    }
+    const error = (rowId: string) => ({
+      row: 0,
+      rowId,
+      field: 'name',
+      message: 'Bad',
+    });
+
+    it('reads copies of the rows', () => {
+      const { grid, api } = setupApi();
+      const read = api.getRows();
+      read[0].name = 'Changed';
+      expect(read).toEqual([
+        { id: 'a', name: 'Changed', role: 'admin' },
+        { id: 'b', name: 'Bo', role: 'viewer' },
+      ]);
+      expect(grid.rows.value[0].name).toBe('Ann');
+    });
+
+    it('adds rows with fresh ids through normalizeRow, without reporting them', async () => {
+      const { api, onUserEdit } = setupApi();
+      const ids = await api.addRows([{ id: 'forged', name: ' Cy ' }]);
+      expect(ids).toHaveLength(1);
+      expect(ids[0]).not.toBe('forged');
+      expect(api.getRows()[2]).toEqual({ id: ids[0], name: 'Cy' });
+      expect(onUserEdit).not.toHaveBeenCalled();
+    });
+
+    it('merges patches through normalizeRow, reports unknown ids and counts as a change', async () => {
+      const { grid, api, onUserEdit } = setupApi();
+      const untouched = grid.rows.value[1];
+      const result = await api.updateRows([
+        { id: 'a', name: ' Anna ' },
+        { id: 'gone', name: 'X' },
+        { id: 'a', role: 'viewer' },
+      ]);
+      expect(result).toEqual({ updated: ['a', 'a'], missing: ['gone'] });
+      expect(api.getRows()).toEqual([
+        { id: 'a', name: 'Anna', role: 'viewer' },
+        { id: 'b', name: 'Bo', role: 'viewer' },
+      ]);
+      expect(grid.rows.value[1]).toBe(untouched);
+      expect(grid.dirtyCount.value).toBe(1);
+      expect(onUserEdit).not.toHaveBeenCalled();
+    });
+
+    it('deletes by id, reports unknown ids and drops their ticks and errors', () => {
+      const { grid, api, onUserEdit } = setupApi();
+      grid.setRowSelected('a', true);
+      grid.setRowSelected('b', true);
+      api.showErrors([error('a'), error('b')]);
+
+      expect(api.deleteRows(['a', 'gone', 'a'])).toEqual({
+        deleted: ['a'],
+        missing: ['gone', 'a'],
+      });
+      expect(api.getRows().map((r) => r.id)).toEqual(['b']);
+      expect(grid.rowSelection.value).toEqual({ b: true });
+      expect(grid.errorList.value).toEqual([error('b')]);
+      expect(grid.dirtyCount.value).toBe(1);
+      expect(onUserEdit).not.toHaveBeenCalled();
+    });
+
+    it('shows the given errors, replacing the previous ones', () => {
+      const { grid, api } = setupApi();
+      api.showErrors([error('a')]);
+      api.showErrors([error('b')]);
+      expect(grid.errorList.value).toEqual([error('b')]);
+    });
   });
 });
 

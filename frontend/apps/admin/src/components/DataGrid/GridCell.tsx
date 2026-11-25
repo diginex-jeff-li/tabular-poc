@@ -223,6 +223,16 @@ export default defineComponent({
       );
     };
 
+    const renderValue = (): VNode => {
+      const column = props.column;
+      if ('render' in column && column.render) {
+        // Read so that showing errors repaints the cell (GridColumn.render).
+        void saveErrors.value;
+        return column.render(props.row);
+      }
+      return <span class="truncate">{String(props.row[colId] ?? '')}</span>;
+    };
+
     return (): VNode => (
       // oxlint-disable-next-line jsx-a11y/interactive-supports-focus -- focus stays on the grid root (one tab stop)
       <div
@@ -246,11 +256,7 @@ export default defineComponent({
         onPointerenter={onPointerenter}
         onDblclick={() => props.ctx.startEdit(pos(), null)}
       >
-        {editing.value ? (
-          renderEditor()
-        ) : (
-          <span class="truncate">{String(props.row[colId] ?? '')}</span>
-        )}
+        {editing.value ? renderEditor() : renderValue()}
       </div>
     );
   },

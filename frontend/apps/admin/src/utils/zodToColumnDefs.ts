@@ -1,3 +1,5 @@
+import type { Row } from 'composables/useDataGrid';
+import type { VNode } from 'vue';
 import type { z } from 'zod';
 
 /**
@@ -15,10 +17,22 @@ export type GridColumn = {
   export: boolean;
   /** Fixed width in px. */
   width?: number;
+  /** Stays at the left edge while the grid scrolls sideways. */
+  pinned?: boolean;
 } & (
   | { editor: 'choice'; options: ReadonlyArray<string>; filter: 'choice' }
   | { editor: 'text'; filter: 'text' }
-  | { editor: null; filter: null }
+  | {
+      editor: null;
+      filter: null;
+      /**
+       * Renders the cell instead of the row's value; the column can't be
+       * sorted. Re-runs when the row changes and when errors are shown
+       * (`GridApi.showErrors`), so it may show state kept outside the row,
+       * as Tabulator's formatters re-run on `reformat`.
+       */
+      render?: (row: Row) => VNode;
+    }
 );
 
 /**

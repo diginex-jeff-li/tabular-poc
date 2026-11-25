@@ -20,6 +20,12 @@ const router = createRouter({
       path: '/invite-users',
       component: BulkInviteUsers,
     },
+    // Temporary: the invite page on the TanStack engine until cutover (ticket 12).
+    {
+      path: '/next/invite-users',
+      component: BulkInviteUsers,
+      props: { engine: 'tanstack' },
+    },
   ],
 });
 

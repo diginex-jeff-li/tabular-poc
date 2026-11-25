@@ -1,4 +1,4 @@
-import type { GridApi, GridSaveResponse } from 'composables/useGridEditor';
+import type { GridApi, GridSaveResponse } from 'utils/gridApi';
 import type { PropType, VNode } from 'vue';
 
 /**

@@ -1,6 +1,6 @@
+import type { GridSaveError } from './gridApi';
 import type { GridColumn } from './zodToColumnDefs';
 import type { Row } from 'composables/useDataGrid';
-import type { GridSaveError } from 'composables/useGridEditor';
 
 /** Messages by row id, then column id. Only rows with a message appear. */
 export type CellMessages = ReadonlyMap<

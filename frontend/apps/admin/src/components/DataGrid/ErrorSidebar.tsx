@@ -5,7 +5,7 @@
  */
 import { computed, defineComponent } from 'vue';
 import type { DataGridState } from 'composables/useDataGrid';
-import type { GridSaveError } from 'composables/useGridEditor';
+import type { GridSaveError } from 'utils/gridApi';
 import type { PropType, VNode } from 'vue';
 
 export default defineComponent({

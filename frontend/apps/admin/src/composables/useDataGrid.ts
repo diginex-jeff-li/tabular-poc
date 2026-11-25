@@ -2,10 +2,7 @@ import { useEventListener } from '@vueuse/core';
 import { clearCells as clearCellsIn } from 'utils/gridClear';
 import { buildSavePayload, diffRows } from 'utils/gridDiff';
 import { computed, readonly, ref, shallowRef, watch } from 'vue';
-import type {
-  GridSaveError,
-  GridSaveResponse,
-} from 'composables/useGridEditor';
+import type { GridApi, GridSaveError, GridSaveResponse } from 'utils/gridApi';
 import type { SavePayload } from 'utils/gridDiff';
 import type { CellPos } from 'utils/gridRange';
 import type { GridColumn } from 'utils/zodToColumnDefs';
@@ -46,9 +43,15 @@ export interface DataGridState {
   /**
    * Appends rows, each with a fresh id and through `normalizeRow`, and
    * returns their ids. Not reported to `onUserEdit`: a paste reports them,
-   * an agent write does not.
+   * an agent write (`api.addRows`) does not.
    */
   addRows: (rows: ReadonlyArray<Record<string, unknown>>) => Array<string>;
+  /**
+   * Programmatic access for agent tools and file import (`onReady`), the
+   * same behaviour as `memoryGridApi`. Writes through it are not reported to
+   * `onUserEdit`: the caller already knows what it changed.
+   */
+  api: GridApi;
   /** Removes the ticked rows. */
   deleteSelected: () => void;
   /** Removes every row; saved ones are sent as deletes on the next save. */
@@ -142,18 +145,79 @@ export function useDataGrid(opts: {
     return fresh.map((row) => row.id);
   }
 
+  /** Drops these rows, their tick and their save errors. */
+  function removeRows(gone: ReadonlySet<string>) {
+    if (gone.size === 0) {
+      return;
+    }
+    rows.value = rows.value.filter((row) => !gone.has(row.id));
+    rowSelection.value = Object.fromEntries(
+      Object.entries(rowSelection.value).filter(([id]) => !gone.has(id)),
+    );
+    errorList.value = errorList.value.filter((err) => !gone.has(err.rowId));
+  }
+
   function deleteSelected() {
     const ids = rows.value
       .filter((row) => rowSelection.value[row.id])
       .map((row) => row.id);
-    const gone = new Set(ids);
-    if (gone.size > 0) {
-      rows.value = rows.value.filter((row) => !gone.has(row.id));
-      rowSelection.value = {};
-      errorList.value = errorList.value.filter((err) => !gone.has(err.rowId));
-    }
+    removeRows(new Set(ids));
     opts.onUserEdit?.(ids);
   }
+
+  /** Merges each patch into its row, in order, through `normalizeRow`. */
+  function updateRows(
+    patches: ReadonlyArray<{ id: string } & Record<string, unknown>>,
+  ): { updated: Array<string>; missing: Array<string> } {
+    const byId = new Map(rows.value.map((row) => [row.id, row]));
+    const result = {
+      updated: [] as Array<string>,
+      missing: [] as Array<string>,
+    };
+    for (const { id, ...fields } of patches) {
+      const row = byId.get(id);
+      if (row) {
+        byId.set(id, normalized({ ...row, ...fields }));
+        result.updated.push(id);
+      } else {
+        result.missing.push(id);
+      }
+    }
+    if (result.updated.length > 0) {
+      rows.value = rows.value.map((row) => byId.get(row.id) ?? row);
+    }
+    return result;
+  }
+
+  function deleteRows(ids: ReadonlyArray<string>): {
+    deleted: Array<string>;
+    missing: Array<string>;
+  } {
+    const present = new Set(rows.value.map((row) => row.id));
+    const result = {
+      deleted: [] as Array<string>,
+      missing: [] as Array<string>,
+    };
+    for (const id of ids) {
+      if (present.delete(id)) {
+        result.deleted.push(id);
+      } else {
+        result.missing.push(id);
+      }
+    }
+    removeRows(new Set(result.deleted));
+    return result;
+  }
+
+  const api: GridApi = {
+    getRows: () => rows.value.map((row) => ({ ...row })),
+    addRows: async (added) => addRows(added),
+    updateRows: async (patches) => updateRows(patches),
+    deleteRows,
+    showErrors: (errors) => {
+      errorList.value = errors;
+    },
+  };
 
   function clearAll() {
     rows.value = [];
@@ -230,6 +294,7 @@ export function useDataGrid(opts: {
     setRowSelected,
     addRow,
     addRows,
+    api,
     deleteSelected,
     clearAll,
     editCell,

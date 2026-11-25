@@ -1,6 +1,6 @@
 import { INVITE_GROUPS, InviteRowSchema, parseInviteGroups } from 'contracts';
 import { needsReview } from 'utils/draftRow';
-import type { GridSaveError } from 'composables/useGridEditor';
+import type { GridSaveError } from 'utils/gridApi';
 
 const ALLOWED_GROUPS: ReadonlySet<string> = new Set(INVITE_GROUPS);
 

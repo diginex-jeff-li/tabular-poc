@@ -12,14 +12,10 @@ import {
 } from 'utils/draftRow';
 import { validateInvites } from 'utils/validateInvites';
 import { shallowRef } from 'vue';
-import type {
-  GridApi,
-  GridSaveError,
-  GridSaveResponse,
-} from 'composables/useGridEditor';
 import type { InviteField } from 'contracts';
 import type { ColumnMapping, UnmappedTable } from 'utils/columnMapping';
 import type { InviteRowStatus } from 'utils/draftRow';
+import type { GridApi, GridSaveError, GridSaveResponse } from 'utils/gridApi';
 import type { ShallowRef } from 'vue';
 
 /**

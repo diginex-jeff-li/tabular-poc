@@ -14,6 +14,9 @@
  * Only a person can confirm an agent-proposed row (its Confirm button, or
  * editing it).
  *
+ * The `engine` prop picks the grid (TanStack `DataGrid` or Tabulator
+ * `GridEditor`) and its columns; everything else is written once.
+ *
  * "Send invites" is SIMULATED: it runs the send checks and sends nothing.
  * The real bulk backend — atomicity, oversight approval, partial failure —
  * is not defined by SC15-706 or the single-invite contract.
@@ -22,7 +25,9 @@
  */
 import UAlert from '@nuxt/ui/components/Alert.vue';
 import UButton from '@nuxt/ui/components/Button.vue';
+import { useFileDialog, useObjectUrl } from '@vueuse/core';
 import ColumnMappingPanel from 'components/ColumnMappingPanel';
+import DataGrid from 'components/DataGrid';
 import GridEditor from 'components/GridEditor';
 import { useAgentTools } from 'composables/useAgentTools';
 import { INVITE_TITLES, InviteRowSchema } from 'contracts';
@@ -30,11 +35,14 @@ import { normalizeInviteRow } from 'utils/draftRow';
 import { createInviteTools } from 'utils/inviteAgentTools';
 import { createInviteDraft } from 'utils/inviteDraft';
 import { buildInviteWorkbook, parseInviteWorkbook } from 'utils/inviteWorkbook';
+import { zodToColumnDefs } from 'utils/zodToColumnDefs';
 import { zodToTabulatorColumns } from 'utils/zodToTabulatorColumns';
-import { defineComponent, onMounted, ref } from 'vue';
-import type { GridApi } from 'composables/useGridEditor';
+import { defineComponent, nextTick, onMounted, ref, shallowRef } from 'vue';
 import type { InviteRowStatus } from 'utils/draftRow';
-import type { VNode } from 'vue';
+import type { GridApi } from 'utils/gridApi';
+import type { InviteDraft } from 'utils/inviteDraft';
+import type { GridColumn } from 'utils/zodToColumnDefs';
+import type { PropType, VNode } from 'vue';
 
 // Mock directory: these emails already have accounts in the organisation.
 const EXISTING_EMAILS: ReadonlySet<string> = new Set([
@@ -50,23 +58,61 @@ const STATUS_CLASS: Record<InviteRowStatus, string> = {
   'Agent proposed': 'text-info font-semibold',
 };
 
-function buildColumns(
-  statusOf: (row: Record<string, unknown>) => InviteRowStatus,
-  confirm: (rowId: string) => void,
-): Array<Record<string, unknown>> {
+const STATUS_WIDTH = 215;
+
+const XLSX_TYPE =
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/** TanStack columns: Status first and pinned, then the contract's fields. */
+function gridColumns(draft: InviteDraft): Array<GridColumn> {
+  return [
+    {
+      id: 'status',
+      title: 'Status',
+      width: STATUS_WIDTH,
+      pinned: true,
+      editor: null,
+      filter: null,
+      paste: false,
+      export: false,
+      validate: () => null,
+      render: (row) => {
+        const status = draft.status(row);
+        return (
+          <span class="flex items-center gap-2">
+            <span class={STATUS_CLASS[status]}>{status}</span>
+            {status === 'Agent proposed' && (
+              <UButton
+                label="Confirm"
+                size="xs"
+                color="neutral"
+                variant="outline"
+                onClick={() => draft.confirm(row.id)}
+              />
+            )}
+          </span>
+        );
+      },
+    },
+    ...zodToColumnDefs(InviteRowSchema, { titles: INVITE_TITLES }),
+  ];
+}
+
+/** Tabulator columns: Status (frozen, formatter + cellClick), checkbox, fields. */
+function tabulatorColumns(draft: InviteDraft): Array<Record<string, unknown>> {
   return [
     {
       title: 'Status',
       field: 'status',
       frozen: true,
-      width: 215,
+      width: STATUS_WIDTH,
       headerSort: false,
       clipboard: false,
       download: false,
       formatter: (cell: {
         getRow(): { getData(): Record<string, unknown> };
       }) => {
-        const status = statusOf(cell.getRow().getData());
+        const status = draft.status(cell.getRow().getData());
         const label = `<span class="${STATUS_CLASS[status]}">${status}</span>`;
         return status === 'Agent proposed'
           ? `${label} <button type="button" data-confirm class="ml-1 rounded border border-default px-1.5 text-xs hover:bg-muted">Confirm</button>`
@@ -77,7 +123,7 @@ function buildColumns(
         cell: { getRow(): { getData(): Record<string, unknown> } },
       ) => {
         if ((e.target as HTMLElement).closest('[data-confirm]')) {
-          confirm(String(cell.getRow().getData().id));
+          draft.confirm(String(cell.getRow().getData().id));
         }
       },
     },
@@ -98,22 +144,15 @@ function buildColumns(
   ];
 }
 
-function downloadXlsx(data: ArrayBuffer, filename: string) {
-  const url = URL.createObjectURL(
-    new Blob([data], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    }),
-  );
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
 export default defineComponent({
   name: 'BulkInviteUsers',
-  setup() {
+  props: {
+    engine: {
+      type: String as PropType<'tanstack' | 'tabulator'>,
+      default: 'tabulator',
+    },
+  },
+  setup(props) {
     let grid: GridApi | null = null;
     const fileInput = ref<HTMLInputElement | null>(null);
     const webmcp = ref(false);
@@ -123,7 +162,6 @@ export default defineComponent({
     const draft = createInviteDraft(() => grid, {
       existingEmails: EXISTING_EMAILS,
     });
-    const columns = buildColumns(draft.status, draft.confirm);
     const tools = createInviteTools(draft);
     useAgentTools('scInvite', tools);
     onMounted(() => {
@@ -152,10 +190,17 @@ export default defineComponent({
         (ignored.length ? ` Ignored columns: ${ignored.join(', ')}.` : '');
     }
 
-    async function importFile(event: Event) {
-      const input = event.target as HTMLInputElement;
-      const file = input.files?.[0];
-      input.value = '';
+    // The hidden input below stays the dialog (and the test hook); `reset`
+    // clears it before each pick, so the same file can be imported again.
+    const importDialog = useFileDialog({
+      accept: '.xlsx',
+      multiple: false,
+      reset: true,
+      input: fileInput,
+    });
+    importDialog.onChange((files) => void importFile(files?.[0]));
+
+    async function importFile(file: File | undefined) {
       if (!file) {
         return;
       }
@@ -168,6 +213,20 @@ export default defineComponent({
         (ignoredHeaders.length
           ? ` Ignored columns: ${ignoredHeaders.join(', ')}.`
           : '');
+    }
+
+    // The URL is made by useObjectUrl's watcher (hence the nextTick) and
+    // revoked when the next download replaces the blob, or on unmount.
+    const xlsx = shallowRef<Blob>();
+    const xlsxUrl = useObjectUrl(xlsx);
+
+    async function downloadXlsx(data: ArrayBuffer, filename: string) {
+      xlsx.value = new Blob([data], { type: XLSX_TYPE });
+      await nextTick();
+      const link = document.createElement('a');
+      link.href = xlsxUrl.value ?? '';
+      link.download = filename;
+      link.click();
     }
 
     const toolbarActions = (): Array<VNode> => [
@@ -204,16 +263,14 @@ export default defineComponent({
         color="neutral"
         variant="outline"
         size="xs"
-        onClick={() => fileInput.value?.click()}
+        onClick={() => importDialog.open()}
       />,
       <input
         key="file"
         ref={fileInput}
         type="file"
-        accept=".xlsx"
         class="hidden"
         data-testid="invite-import"
-        onChange={importFile}
       />,
       <label
         key="auto-match"
@@ -229,6 +286,36 @@ export default defineComponent({
         Auto-match headers
       </label>,
     ];
+
+    const gridProps = {
+      data: [] as Array<Record<string, unknown>>,
+      onSave: async () => draft.send(),
+      normalizeRow: normalizeInviteRow,
+      onUserEdit: draft.edited,
+      pasteParser,
+      onReady: (api: GridApi) => {
+        grid = api;
+      },
+      title: 'Bulk invite users',
+      exportFilename: 'invite-users.csv',
+      saveLabel: 'Send invites',
+      savedLabel: (n: number) => `Simulated — no invitations sent (${n} valid)`,
+      toolbarActions,
+    };
+
+    const renderGrid = ((): (() => VNode | Array<VNode>) => {
+      if (props.engine === 'tanstack') {
+        const columns = gridColumns(draft);
+        return () => <DataGrid columns={columns} {...gridProps} />;
+      }
+      const columns = tabulatorColumns(draft);
+      return () => [
+        <GridEditor key="grid" columns={columns} {...gridProps} />,
+        // tabulator_modern paints even rows blue behind the cells; with only
+        // five columns the row is wider than its cells and the band shows.
+        <style key="style">{`.invite-grid .tabulator-row { background-color: transparent; }`}</style>,
+      ];
+    })();
 
     return (): VNode => (
       <div class="flex h-full flex-col">
@@ -265,29 +352,7 @@ export default defineComponent({
             />
           )}
         </div>
-        <div class="invite-grid min-h-0 flex-1">
-          <GridEditor
-            columns={columns}
-            data={[]}
-            onSave={async () => draft.send()}
-            normalizeRow={normalizeInviteRow}
-            onUserEdit={draft.edited}
-            pasteParser={pasteParser}
-            onReady={(api: GridApi) => {
-              grid = api;
-            }}
-            title="Bulk invite users"
-            exportFilename="invite-users.csv"
-            saveLabel="Send invites"
-            savedLabel={(n: number) =>
-              `Simulated — no invitations sent (${n} valid)`
-            }
-            toolbarActions={toolbarActions}
-          />
-        </div>
-        {/* tabulator_modern paints even rows blue behind the cells; with only
-            five columns the row is wider than its cells and the band shows. */}
-        <style>{`.invite-grid .tabulator-row { background-color: transparent; }`}</style>
+        <div class="invite-grid min-h-0 flex-1">{renderGrid()}</div>
       </div>
     );
   },

@@ -89,16 +89,18 @@ export default defineComponent({
       >
         <div class="flex items-center gap-1">
           <span class="truncate">{props.def.title}</span>
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            class="shrink-0"
-            icon={SORT_ICONS[sorted.value]}
-            aria-label={`Sort ${props.def.title} ${SORT_NEXT[sorted.value]}`}
-            data-sort={sorted.value}
-            onClick={() => props.column.toggleSorting(undefined, false)}
-          />
+          {props.column.getCanSort() && (
+            <UButton
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              class="shrink-0"
+              icon={SORT_ICONS[sorted.value]}
+              aria-label={`Sort ${props.def.title} ${SORT_NEXT[sorted.value]}`}
+              data-sort={sorted.value}
+              onClick={() => props.column.toggleSorting(undefined, false)}
+            />
+          )}
         </div>
         {renderFilter()}
       </div>
