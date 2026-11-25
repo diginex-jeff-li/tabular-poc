@@ -19,8 +19,13 @@
     "validate": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run knip"
   },
   "lint-staged": {
-    "*.{ts,tsx}": ["oxlint", "oxfmt --check"],
-    "*.md": ["pnpm run agents:check"]
+    "*.{ts,tsx}": [
+      "oxlint",
+      "oxfmt --check"
+    ],
+    "*.md": [
+      "pnpm run agents:check"
+    ]
   },
   "devDependencies": {
     "husky": "^9.1.7",
@@ -30,5 +35,5 @@
     "oxfmt": "0.56.0",
     "oxlint": "1.71.0"
   },
-  "packageManager": "pnpm@11.7.0"
+  "packageManager": "pnpm@12.23.0"
 }

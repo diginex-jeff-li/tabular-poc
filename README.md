@@ -12,7 +12,7 @@ A pnpm workspace monorepo with two packages:
 ## Prerequisites
 
 - Node >= 24
-- pnpm >= 11
+- pnpm >= 12
 
 ## Quick Start
 

@@ -10,7 +10,7 @@ workspace monorepo with two packages:
 - **`frontend/`** — Vue 3.5 + TSX admin app (port 3500). Vite 8, Nuxt UI v4,
   Tailwind v4. Contains the Tabulator grid editor at `/`.
 
-Requires Node >= 24 and pnpm >= 11. Use pnpm only.
+Requires Node >= 24 and pnpm >= 12. Use pnpm only.
 
 ## Commands
 
