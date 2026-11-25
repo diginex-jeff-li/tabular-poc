@@ -132,7 +132,6 @@ export default defineComponent({
 
     const draft = createInviteDraft(() => grid, {
       existingEmails: EXISTING_EMAILS,
-      agentProposed: restored?.agentProposed,
     });
     const tools = createInviteTools(draft);
     useAgentTools('scInvite', tools);
@@ -260,7 +259,7 @@ export default defineComponent({
     ];
 
     const gridProps = {
-      data: restored?.rows ?? [],
+      data: [] as Array<Record<string, unknown>>,
       onSave: async () => draft.send(),
       normalizeRow: normalizeInviteRow,
       onUserEdit: draft.edited,
@@ -278,7 +277,7 @@ export default defineComponent({
             }
           : api;
         if (restored) {
-          draft.check();
+          void draft.restore(restored.rows, restored.agentProposed);
         }
       },
       title: 'Bulk invite users',

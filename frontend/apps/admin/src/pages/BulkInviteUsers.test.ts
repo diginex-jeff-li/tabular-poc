@@ -137,7 +137,7 @@ describe('BulkInviteUsers (TanStack engine)', () => {
 });
 
 describe('BulkInviteUsers draft in localStorage', () => {
-  it('brings the rows back after a reload, still waiting for Confirm', async () => {
+  it('brings an unsent draft back after a reload, still waiting for Confirm', async () => {
     const first = await mountPage();
     const { added } = (await first.agent.call('add_rows', {
       rows: [
@@ -150,11 +150,10 @@ describe('BulkInviteUsers draft in localStorage', () => {
         { email: 'Tom Lee tom@acme.com Owner' },
       ],
     })) as { added: Array<string> };
-    const [ann, tom] = added;
     await first.agent.call('update_rows', {
       rows: [
         {
-          id: tom,
+          id: added[1],
           email: 'tom@acme.com',
           firstName: 'Tom',
           lastName: 'Lee',
@@ -167,14 +166,23 @@ describe('BulkInviteUsers draft in localStorage', () => {
 
     const { w } = await mountPage();
     expect(emails(w)).toEqual(['ann@acme.com', 'tom@acme.com']);
-    expect(statusOf(w, ann).text()).toBe('Ready');
+    const statuses = () =>
+      w.findAll('[data-col-id="status"]').map((cell) => cell.text());
     // Without the stored agent-proposed mark, Tom would pass the Send gate.
-    expect(statusOf(w, tom).text()).toContain('Agent proposed');
+    expect(statuses()).toEqual(['Ready', 'Agent proposedConfirm']);
 
-    await statusOf(w, tom).get('button').trigger('click');
-    wrapper?.unmount();
-    const again = await mountPage();
-    expect(statusOf(again.w, tom).text()).toBe('Ready');
+    // The restored rows are unsent: Send is available and the gate holds.
+    const send = () => button(w, 'Send invites');
+    expect(send()?.attributes('disabled')).toBeUndefined();
+    await send()?.trigger('click');
+    await flushPromises();
+    expect(w.text()).not.toContain('Simulated');
+
+    await w.get('[data-col-id="status"] button').trigger('click');
+    expect(statuses()).toEqual(['Ready', 'Ready']);
+    await send()?.trigger('click');
+    await flushPromises();
+    expect(w.text()).toContain('Simulated — no invitations sent (2 valid)');
   });
 
   it('starts empty when the stored draft is unreadable', async () => {

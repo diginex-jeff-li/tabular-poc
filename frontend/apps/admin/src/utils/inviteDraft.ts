@@ -52,16 +52,9 @@ type Row = Record<string, unknown>;
 
 export function createInviteDraft(
   grid: () => GridApi | null,
-  {
-    existingEmails,
-    agentProposed: restoredAgentProposed = [],
-  }: {
-    existingEmails: ReadonlySet<string>;
-    /** Agent-proposed row ids carried over from a saved draft. */
-    agentProposed?: Iterable<string>;
-  },
+  { existingEmails }: { existingEmails: ReadonlySet<string> },
 ) {
-  const agentProposed = new Set<string>(restoredAgentProposed);
+  const agentProposed = new Set<string>();
   let errors: Array<GridSaveError> = [];
   const held: ShallowRef<HeldPaste | null> = shallowRef(null);
 
@@ -107,6 +100,25 @@ export function createInviteDraft(
     const ids = await api().addRows(newRows.map(normalizeInviteRow));
     check();
     return ids;
+  }
+
+  /**
+   * Brings back a saved draft. The rows enter the grid as new (so they count
+   * as unsent and Send stays available) and get fresh ids; rows that were
+   * agent proposed stay agent proposed, so they still need a person's Confirm.
+   */
+  async function restore(
+    saved: Array<{ id: string } & Row>,
+    proposed: Array<string>,
+  ): Promise<void> {
+    const ids = await api().addRows(saved);
+    const wasProposed = new Set(proposed);
+    saved.forEach((row, i) => {
+      if (wasProposed.has(row.id)) {
+        agentProposed.add(ids[i]);
+      }
+    });
+    check();
   }
 
   async function update(
@@ -277,6 +289,7 @@ export function createInviteDraft(
     rows,
     check,
     add,
+    restore,
     update,
     remove,
     confirm,
