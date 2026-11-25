@@ -192,6 +192,7 @@ TanStack `DataGrid` (Nuxt UI `UTable`) is the default; the Tabulator
 | `frontend/apps/admin/src/utils/inviteWorkbook.ts`         | Excel template (with data validation) + `.xlsx` import |
 | `frontend/apps/admin/src/utils/inviteAgentTools.ts`       | Agent tools — adapter over the invite draft module (no send/confirm/apply tool) |
 | `frontend/apps/admin/src/composables/useAgentTools.ts`    | Register tools on WebMCP + `window` bridge            |
+| `frontend/apps/admin/src/composables/useInviteDraftStorage.ts` | Keeps the `/invite-users` draft in localStorage across reloads |
 | `contracts/src/user-invite/schemas/index.ts`              | Invite template: row schema, columns, aliases, role/group lists |
 | `contracts/src/compliance-library/schemas/index.ts`       | Zod schema for compliance library entity              |
 | `.wayfinder/map.md`                                       | Wayfinder decision map                                |

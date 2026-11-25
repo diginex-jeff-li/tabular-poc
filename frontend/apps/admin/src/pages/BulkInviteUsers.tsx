@@ -29,6 +29,7 @@ import { useFileDialog, useObjectUrl } from '@vueuse/core';
 import ColumnMappingPanel from 'components/ColumnMappingPanel';
 import DataGrid from 'components/DataGrid';
 import { useAgentTools } from 'composables/useAgentTools';
+import { useInviteDraftStorage } from 'composables/useInviteDraftStorage';
 import { INVITE_TITLES, InviteRowSchema } from 'contracts';
 import { normalizeInviteRow } from 'utils/draftRow';
 import { createInviteTools } from 'utils/inviteAgentTools';
@@ -123,8 +124,15 @@ export default defineComponent({
     const notice = ref<string | null>(null);
     const autoMatch = ref(true);
 
+    // The draft survives a reload on the default (TanStack) route only; the
+    // Tabulator comparison route always starts empty.
+    const storage =
+      props.engine === 'tanstack' ? useInviteDraftStorage() : null;
+    const restored = storage?.restored ?? null;
+
     const draft = createInviteDraft(() => grid, {
       existingEmails: EXISTING_EMAILS,
+      agentProposed: restored?.agentProposed,
     });
     const tools = createInviteTools(draft);
     useAgentTools('scInvite', tools);
@@ -252,13 +260,26 @@ export default defineComponent({
     ];
 
     const gridProps = {
-      data: [] as Array<Record<string, unknown>>,
+      data: restored?.rows ?? [],
       onSave: async () => draft.send(),
       normalizeRow: normalizeInviteRow,
       onUserEdit: draft.edited,
       pasteParser,
       onReady: (api: GridApi) => {
-        grid = api;
+        // Every draft write ends in showErrors (the draft checks and repaints
+        // after each one), so that is where the draft is saved.
+        grid = storage
+          ? {
+              ...api,
+              showErrors(errors) {
+                api.showErrors(errors);
+                storage.save(api.getRows(), draft.agentProposedIds());
+              },
+            }
+          : api;
+        if (restored) {
+          draft.check();
+        }
       },
       title: 'Bulk invite users',
       exportFilename: 'invite-users.csv',

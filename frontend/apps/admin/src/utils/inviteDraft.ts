@@ -52,9 +52,16 @@ type Row = Record<string, unknown>;
 
 export function createInviteDraft(
   grid: () => GridApi | null,
-  { existingEmails }: { existingEmails: ReadonlySet<string> },
+  {
+    existingEmails,
+    agentProposed: restoredAgentProposed = [],
+  }: {
+    existingEmails: ReadonlySet<string>;
+    /** Agent-proposed row ids carried over from a saved draft. */
+    agentProposed?: Iterable<string>;
+  },
 ) {
-  const agentProposed = new Set<string>();
+  const agentProposed = new Set<string>(restoredAgentProposed);
   let errors: Array<GridSaveError> = [];
   const held: ShallowRef<HeldPaste | null> = shallowRef(null);
 
@@ -264,6 +271,8 @@ export function createInviteDraft(
   return {
     held,
     errors: () => errors,
+    /** Ids of rows still waiting for a person to confirm the agent's change. */
+    agentProposedIds: () => [...agentProposed],
     status,
     rows,
     check,

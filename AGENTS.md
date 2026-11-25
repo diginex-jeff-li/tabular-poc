@@ -179,6 +179,7 @@ own `computed`, never in the column `cell` function. Rows have a fixed
 | `frontend/apps/admin/src/components/ColumnMappingPanel/ColumnMappingPanel.tsx` | Mapping panel for an unmapped table (person applies; agent may propose) |
 | `CONTEXT.md` / `docs/adr/` | Domain glossary (bulk invite terms) and ADRs |
 | `frontend/apps/admin/src/composables/useAgentTools.ts` | Registers tools on `document.modelContext` (WebMCP) + `window.scInvite` bridge |
+| `frontend/apps/admin/src/composables/useInviteDraftStorage.ts` | Invite draft in localStorage (`/invite-users` only): rows + agent-proposed ids, saved on every draft check, restored on load |
 | `frontend/apps/admin/src/utils/test-infra.test.ts`       | Test infrastructure tests (localStorage polyfill, component mounting) |
 | `frontend/setup-localstorage.ts`                         | In-memory localStorage polyfill wired via vitest setupFiles |
 | `contracts/src/compliance-library/schemas/index.ts`       | Zod schema for compliance library entity              |

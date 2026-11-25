@@ -19,6 +19,8 @@ afterEach(() => {
   wrapper?.unmount();
   wrapper = null;
   document.body.innerHTML = '';
+  // The page keeps its draft in localStorage; each test starts empty.
+  localStorage.clear();
 });
 
 async function mountPage() {
@@ -131,5 +133,53 @@ describe('BulkInviteUsers (TanStack engine)', () => {
     // ExcelJS reads the file over several macrotasks.
     await vi.waitFor(() => expect(emails(w)).toEqual(['cy@acme.com']));
     expect(w.text()).toContain('Imported 1 row(s) from people.xlsx');
+  });
+});
+
+describe('BulkInviteUsers draft in localStorage', () => {
+  it('brings the rows back after a reload, still waiting for Confirm', async () => {
+    const first = await mountPage();
+    const { added } = (await first.agent.call('add_rows', {
+      rows: [
+        {
+          email: 'ann@acme.com',
+          firstName: 'Ann',
+          lastName: 'Lee',
+          role: 'Viewer',
+        },
+        { email: 'Tom Lee tom@acme.com Owner' },
+      ],
+    })) as { added: Array<string> };
+    const [ann, tom] = added;
+    await first.agent.call('update_rows', {
+      rows: [
+        {
+          id: tom,
+          email: 'tom@acme.com',
+          firstName: 'Tom',
+          lastName: 'Lee',
+          role: 'Viewer',
+        },
+      ],
+    });
+    await flushPromises();
+    wrapper?.unmount();
+
+    const { w } = await mountPage();
+    expect(emails(w)).toEqual(['ann@acme.com', 'tom@acme.com']);
+    expect(statusOf(w, ann).text()).toBe('Ready');
+    // Without the stored agent-proposed mark, Tom would pass the Send gate.
+    expect(statusOf(w, tom).text()).toContain('Agent proposed');
+
+    await statusOf(w, tom).get('button').trigger('click');
+    wrapper?.unmount();
+    const again = await mountPage();
+    expect(statusOf(again.w, tom).text()).toBe('Ready');
+  });
+
+  it('starts empty when the stored draft is unreadable', async () => {
+    localStorage.setItem('sc.invite-users.draft', '{"version":0,"rows":"x"}');
+    const { w } = await mountPage();
+    expect(emails(w)).toEqual([]);
   });
 });
