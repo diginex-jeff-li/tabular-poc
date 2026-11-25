@@ -299,7 +299,7 @@ export default defineComponent({
                 </kbd>
               </p>
               <p class="text-xs text-muted">
-                or click "Add Row" to create manually
+                or click “Add Row” to create manually
               </p>
             </div>
           )}
