@@ -71,6 +71,9 @@ export default defineConfig({
       'react/no-unknown-property': 'off',
       'react/rules-of-hooks': 'off',
       'react/immutability': 'off',
+      // Only recognises React's `htmlFor`; Vue labels use `for` (the 3 `for`
+      // labels it flagged were correct; the 2 unlinked ones are now linked).
+      'jsx-a11y/label-has-associated-control': 'off',
       // Needs strictNullChecks; frontend/apps/admin/tsconfig.json sets it false.
       'typescript/no-useless-default-assignment': 'off',
 
@@ -91,7 +94,6 @@ export default defineConfig({
       'no-console': 'off', // 8
       'unicorn/prefer-string-replace-all': 'off', // 6
       'vitest/no-conditional-expect': 'off', // 5
-      'jsx-a11y/label-has-associated-control': 'off', // 5
     },
     overrides: [
       {

@@ -485,8 +485,14 @@ export default defineComponent({
 
                   {/* Type */}
                   <div class="flex flex-col gap-1">
-                    <label class="text-sm font-medium text-default">Type</label>
+                    <label
+                      class="text-sm font-medium text-default"
+                      for="new-col-type"
+                    >
+                      Type
+                    </label>
                     <USelect
+                      id="new-col-type"
                       modelValue={newColumnType.value}
                       items={TYPE_ITEMS}
                       onUpdate:modelValue={(v) => updateNewColumnType(v)}
@@ -496,12 +502,15 @@ export default defineComponent({
                   {/* Required */}
                   <div class="flex items-center gap-2">
                     <UCheckbox
+                      id="new-col-required"
                       modelValue={newColumnRequired.value}
                       onUpdate:modelValue={(v) =>
                         updateNewColumnRequired(v === true)
                       }
                     />
-                    <label class="text-sm text-default">Required</label>
+                    <label class="text-sm text-default" for="new-col-required">
+                      Required
+                    </label>
                   </div>
 
                   {/* Choices — only visible for Dropdown */}
