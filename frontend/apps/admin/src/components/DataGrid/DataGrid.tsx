@@ -33,6 +33,7 @@ import {
   useEventListener,
   useFocus,
   useMousePressed,
+  useRafFn,
 } from '@vueuse/core';
 import { gridEngineProps } from 'components/gridEngineProps';
 import { ROW_HEIGHT, useDataGrid } from 'composables/useDataGrid';
@@ -68,6 +69,11 @@ const SIDEBAR_WIDTH = 320;
 // Hoisted: a new object each render is a changed prop. A deep watch costs
 // ~68ms per edit; rows are replaced, never mutated, so a shallow one suffices.
 const WATCH_OPTIONS = { deep: false } as const;
+// Only rows near the viewport are in the DOM. Every row is exactly ROW_HEIGHT
+// tall, so a row's offset is `index * ROW_HEIGHT` (`reveal`, `showError`).
+// A fast scroll mounts the visible rows plus 2 × overscan in one frame; at the
+// default 12 that frame took over 50ms with 2,000 rows (ticket 11).
+const VIRTUALIZE = { estimateSize: ROW_HEIGHT, overscan: 4 } as const;
 // Opaque sticky header; row lines are drawn by the cells so a row is exactly
 // ROW_HEIGHT tall.
 const TABLE_UI = { thead: 'bg-default', tbody: 'divide-y-0' } as const;
@@ -81,25 +87,38 @@ const CONTROLS =
 const fromControl = (e: Event): boolean =>
   (e.target as Element).closest(CONTROLS) !== null;
 
-/** Arrow keys: one step, or with Ctrl/Cmd to the edge. */
-const ARROWS: Partial<Record<string, readonly [Dir, Dir]>> = {
+/**
+ * Arrows step one cell, or with Ctrl/Cmd jump to the edge. Home/End go to the
+ * row's ends, or with Ctrl/Cmd to the grid's first/last cell (as in Excel).
+ */
+const MOVES: Partial<Record<string, readonly [Dir, Dir]>> = {
   ArrowUp: ['up', 'top'],
   ArrowDown: ['down', 'bottom'],
   ArrowLeft: ['left', 'home'],
   ArrowRight: ['right', 'end'],
+  Home: ['home', 'first'],
+  End: ['end', 'last'],
 };
 
 /** Where a key moves the active cell. Tab stops at the row's edge (Tabulator's range mode). */
 function keyDir(e: KeyboardEvent): Dir | null {
-  const arrow = ARROWS[e.key];
-  if (arrow) {
-    return arrow[e.ctrlKey || e.metaKey ? 1 : 0];
+  const move = MOVES[e.key];
+  if (move) {
+    return move[e.ctrlKey || e.metaKey ? 1 : 0];
   }
-  if (e.key === 'Tab') {
-    return e.shiftKey ? 'left' : 'right';
-  }
-  return e.key === 'Home' ? 'home' : e.key === 'End' ? 'end' : null;
+  return e.key === 'Tab' ? (e.shiftKey ? 'left' : 'right') : null;
 }
+
+const clamp = (n: number, min: number, max: number): number =>
+  Math.min(Math.max(n, min), max);
+
+/**
+ * How far a drag scrolls this frame along one axis: the pointer's distance
+ * past the body's `start`/`end` edge, at most a row. Zero inside the body,
+ * so pressing a cell at the edge doesn't scroll.
+ */
+const edgeStep = (p: number, start: number, end: number): number =>
+  clamp(p < start ? p - start : p > end ? p - end : 0, -ROW_HEIGHT, ROW_HEIGHT);
 
 /** UTable's controlled sort and filter state (TanStack's shapes). */
 type Sorting = Array<{ id: string; desc: boolean }>;
@@ -305,6 +324,90 @@ export default defineComponent({
       );
     }
 
+    /**
+     * The cell under a viewport point, from data and header geometry: the
+     * row under it may not be rendered yet. Clamped into the body, so a point
+     * past an edge gives the edge's row or column.
+     */
+    function cellAt(el: HTMLElement, x: number, y: number): CellPos | null {
+      const box = el.getBoundingClientRect();
+      const ths = el.querySelectorAll<HTMLElement>('thead th');
+      const head = ths[0]?.offsetHeight ?? 0;
+      const rowIds = order.value.rowIds;
+      const inBody = clamp(y - box.top - head, 0, el.clientHeight - head - 1);
+      const rowId =
+        rowIds[
+          clamp(
+            Math.floor((inBody + el.scrollTop) / ROW_HEIGHT),
+            0,
+            rowIds.length - 1,
+          )
+        ];
+      const local = clamp(x - box.left, 0, el.clientWidth - 1);
+      const pinned = local < pinnedWidth;
+      const at = pinned ? local : local + el.scrollLeft;
+      const col = ordered.find((c, i) => {
+        const th = ths[thIndex(i)];
+        return (
+          Boolean(c.pinned) === pinned &&
+          th.offsetLeft <= at &&
+          at < th.offsetLeft + th.offsetWidth
+        );
+      });
+      return rowId === undefined || !col ? null : { rowId, colId: col.id };
+    }
+
+    // A drag that reaches an edge scrolls, faster the further past it the
+    // pointer is, and keeps the range's focus on the cell under the pointer.
+    const pointer = { x: 0, y: 0 };
+    useEventListener(
+      window,
+      'pointermove',
+      (e: PointerEvent) => {
+        pointer.x = e.clientX;
+        pointer.y = e.clientY;
+      },
+      { passive: true },
+    );
+    const dragScroll = useRafFn(
+      () => {
+        const el = gridEl.value;
+        if (!el || !pressed.value || selection.state.value.editing) {
+          dragScroll.pause();
+          return;
+        }
+        const box = el.getBoundingClientRect();
+        const head = el.querySelector('thead')?.offsetHeight ?? 0;
+        const dy = edgeStep(
+          pointer.y,
+          box.top + head,
+          box.top + el.clientHeight,
+        );
+        const dx = edgeStep(
+          pointer.x,
+          box.left + pinnedWidth,
+          box.left + el.clientWidth,
+        );
+        if (dx === 0 && dy === 0) {
+          return;
+        }
+        el.scrollTop += dy;
+        el.scrollLeft += dx;
+        const pos = cellAt(el, pointer.x, pointer.y);
+        if (pos) {
+          selection.dragTo(pos);
+        }
+      },
+      { immediate: false },
+    );
+    useEventListener(gridEl, 'pointerdown', (e: PointerEvent) => {
+      pointer.x = e.clientX;
+      pointer.y = e.clientY;
+      if (e.button === 0 && (e.target as Element).closest('[role=gridcell]')) {
+        dragScroll.resume();
+      }
+    });
+
     function startEdit(pos: CellPos, seed: string | null) {
       if (columnsById.get(pos.colId)?.editor) {
         selection.startEdit(pos, seed);
@@ -484,6 +587,7 @@ export default defineComponent({
             getRowId={getRowId}
             sticky
             watchOptions={WATCH_OPTIONS}
+            virtualize={VIRTUALIZE}
             ui={TABLE_UI}
             sorting={sorting.value}
             onUpdate:sorting={(value: Sorting) => {

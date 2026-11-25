@@ -20,7 +20,10 @@ export type GridOrder = {
 /** The block between the cell a selection started on (anchor) and the cell that moves (focus). */
 export type Range = { anchor: CellPos; focus: CellPos };
 
-/** `home`/`end`: first/last column of the row. `top`/`bottom`: first/last row of the column. */
+/**
+ * `home`/`end`: first/last column of the row. `top`/`bottom`: first/last row
+ * of the column. `first`/`last`: the grid's top-left/bottom-right cell.
+ */
 export type Dir =
   | 'up'
   | 'down'
@@ -29,7 +32,9 @@ export type Dir =
   | 'home'
   | 'end'
   | 'top'
-  | 'bottom';
+  | 'bottom'
+  | 'first'
+  | 'last';
 
 type At = { row: number; col: number };
 
@@ -42,6 +47,8 @@ const TARGET: Record<Dir, (at: At, last: At) => At> = {
   end: (at, last) => ({ row: at.row, col: last.col }),
   top: (at) => ({ row: 0, col: at.col }),
   bottom: (at, last) => ({ row: last.row, col: at.col }),
+  first: () => ({ row: 0, col: 0 }),
+  last: (_at, last) => last,
 };
 
 /**

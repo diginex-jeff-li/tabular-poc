@@ -1,6 +1,9 @@
 import { flushPromises, mount } from '@vue/test-utils';
+import { ROW_HEIGHT } from 'composables/useDataGrid';
 import { afterEach, describe, it, expect, vi } from 'vite-plus/test';
+import { nextTick } from 'vue';
 import DataGrid from './DataGrid';
+import { useGridLayout } from './testLayout';
 import type { VueWrapper } from '@vue/test-utils';
 import type { GridColumn } from 'utils/zodToColumnDefs';
 
@@ -31,6 +34,7 @@ const DATA = [
   { id: 'r2', topic: 'Wages', risk: 'High' },
   { id: 'r3', topic: 'Air quality', risk: 'High' },
 ];
+useGridLayout();
 
 let wrapper: VueWrapper | null = null;
 
@@ -40,7 +44,8 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-function mountGrid(
+/** Mounts the grid and waits for the virtualizer's first rows. */
+async function mountGrid(
   onSave = vi.fn(async () => ({ errors: [], saved: 0 })),
   extra: Record<string, unknown> = {},
 ) {
@@ -55,6 +60,7 @@ function mountGrid(
       ...extra,
     },
   });
+  await nextTick();
   return { wrapper, onSave };
 }
 
@@ -83,7 +89,7 @@ function button(w: VueWrapper, label: string) {
 
 describe('DataGrid', () => {
   it('cycles a column sort asc, desc, then back to the original order', async () => {
-    const { wrapper: w } = mountGrid();
+    const { wrapper: w } = await mountGrid();
     const sort = () =>
       w.get('button[aria-label^="Sort Topic"]').trigger('click');
     expect(visibleTopics(w)).toEqual(['Child labor', 'Wages', 'Air quality']);
@@ -98,7 +104,7 @@ describe('DataGrid', () => {
   });
 
   it('filters by an enum value and shows every row again once cleared', async () => {
-    const { wrapper: w } = mountGrid();
+    const { wrapper: w } = await mountGrid();
     await w.get('[aria-label="Filter Risk"]').trigger('click');
     await flushPromises();
     const low = [...document.body.querySelectorAll('[role="option"]')].find(
@@ -116,13 +122,13 @@ describe('DataGrid', () => {
   });
 
   it('filters text columns case-insensitively by substring', async () => {
-    const { wrapper: w } = mountGrid();
+    const { wrapper: w } = await mountGrid();
     await w.get('input[aria-label="Filter Topic"]').setValue('LAB');
     expect(visibleTopics(w)).toEqual(['Child labor']);
   });
 
   it('deletes ticked rows, counts the changes and saves them as deletes', async () => {
-    const { wrapper: w, onSave } = mountGrid();
+    const { wrapper: w, onSave } = await mountGrid();
     const boxes = w.findAll('[role="checkbox"][aria-label="Select row"]');
     await boxes[0].trigger('click');
     await boxes[2].trigger('click');
@@ -140,7 +146,7 @@ describe('DataGrid', () => {
   });
 
   it('select-all ticks only the rows the filters let through', async () => {
-    const { wrapper: w } = mountGrid();
+    const { wrapper: w } = await mountGrid();
     await w.get('input[aria-label="Filter Topic"]').setValue('w');
     expect(visibleTopics(w)).toEqual(['Wages']);
     await w.get('[aria-label="Select all rows"]').trigger('click');
@@ -153,7 +159,7 @@ describe('DataGrid', () => {
 describe('DataGrid editing', () => {
   it('Escape closes the editor and keeps the old value', async () => {
     const onUserEdit = vi.fn();
-    const { wrapper: w } = mountGrid(undefined, { onUserEdit });
+    const { wrapper: w } = await mountGrid(undefined, { onUserEdit });
     const input = await editCell(w, 'r2', 'topic');
     expect((input.element as HTMLInputElement).value).toBe('Wages');
     await input.setValue('Overtime');
@@ -170,7 +176,10 @@ describe('DataGrid editing', () => {
       ...row,
       topic: String(row.topic).trim(),
     }));
-    const { wrapper: w } = mountGrid(undefined, { onUserEdit, normalizeRow });
+    const { wrapper: w } = await mountGrid(undefined, {
+      onUserEdit,
+      normalizeRow,
+    });
     const input = await editCell(w, 'r1', 'topic');
     await input.setValue('  Forced labor ');
     await input.trigger('keydown', { key: 'Enter' });
@@ -188,7 +197,7 @@ describe('DataGrid editing', () => {
   });
 
   it('shows a cleared required cell as invalid without saving', async () => {
-    const { wrapper: w, onSave } = mountGrid();
+    const { wrapper: w, onSave } = await mountGrid();
     expect(cell(w, 'r3', 'topic').attributes('aria-invalid')).toBeUndefined();
     const input = await editCell(w, 'r3', 'topic');
     await input.setValue('');
@@ -202,7 +211,7 @@ describe('DataGrid editing', () => {
   });
 
   it('typing on the active cell replaces its value, as in Excel', async () => {
-    const { wrapper: w } = mountGrid();
+    const { wrapper: w } = await mountGrid();
     await cell(w, 'r2', 'topic').trigger('pointerdown', { button: 0 });
     await root(w).trigger('keydown', { key: 'P' });
     const input = cell(w, 'r2', 'topic').get('[data-grid-editor] input');
@@ -216,7 +225,7 @@ describe('DataGrid editing', () => {
 
   it('commits a choice picked from the open menu', async () => {
     const onUserEdit = vi.fn();
-    const { wrapper: w } = mountGrid(undefined, { onUserEdit });
+    const { wrapper: w } = await mountGrid(undefined, { onUserEdit });
     await cell(w, 'r1', 'risk').trigger('dblclick');
     await flushPromises();
     const options = [...document.body.querySelectorAll('[role="option"]')];
@@ -235,7 +244,7 @@ describe('DataGrid editing', () => {
 
 describe('DataGrid selection', () => {
   it('moves the active cell with arrows and grows a range with Shift', async () => {
-    const { wrapper: w } = mountGrid();
+    const { wrapper: w } = await mountGrid();
     await cell(w, 'r1', 'topic').trigger('pointerdown', { button: 0 });
     await root(w).trigger('keydown', { key: 'ArrowDown' });
     await root(w).trigger('keydown', { key: 'ArrowRight', shiftKey: true });
@@ -250,7 +259,7 @@ describe('DataGrid selection', () => {
   });
 
   it('never moves the active cell for keys typed in a header filter', async () => {
-    const { wrapper: w } = mountGrid();
+    const { wrapper: w } = await mountGrid();
     await cell(w, 'r1', 'topic').trigger('pointerdown', { button: 0 });
     const filter = w.get('input[aria-label="Filter Topic"]');
     await filter.trigger('keydown', { key: 'ArrowDown' });
@@ -262,7 +271,7 @@ describe('DataGrid selection', () => {
   });
 
   it('selects a whole column from its header title', async () => {
-    const { wrapper: w } = mountGrid();
+    const { wrapper: w } = await mountGrid();
     await w.get('th span').trigger('pointerdown', { button: 0 });
     expect(
       w
@@ -278,7 +287,7 @@ describe('DataGrid save errors', () => {
       errors: [{ row: 0, rowId: 'r3', field: 'risk', message: 'Too risky' }],
       saved: 0,
     }));
-    const { wrapper: w } = mountGrid(onSave);
+    const { wrapper: w } = await mountGrid(onSave);
     await w.get('[aria-label="Select row"]').trigger('click');
     await button(w, 'Delete').trigger('click');
     await button(w, 'Save').trigger('click');
@@ -308,7 +317,7 @@ describe('DataGrid save errors', () => {
     const onSave = vi.fn(async () => {
       throw new Error('offline');
     });
-    const { wrapper: w } = mountGrid(onSave);
+    const { wrapper: w } = await mountGrid(onSave);
     await w.get('[aria-label="Select row"]').trigger('click');
     await button(w, 'Delete').trigger('click');
     await button(w, 'Save').trigger('click');
@@ -348,7 +357,10 @@ describe('DataGrid paste', () => {
       ...row,
       topic: String(row.topic).trim(),
     }));
-    const { wrapper: w } = mountGrid(undefined, { onUserEdit, normalizeRow });
+    const { wrapper: w } = await mountGrid(undefined, {
+      onUserEdit,
+      normalizeRow,
+    });
 
     const event = await paste(
       root(w).element,
@@ -379,7 +391,10 @@ describe('DataGrid paste', () => {
           ? []
           : positional().map((row) => ({ ...row, risk: 'Medium' })),
     );
-    const { wrapper: w } = mountGrid(undefined, { onUserEdit, pasteParser });
+    const { wrapper: w } = await mountGrid(undefined, {
+      onUserEdit,
+      pasteParser,
+    });
 
     await paste(root(w).element, 'Topic\tRisk\nNoise\tLow');
     expect(pasteParser).toHaveBeenCalledWith(
@@ -398,7 +413,7 @@ describe('DataGrid paste', () => {
 
   it('leaves a paste into a header filter to the filter', async () => {
     const onUserEdit = vi.fn();
-    const { wrapper: w } = mountGrid(undefined, { onUserEdit });
+    const { wrapper: w } = await mountGrid(undefined, { onUserEdit });
     const event = await paste(
       w.get('input[aria-label="Filter Topic"]').element,
       'Noise\tLow',
@@ -409,7 +424,7 @@ describe('DataGrid paste', () => {
   });
 
   it('focuses the grid from the empty-state overlay, so a paste lands in it', async () => {
-    const { wrapper: w } = mountGrid(undefined, { data: [] });
+    const { wrapper: w } = await mountGrid(undefined, { data: [] });
     const overlay = w.get('[data-testid="grid-empty"]');
     expect(overlay.text()).toContain('Paste your Excel data here');
 
@@ -435,7 +450,7 @@ const STATUS: GridColumn = {
 describe('DataGrid range clear', () => {
   it('Backspace empties only the editable cells of the range and reports the rows once', async () => {
     const onUserEdit = vi.fn();
-    const { wrapper: w } = mountGrid(undefined, {
+    const { wrapper: w } = await mountGrid(undefined, {
       onUserEdit,
       columns: [STATUS, ...COLUMNS],
       data: DATA.map((row) => ({ ...row, status: 'Ready' })),
@@ -495,7 +510,7 @@ describe('DataGrid CSV export', () => {
     ) {
       clicked.push(this);
     });
-    const { wrapper: w } = mountGrid(undefined, {
+    const { wrapper: w } = await mountGrid(undefined, {
       columns: [STATUS, ...COLUMNS],
       data: DATA.map((row) => ({ ...row, status: 'Ready' })),
     });
@@ -511,5 +526,72 @@ describe('DataGrid CSV export', () => {
     expect(await blobs[0].text()).toBe(
       'Topic,Risk\r\nChild labor,Low\r\nWages,High\r\nAir quality,High',
     );
+  });
+});
+
+describe('DataGrid virtualization', () => {
+  // Three screens of rows; the stubbed viewport shows 20.
+  const MANY = Array.from({ length: 60 }, (_, i) => ({
+    id: `r${i + 1}`,
+    topic: `Topic ${i + 1}`,
+    risk: 'Low',
+  }));
+
+  /** Scrolls the grid, as a wheel or the scrollbar does, and lets it re-render. */
+  async function scrollTo(w: VueWrapper, top: number) {
+    const el = root(w).element;
+    el.scrollTop = top;
+    el.dispatchEvent(new Event('scroll'));
+    await flushPromises();
+  }
+
+  /** Fires a copy on the grid and returns the text it put on the clipboard. */
+  async function copy(w: VueWrapper): Promise<string> {
+    await flushPromises();
+    let text = '';
+    const event = new Event('copy', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'clipboardData', {
+      value: { setData: (_type: string, value: string) => (text = value) },
+    });
+    root(w).element.dispatchEvent(event);
+    return text;
+  }
+
+  it('commits an open edit when its row scrolls out of view', async () => {
+    const onUserEdit = vi.fn();
+    const { wrapper: w } = await mountGrid(undefined, {
+      data: MANY,
+      onUserEdit,
+    });
+    const input = await editCell(w, 'r1', 'topic');
+    await input.setValue('Scrolled away');
+
+    await scrollTo(w, 40 * ROW_HEIGHT);
+    expect(w.find('[data-row-id="r1"]').exists()).toBe(false);
+    expect(onUserEdit).toHaveBeenCalledExactlyOnceWith(['r1']);
+    // Keys keep working: focus went back to the grid, not to the page.
+    expect(document.activeElement).toBe(root(w).element);
+
+    await scrollTo(w, 0);
+    expect(cell(w, 'r1', 'topic').text()).toBe('Scrolled away');
+    expect(w.find('[data-grid-editor]').exists()).toBe(false);
+  });
+
+  it('Ctrl+Shift+End selects to the last cell, shows it, and copies every row', async () => {
+    const { wrapper: w } = await mountGrid(undefined, { data: MANY });
+    expect(w.find('[data-row-id="r60"]').exists()).toBe(false);
+    await cell(w, 'r1', 'topic').trigger('pointerdown', { button: 0 });
+    await root(w).trigger('keydown', {
+      key: 'End',
+      ctrlKey: true,
+      shiftKey: true,
+    });
+    await scrollTo(w, root(w).element.scrollTop);
+
+    expect(cell(w, 'r60', 'risk').attributes('aria-selected')).toBe('true');
+    const lines = (await copy(w)).split('\n');
+    expect(lines).toHaveLength(60);
+    expect(lines[0]).toBe('Topic 1\tLow');
+    expect(lines[59]).toBe('Topic 60\tLow');
   });
 });

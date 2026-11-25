@@ -41,6 +41,11 @@ describe('move', () => {
     expect(move(at('r2', 'b'), 'bottom', order)).toEqual(at('r4', 'b'));
   });
 
+  it('jumps to the first and last cell of the grid with first/last', () => {
+    expect(move(at('r2', 'b'), 'first', order)).toEqual(at('r1', 'a'));
+    expect(move(at('r2', 'b'), 'last', order)).toEqual(at('r4', 'c'));
+  });
+
   it('follows the visible order, skipping rows a filter hides', () => {
     const filtered = { ...order, rowIds: ['r1', 'r3', 'r4'] };
     expect(move(at('r1', 'a'), 'down', filtered)).toEqual(at('r3', 'a'));
@@ -65,6 +70,13 @@ describe('extend', () => {
       [at('r1', 'a')],
       [at('r3', 'a')],
     ]);
+  });
+
+  it('grows to the last cell of the grid, so the range covers every row', () => {
+    const range = { anchor: at('r1', 'a'), focus: at('r1', 'a') };
+    const all = extend(range, 'last', order);
+    expect(all).toEqual({ anchor: at('r1', 'a'), focus: at('r4', 'c') });
+    expect(cellsIn(all, order)).toHaveLength(4);
   });
 });
 

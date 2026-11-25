@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils';
+import { useGridLayout } from 'components/DataGrid/testLayout';
 import { buildInviteWorkbook } from 'utils/inviteWorkbook';
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 import BulkInviteUsers from './BulkInviteUsers';
@@ -9,6 +10,8 @@ import type { VueWrapper } from '@vue/test-utils';
 type Bridge = {
   call: (name: string, args: Record<string, unknown>) => Promise<unknown>;
 };
+
+useGridLayout();
 
 let wrapper: VueWrapper | null = null;
 

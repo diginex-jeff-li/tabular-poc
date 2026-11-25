@@ -13,7 +13,13 @@
 import UInput from '@nuxt/ui/components/Input.vue';
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue';
 import { ROW_HEIGHT } from 'composables/useDataGrid';
-import { computed, defineComponent, onMounted, ref } from 'vue';
+import {
+  computed,
+  defineComponent,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+} from 'vue';
 import type { Row } from 'composables/useDataGrid';
 import type { GridSelection } from 'composables/useGridSelection';
 import type { CellPos, Dir } from 'utils/gridRange';
@@ -63,6 +69,11 @@ const TextEditor = defineComponent({
       el?.focus();
       el?.setSelectionRange(el.value.length, el.value.length);
     });
+    // The row left the virtualized window mid-edit: keep what was typed. A
+    // finished edit is no longer the editing cell, so this is a no-op then.
+    onBeforeUnmount(() =>
+      props.onFinish({ value: draft.value, dir: null, refocus: true }),
+    );
 
     function onKeydown(e: KeyboardEvent) {
       if (e.isComposing) {
@@ -110,6 +121,10 @@ const ChoiceEditor = defineComponent({
   },
   setup(props) {
     const term = ref(props.seed);
+    // Only a pick commits, so a row scrolled away mid-choice cancels.
+    onBeforeUnmount(() =>
+      props.onFinish({ value: null, dir: null, refocus: true }),
+    );
     return (): VNode => (
       <USelectMenu
         size="xs"
