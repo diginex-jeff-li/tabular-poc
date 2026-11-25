@@ -142,8 +142,11 @@ prop set by the route. Both engines take the props in
 
 New grid work goes to `DataGrid` only. The Tabulator side (`GridEditor`,
 `useGridEditor`, `useDirtyTracking`, `zodToTabulatorColumns`,
-`buildComplianceColumns`, `tabulator-tables`) is **comparison-only**: keep it
-working, don't extend it. Tabulator is MIT licensed with no paid tier.
+`buildComplianceColumns`, `components/TabulatorGrids/*`, `tabulator-tables`)
+is **comparison-only**: keep it working, don't extend it. Pages reach it only
+through `defineAsyncComponent(() => import('components/TabulatorGrids/…'))`,
+so the TanStack routes never load Tabulator code or CSS; never import it
+statically from a page. Tabulator is MIT licensed with no paid tier.
 
 **DataGrid rules** — `rows` (a `shallowRef` in `useDataGrid`) is the single
 source of truth and is replaced immutably, never mutated. Grid logic is pure

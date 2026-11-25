@@ -35,7 +35,6 @@ import { createInviteTools } from 'utils/inviteAgentTools';
 import { createInviteDraft } from 'utils/inviteDraft';
 import { buildInviteWorkbook, parseInviteWorkbook } from 'utils/inviteWorkbook';
 import { zodToColumnDefs } from 'utils/zodToColumnDefs';
-import { zodToTabulatorColumns } from 'utils/zodToTabulatorColumns';
 import {
   defineAsyncComponent,
   defineComponent,
@@ -51,7 +50,9 @@ import type { GridColumn } from 'utils/zodToColumnDefs';
 import type { PropType, VNode } from 'vue';
 
 // Loaded only on the Tabulator route, so TanStack pages never fetch Tabulator.
-const GridEditor = defineAsyncComponent(() => import('components/GridEditor'));
+const InviteTabulatorGrid = defineAsyncComponent(
+  () => import('components/TabulatorGrids/InviteTabulatorGrid'),
+);
 
 // Mock directory: these emails already have accounts in the organisation.
 const EXISTING_EMAILS: ReadonlySet<string> = new Set([
@@ -104,52 +105,6 @@ function gridColumns(draft: InviteDraft): Array<GridColumn> {
       },
     },
     ...zodToColumnDefs(InviteRowSchema, { titles: INVITE_TITLES }),
-  ];
-}
-
-/** Tabulator columns: Status (frozen, formatter + cellClick), checkbox, fields. */
-function tabulatorColumns(draft: InviteDraft): Array<Record<string, unknown>> {
-  return [
-    {
-      title: 'Status',
-      field: 'status',
-      frozen: true,
-      width: STATUS_WIDTH,
-      headerSort: false,
-      clipboard: false,
-      download: false,
-      formatter: (cell: {
-        getRow(): { getData(): Record<string, unknown> };
-      }) => {
-        const status = draft.status(cell.getRow().getData());
-        const label = `<span class="${STATUS_CLASS[status]}">${status}</span>`;
-        return status === 'Agent proposed'
-          ? `${label} <button type="button" data-confirm class="ml-1 rounded border border-default px-1.5 text-xs hover:bg-muted">Confirm</button>`
-          : label;
-      },
-      cellClick: (
-        e: MouseEvent,
-        cell: { getRow(): { getData(): Record<string, unknown> } },
-      ) => {
-        if ((e.target as HTMLElement).closest('[data-confirm]')) {
-          draft.confirm(String(cell.getRow().getData().id));
-        }
-      },
-    },
-    {
-      title: '',
-      field: '__select',
-      width: 45,
-      hozAlign: 'center',
-      headerSort: false,
-      clipboard: false,
-      download: false,
-      formatter: 'rowSelection',
-      titleFormatter: 'rowSelection',
-    },
-    ...(zodToTabulatorColumns(InviteRowSchema, {
-      titles: INVITE_TITLES,
-    }) as unknown as Array<Record<string, unknown>>),
   ];
 }
 
@@ -317,13 +272,14 @@ export default defineComponent({
         const columns = gridColumns(draft);
         return () => <DataGrid columns={columns} {...gridProps} />;
       }
-      const columns = tabulatorColumns(draft);
-      return () => [
-        <GridEditor key="grid" columns={columns} {...gridProps} />,
-        // tabulator_modern paints even rows blue behind the cells; with only
-        // five columns the row is wider than its cells and the band shows.
-        <style key="style">{`.invite-grid .tabulator-row { background-color: transparent; }`}</style>,
-      ];
+      return () => (
+        <InviteTabulatorGrid
+          draft={draft}
+          statusClass={STATUS_CLASS}
+          statusWidth={STATUS_WIDTH}
+          {...gridProps}
+        />
+      );
     })();
 
     return (): VNode => (
