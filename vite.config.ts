@@ -100,7 +100,6 @@ export default defineConfig({
       'jsx-a11y/prefer-tag-over-role': 'off', // 2
       'react/no-unescaped-entities': 'off', // 2
       'jsx-a11y/click-events-have-key-events': 'off', // 2
-      'jsx-a11y/no-static-element-interactions': 'off', // 2
     },
     // The preset's TypeScript override re-enables these; keep the baseline.
     overrides: [

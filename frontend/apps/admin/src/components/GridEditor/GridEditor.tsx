@@ -333,7 +333,9 @@ export default defineComponent({
 
         {/* ── Licensing slide-over (from bottom) ── */}
         {showLicensePanel.value && (
+          // Backdrop click closes the panel; the ✕ button is the keyboard path.
           <div
+            role="presentation"
             class="absolute inset-0 z-20 flex items-end"
             onClick={() => {
               showLicensePanel.value = false;
@@ -341,6 +343,7 @@ export default defineComponent({
           >
             <div class="absolute inset-0 bg-black/20" />
             <div
+              role="presentation"
               class="relative max-h-[60vh] w-full overflow-auto rounded-t-lg border-t border-default bg-default shadow-2xl"
               onClick={(e: Event) => e.stopPropagation()}
             >
