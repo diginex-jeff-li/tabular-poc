@@ -208,16 +208,13 @@ describe('BulkSaveResponseSchema', () => {
 
 describe('BulkSaveErrorSchema', () => {
   it('parses a valid error entry with rowId', () => {
-    const result = BulkSaveErrorSchema.safeParse({
+    const data = BulkSaveErrorSchema.parse({
       row: 0,
       rowId: '550e8400-e29b-41d4-a716-446655440000',
       field: 'riskLevel',
       message: 'Invalid enum value',
     });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.rowId).toBe('550e8400-e29b-41d4-a716-446655440000');
-    }
+    expect(data.rowId).toBe('550e8400-e29b-41d4-a716-446655440000');
   });
 
   it('rejects missing message', () => {

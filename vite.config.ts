@@ -93,7 +93,6 @@ export default defineConfig({
       'quality/no-unknown-returns': 'off', // 9
       'no-console': 'off', // 8
       'unicorn/prefer-string-replace-all': 'off', // 6
-      'vitest/no-conditional-expect': 'off', // 5
     },
     overrides: [
       {

@@ -118,12 +118,9 @@ describe('buildRuntimeSchema', () => {
       const schema = buildRuntimeSchema([
         col({ id: OTHER_UUID, name: 'Score', type: 'number', required: true }),
       ]);
-      const result = schema.safeParse({ ...meta(), Score: '42' });
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.Score).toBe(42);
-        expect(typeof result.data.Score).toBe('number');
-      }
+      const data = schema.parse({ ...meta(), Score: '42' });
+      expect(data.Score).toBe(42);
+      expect(typeof data.Score).toBe('number');
     });
 
     it('a number column rejects "abc"', () => {

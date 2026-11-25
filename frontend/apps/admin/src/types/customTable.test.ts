@@ -287,16 +287,13 @@ describe('TableRowSchema', () => {
   });
 
   it('preserves the additional keys in the parsed output', () => {
-    const result = TableRowSchema.safeParse({
+    const data = TableRowSchema.parse({
       ...validTableRow,
       Name: 'Alice',
       Score: 42,
     });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data).toHaveProperty('Name', 'Alice');
-      expect(result.data).toHaveProperty('Score', 42);
-    }
+    expect(data).toHaveProperty('Name', 'Alice');
+    expect(data).toHaveProperty('Score', 42);
   });
 
   it('rejects a missing id', () => {
