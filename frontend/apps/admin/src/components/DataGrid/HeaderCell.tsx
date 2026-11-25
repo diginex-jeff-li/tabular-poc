@@ -1,7 +1,7 @@
 /**
  * A data column's header: title, a tristate sort button (asc → desc → none)
- * and the column's filter. Only the sort button sorts; the rest of the header
- * stays free for column selection (ticket 06).
+ * and the column's filter. Only the sort button sorts; a press anywhere else
+ * outside the controls selects the column.
  */
 import UButton from '@nuxt/ui/components/Button.vue';
 import UInput from '@nuxt/ui/components/Input.vue';
@@ -34,6 +34,7 @@ export default defineComponent({
   props: {
     column: { type: Object as PropType<TableColumnApi>, required: true },
     def: { type: Object as PropType<GridColumn>, required: true },
+    onSelectColumn: { type: Function as PropType<() => void>, required: true },
   },
   setup(props) {
     const sorted = computed(() => props.column.getIsSorted() || 'none');
@@ -75,7 +76,17 @@ export default defineComponent({
     };
 
     return (): VNode => (
-      <div class="flex flex-col gap-1 px-3 py-2">
+      <div
+        class="flex select-none flex-col gap-1 px-3 py-2"
+        onPointerdown={(e: PointerEvent) => {
+          if (
+            e.button === 0 &&
+            !(e.target as Element).closest('button,input,[role=combobox]')
+          ) {
+            props.onSelectColumn();
+          }
+        }}
+      >
         <div class="flex items-center gap-1">
           <span class="truncate">{props.def.title}</span>
           <UButton

@@ -180,4 +180,42 @@ describe('useDataGrid', () => {
     window.dispatchEvent(dirty);
     expect(dirty.defaultPrevented).toBe(true);
   });
+
+  it('rebuilds an edited row through normalizeRow and reports it once', () => {
+    const onUserEdit = vi.fn();
+    const scope = effectScope();
+    scopes.push(scope);
+    const grid = scope.run(() =>
+      useDataGrid({
+        data: [
+          { id: 'a', name: 'Ann', role: 'admin' },
+          { id: 'b', name: 'Bo', role: 'viewer' },
+        ],
+        onSave: vi.fn(),
+        normalizeRow: (row) => ({ ...row, name: String(row.name).trim() }),
+        onUserEdit,
+      }),
+    );
+    const untouched = grid.rows.value[1];
+
+    expect(grid.editCell({ rowId: 'a', colId: 'name' }, '  Anna ')).toBe(true);
+    expect(grid.rows.value).toEqual([
+      { id: 'a', name: 'Anna', role: 'admin' },
+      { id: 'b', name: 'Bo', role: 'viewer' },
+    ]);
+    expect(grid.rows.value[1]).toBe(untouched);
+    expect(onUserEdit).toHaveBeenCalledTimes(1);
+    expect(onUserEdit).toHaveBeenCalledWith(['a']);
+    expect(grid.dirtyCount.value).toBe(1);
+  });
+
+  it('does nothing when an edit keeps the value, blank included', () => {
+    const { grid, onUserEdit } = setup([{ id: 'a', name: 'Ann', note: null }]);
+    const before = grid.rows.value;
+    expect(grid.editCell({ rowId: 'a', colId: 'name' }, 'Ann')).toBe(false);
+    expect(grid.editCell({ rowId: 'a', colId: 'note' }, '')).toBe(false);
+    expect(grid.editCell({ rowId: 'gone', colId: 'name' }, 'x')).toBe(false);
+    expect(grid.rows.value).toBe(before);
+    expect(onUserEdit).not.toHaveBeenCalled();
+  });
 });

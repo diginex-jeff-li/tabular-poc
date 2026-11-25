@@ -6,6 +6,7 @@ import type {
   GridSaveResponse,
 } from 'composables/useGridEditor';
 import type { SavePayload } from 'utils/gridDiff';
+import type { CellPos } from 'utils/gridRange';
 import type { ComputedRef, Ref, ShallowRef } from 'vue';
 
 /** A grid row. Rows are never mutated; every change replaces the row and the array. */
@@ -44,6 +45,12 @@ export interface DataGridState {
   deleteSelected: () => void;
   /** Removes every row; saved ones are sent as deletes on the next save. */
   clearAll: () => void;
+  /**
+   * A person's edit of one cell: the row is rebuilt through `normalizeRow`,
+   * replaced, and reported to `onUserEdit`. Returns false, and does nothing,
+   * when the value is unchanged (blank equals blank).
+   */
+  editCell: (pos: CellPos, value: string) => boolean;
   save: () => Promise<void>;
 }
 
@@ -125,6 +132,21 @@ export function useDataGrid(opts: {
     opts.onUserEdit?.([]);
   }
 
+  function editCell(pos: CellPos, value: string): boolean {
+    const row = rows.value.find((r) => r.id === pos.rowId);
+    if (!row || sameValue(row[pos.colId], value)) {
+      return false;
+    }
+    const edited = { ...row, [pos.colId]: value };
+    const next: Row = {
+      ...(opts.normalizeRow?.(edited) ?? edited),
+      id: row.id,
+    };
+    rows.value = rows.value.map((r) => (r === row ? next : r));
+    opts.onUserEdit?.([row.id]);
+    return true;
+  }
+
   async function save() {
     if (isSaving.value) {
       return;
@@ -167,6 +189,12 @@ export function useDataGrid(opts: {
     addRow,
     deleteSelected,
     clearAll,
+    editCell,
     save,
   };
+}
+
+function sameValue(before: unknown, after: string): boolean {
+  const blank = before === null || before === undefined || before === '';
+  return blank ? after === '' : before === after;
 }
