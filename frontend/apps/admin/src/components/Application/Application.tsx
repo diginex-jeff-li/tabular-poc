@@ -11,7 +11,8 @@ import { defineComponent, type VNode } from 'vue';
  * height and the grid's column headers sit entirely below the header's bottom
  * edge. No `100vh` arithmetic — the flex chain carries the height.
  *
- * Nav links: "Compliance Library" → `/` and "Custom Tables" → `/custom`.
+ * Nav links: "Compliance Library" → `/`, "Custom Tables" → `/custom` and
+ * "Invite Users" → `/invite-users` (SC15-706 + WebMCP prototype).
  * The Custom Tables link lands together with the `/custom` routes (milestone B,
  * feature b5) so no link ever dead-ends. The active route is visually
  * indicated via `activeClass`.
@@ -43,6 +44,13 @@ export default defineComponent({
                 activeClass="font-semibold text-primary"
               >
                 Custom Tables
+              </RouterLink>
+              <RouterLink
+                to="/invite-users"
+                class="text-sm text-muted hover:text-default"
+                activeClass="font-semibold text-primary"
+              >
+                Invite Users
               </RouterLink>
             </nav>
           </header>

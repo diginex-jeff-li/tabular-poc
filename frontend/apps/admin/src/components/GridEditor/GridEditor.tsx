@@ -1,3 +1,4 @@
+import UBadge from '@nuxt/ui/components/Badge.vue';
 /**
  * GridEditor — the shared grid engine's presentation.
  *
@@ -20,22 +21,65 @@
  * PROTOTYPE — throwaway prototype code.
  */
 import UButton from '@nuxt/ui/components/Button.vue';
-import UBadge from '@nuxt/ui/components/Badge.vue';
 import UModal from '@nuxt/ui/components/Modal.vue';
+import {
+  useGridEditor,
+  type GridApi,
+  type GridSaveResponse,
+} from 'composables/useGridEditor';
 import { computed, defineComponent, ref, type PropType, type VNode } from 'vue';
-import { useGridEditor, type GridSaveResponse } from 'composables/useGridEditor';
 
 // ── Licensing comparison data (generic marketing content, stays in the engine) ──
 
 const LICENSE_COMPARISON = [
-  { feature: 'Clipboard paste from Excel', tabulator: '✅ Free', agGrid: '❌ Enterprise ($/dev/yr)', revoGrid: '✅ Free' },
-  { feature: 'Cell validation framework', tabulator: '✅ Free', agGrid: '✅ Free (basic)', revoGrid: '❌ Pro ($149+/dev/yr)' },
-  { feature: 'Range selection', tabulator: '✅ Free', agGrid: '❌ Enterprise ($/dev/yr)', revoGrid: '✅ Free' },
-  { feature: 'Column filtering', tabulator: '✅ Free', agGrid: '✅ Free (basic)', revoGrid: '❌ Pro ($149+/dev/yr)' },
-  { feature: 'Multi-column sorting', tabulator: '✅ Free', agGrid: '✅ Free', revoGrid: '❌ Pro ($149+/dev/yr)' },
-  { feature: 'CSV / Excel export', tabulator: '✅ Free', agGrid: '❌ Enterprise ($/dev/yr)', revoGrid: '❌ Pro ($149+/dev/yr)' },
-  { feature: 'Checkbox row selection', tabulator: '✅ Free', agGrid: '✅ Free', revoGrid: '✅ Free' },
-  { feature: 'License', tabulator: 'MIT (no paid tier)', agGrid: 'EULA (per-dev, per-deploy)', revoGrid: 'MIT core + Pro $149-499/dev/yr' },
+  {
+    feature: 'Clipboard paste from Excel',
+    tabulator: '✅ Free',
+    agGrid: '❌ Enterprise ($/dev/yr)',
+    revoGrid: '✅ Free',
+  },
+  {
+    feature: 'Cell validation framework',
+    tabulator: '✅ Free',
+    agGrid: '✅ Free (basic)',
+    revoGrid: '❌ Pro ($149+/dev/yr)',
+  },
+  {
+    feature: 'Range selection',
+    tabulator: '✅ Free',
+    agGrid: '❌ Enterprise ($/dev/yr)',
+    revoGrid: '✅ Free',
+  },
+  {
+    feature: 'Column filtering',
+    tabulator: '✅ Free',
+    agGrid: '✅ Free (basic)',
+    revoGrid: '❌ Pro ($149+/dev/yr)',
+  },
+  {
+    feature: 'Multi-column sorting',
+    tabulator: '✅ Free',
+    agGrid: '✅ Free',
+    revoGrid: '❌ Pro ($149+/dev/yr)',
+  },
+  {
+    feature: 'CSV / Excel export',
+    tabulator: '✅ Free',
+    agGrid: '❌ Enterprise ($/dev/yr)',
+    revoGrid: '❌ Pro ($149+/dev/yr)',
+  },
+  {
+    feature: 'Checkbox row selection',
+    tabulator: '✅ Free',
+    agGrid: '✅ Free',
+    revoGrid: '✅ Free',
+  },
+  {
+    feature: 'License',
+    tabulator: 'MIT (no paid tier)',
+    agGrid: 'EULA (per-dev, per-deploy)',
+    revoGrid: 'MIT core + Pro $149-499/dev/yr',
+  },
 ];
 
 export default defineComponent({
@@ -70,12 +114,34 @@ export default defineComponent({
       type: Function as PropType<() => VNode | VNode[]>,
       default: undefined,
     },
+    /** Save button label (e.g. "Send invites"). */
+    saveLabel: {
+      type: String,
+      default: 'Save',
+    },
+    /** Success badge text for N saved rows. */
+    savedLabel: {
+      type: Function as PropType<(saved: number) => string>,
+      default: (saved: number) => `Saved ${saved}`,
+    },
+    /** Receives the programmatic grid API (agent tools, file import). */
+    onReady: {
+      type: Function as PropType<(api: GridApi) => void>,
+      default: undefined,
+    },
   },
   setup(props) {
     const tableEl = ref<HTMLDivElement | null>(null);
     const showLicensePanel = ref(false);
     const showClearConfirm = ref(false);
 
+    const grid = useGridEditor({
+      tableEl,
+      columns: ref(props.columns),
+      data: ref(props.data),
+      onSave: props.onSave,
+      exportFilename: props.exportFilename,
+    });
     const {
       rowCount,
       dirtyCount,
@@ -88,12 +154,13 @@ export default defineComponent({
       handleExportCSV,
       clearGrid,
       scrollToError,
-    } = useGridEditor({
-      tableEl,
-      columns: ref(props.columns),
-      data: ref(props.data),
-      onSave: props.onSave,
-      exportFilename: props.exportFilename,
+    } = grid;
+    props.onReady?.({
+      getRows: grid.getRows,
+      addRows: grid.addRows,
+      updateRows: grid.updateRows,
+      deleteRows: grid.deleteRows,
+      showErrors: grid.showErrors,
     });
 
     const errorCount = computed(() => errorList.value.length);
@@ -114,7 +181,7 @@ export default defineComponent({
             onClick={handleAddRow}
           />
           <UButton
-            label="Save"
+            label={props.saveLabel}
             color="primary"
             size="xs"
             loading={isSaving.value}
@@ -141,7 +208,9 @@ export default defineComponent({
             color="neutral"
             variant="ghost"
             size="xs"
-            onClick={() => { showClearConfirm.value = true; }}
+            onClick={() => {
+              showClearConfirm.value = true;
+            }}
           />
           {/* ── Extension point: extra toolbar buttons via render prop ── */}
           {props.toolbarActions?.()}
@@ -150,13 +219,22 @@ export default defineComponent({
             color="info"
             variant="ghost"
             size="xs"
-            onClick={() => { showLicensePanel.value = !showLicensePanel.value; }}
+            onClick={() => {
+              showLicensePanel.value = !showLicensePanel.value;
+            }}
           />
 
           {/* ── Status chips (role="status" aria-live="polite") ── */}
-          <div class="ml-auto flex items-center gap-3 text-xs" role="status" aria-live="polite">
+          <div
+            class="ml-auto flex items-center gap-3 text-xs"
+            role="status"
+            aria-live="polite"
+          >
             <span class="text-muted">
-              <strong class="text-default font-semibold">{rowCount.value}</strong> rows
+              <strong class="text-default font-semibold">
+                {rowCount.value}
+              </strong>{' '}
+              rows
             </span>
             {hasUnsavedChanges.value && (
               <span class="text-warning">
@@ -170,7 +248,12 @@ export default defineComponent({
               </span>
             )}
             {saveResult.value && saveResult.value.saved > 0 && (
-              <UBadge color="success" label={`Saved ${saveResult.value.saved}`} variant="soft" size="sm" />
+              <UBadge
+                color="success"
+                label={props.savedLabel(saveResult.value.saved)}
+                variant="soft"
+                size="sm"
+              />
             )}
           </div>
         </div>
@@ -187,9 +270,14 @@ export default defineComponent({
                 Paste your Excel data here
               </p>
               <p class="text-sm text-muted">
-                Click any cell in the grid below, then press <kbd class="rounded border border-default bg-default px-1.5 py-0.5 text-xs font-mono">Ctrl+V</kbd>
+                Click any cell in the grid below, then press{' '}
+                <kbd class="rounded border border-default bg-default px-1.5 py-0.5 text-xs font-mono">
+                  Ctrl+V
+                </kbd>
               </p>
-              <p class="text-xs text-muted">or click "Add Row" to create manually</p>
+              <p class="text-xs text-muted">
+                or click "Add Row" to create manually
+              </p>
             </div>
           )}
 
@@ -222,7 +310,12 @@ export default defineComponent({
 
         {/* ── Licensing slide-over (from bottom) ── */}
         {showLicensePanel.value && (
-          <div class="absolute inset-0 z-20 flex items-end" onClick={() => { showLicensePanel.value = false; }}>
+          <div
+            class="absolute inset-0 z-20 flex items-end"
+            onClick={() => {
+              showLicensePanel.value = false;
+            }}
+          >
             <div class="absolute inset-0 bg-black/20" />
             <div
               class="relative max-h-[60vh] w-full overflow-auto rounded-t-lg border-t border-default bg-default shadow-2xl"
@@ -237,27 +330,52 @@ export default defineComponent({
                   color="neutral"
                   variant="ghost"
                   size="xs"
-                  onClick={() => { showLicensePanel.value = false; }}
+                  onClick={() => {
+                    showLicensePanel.value = false;
+                  }}
                 />
               </div>
               <div class="p-4">
                 <p class="mb-3 text-xs text-muted">
-                  All features below are free in Tabulator (MIT). AG Grid and RevoGrid
-                  gate key features behind paid tiers. Source: ag-grid.com, rv-grid.com (verified Aug 2026).
+                  All features below are free in Tabulator (MIT). AG Grid and
+                  RevoGrid gate key features behind paid tiers. Source:
+                  ag-grid.com, rv-grid.com (verified Aug 2026).
                 </p>
                 <table class="w-full text-sm">
                   <thead>
                     <tr class="border-b border-default">
-                      <th scope="col" class="px-3 py-2 text-left font-medium text-muted">Feature</th>
-                      <th scope="col" class="px-3 py-2 text-left font-medium text-success">Tabulator</th>
-                      <th scope="col" class="px-3 py-2 text-left font-medium text-error">AG Grid</th>
-                      <th scope="col" class="px-3 py-2 text-left font-medium text-error">RevoGrid</th>
+                      <th
+                        scope="col"
+                        class="px-3 py-2 text-left font-medium text-muted"
+                      >
+                        Feature
+                      </th>
+                      <th
+                        scope="col"
+                        class="px-3 py-2 text-left font-medium text-success"
+                      >
+                        Tabulator
+                      </th>
+                      <th
+                        scope="col"
+                        class="px-3 py-2 text-left font-medium text-error"
+                      >
+                        AG Grid
+                      </th>
+                      <th
+                        scope="col"
+                        class="px-3 py-2 text-left font-medium text-error"
+                      >
+                        RevoGrid
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {LICENSE_COMPARISON.map((row, i) => (
                       <tr key={i} class="border-b border-default">
-                        <td class="px-3 py-2 text-default font-medium">{row.feature}</td>
+                        <td class="px-3 py-2 text-default font-medium">
+                          {row.feature}
+                        </td>
                         <td class="px-3 py-2 text-success">{row.tabulator}</td>
                         <td class="px-3 py-2 text-error">{row.agGrid}</td>
                         <td class="px-3 py-2 text-error">{row.revoGrid}</td>
@@ -272,24 +390,37 @@ export default defineComponent({
 
         {/* ── Clear confirmation modal ── */}
         {showClearConfirm.value && (
-          <UModal open={showClearConfirm.value} onUpdate:open={(v: boolean) => { showClearConfirm.value = v; }}>
+          <UModal
+            open={showClearConfirm.value}
+            onUpdate:open={(v: boolean) => {
+              showClearConfirm.value = v;
+            }}
+          >
             <div class="p-6">
-              <h3 class="text-lg font-semibold text-highlighted">Clear all rows?</h3>
+              <h3 class="text-lg font-semibold text-highlighted">
+                Clear all rows?
+              </h3>
               <p class="mt-2 text-sm text-muted">
-                This will remove all {rowCount.value} rows from the grid. Unsaved changes
-                will be lost. Saved rows will remain in the backend store.
+                This will remove all {rowCount.value} rows from the grid.
+                Unsaved changes will be lost. Saved rows will remain in the
+                backend store.
               </p>
               <div class="mt-4 flex justify-end gap-2">
                 <UButton
                   label="Cancel"
                   color="neutral"
                   variant="ghost"
-                  onClick={() => { showClearConfirm.value = false; }}
+                  onClick={() => {
+                    showClearConfirm.value = false;
+                  }}
                 />
                 <UButton
                   label="Clear All"
                   color="error"
-                  onClick={() => { clearGrid(); showClearConfirm.value = false; }}
+                  onClick={() => {
+                    clearGrid();
+                    showClearConfirm.value = false;
+                  }}
                 />
               </div>
             </div>

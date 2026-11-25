@@ -21,7 +21,9 @@
     "tabulator-tables": "6.5.2",
     "vue": "3.5.38",
     "vue-router": "5.1.0",
-    "zod": "3.25.76"
+    "zod": "3.25.76",
+    "exceljs": "4.4.0",
+    "zod-to-json-schema": "3.25.2"
   },
   "devDependencies": {
     "@types/node": "26.0.0",

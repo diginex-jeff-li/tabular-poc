@@ -1,3 +1,6 @@
+import { useEventListener } from '@vueuse/core';
+import { useDirtyTracking } from 'composables/useDirtyTracking';
+import { TabulatorFull as Tabulator } from 'tabulator-tables';
 /**
  * useGridEditor — the shared grid engine's behaviour.
  *
@@ -13,9 +16,6 @@
  * upserts-array index — commit f7bd853 fixed that bug; do not reintroduce it.
  */
 import { ref, shallowRef, watch, type Ref } from 'vue';
-import { useEventListener } from '@vueuse/core';
-import { TabulatorFull as Tabulator } from 'tabulator-tables';
-import { useDirtyTracking } from 'composables/useDirtyTracking';
 
 // ── Shared save types (match contracts BulkSaveError/Response shape) ──
 
@@ -29,6 +29,17 @@ export interface GridSaveError {
 export interface GridSaveResponse {
   errors: GridSaveError[];
   saved: number;
+}
+
+/** Programmatic grid access for agent tools and file import. Rows by `id`. */
+export interface GridApi {
+  getRows(): Record<string, unknown>[];
+  addRows(rows: Record<string, unknown>[]): Promise<string[]>;
+  updateRows(
+    patches: ({ id: string } & Record<string, unknown>)[],
+  ): Promise<{ updated: string[]; missing: string[] }>;
+  deleteRows(ids: string[]): { deleted: string[]; missing: string[] };
+  showErrors(errors: GridSaveError[]): void;
 }
 
 // ── Clipboard paste parser (pure, exported for unit testing) ──
@@ -328,7 +339,10 @@ export function useGridEditor(opts: UseGridEditorOptions) {
   // were never persisted and need no delete sent to the backend.
   function clearGrid() {
     if (tabulator.value) {
-      const currentData = tabulator.value.getData() as Record<string, unknown>[];
+      const currentData = tabulator.value.getData() as Record<
+        string,
+        unknown
+      >[];
       for (const row of currentData) {
         const rowId = row.id as string | undefined;
         if (rowId) {
@@ -367,6 +381,72 @@ export function useGridEditor(opts: UseGridEditorOptions) {
     rowCount.value = tabulator.value.getDataCount();
   }
 
+  // ── Programmatic API (agent tools, file import) ──
+  // Every mutation goes through dirty tracking so Save sees it, rows are
+  // addressed by `id` (never by position), and touched rows are validated so
+  // the in-cell highlight matches what a human edit would show.
+  function getRows(): Record<string, unknown>[] {
+    return (tabulator.value?.getData() ?? []) as Record<string, unknown>[];
+  }
+
+  async function addRows(rows: Record<string, unknown>[]): Promise<string[]> {
+    const tab = tabulator.value;
+    if (!tab) return [];
+    const withIds = rows.map((r) => ({ ...r, id: crypto.randomUUID() }));
+    const added = await tab.addData(withIds);
+    for (const row of withIds) markDirty(row.id, 'added');
+    for (const row of added ?? []) row.validate?.();
+    rowCount.value = tab.getDataCount();
+    return withIds.map((r) => r.id);
+  }
+
+  async function updateRows(
+    patches: ({ id: string } & Record<string, unknown>)[],
+  ): Promise<{ updated: string[]; missing: string[] }> {
+    const tab = tabulator.value;
+    const result = { updated: [] as string[], missing: [] as string[] };
+    if (!tab) return result;
+    for (const { id, ...fields } of patches) {
+      const row = tab.getRow(id);
+      if (!row) {
+        result.missing.push(id);
+        continue;
+      }
+      await row.update(fields);
+      markDirty(id, 'modified');
+      row.validate?.();
+      result.updated.push(id);
+    }
+    return result;
+  }
+
+  function deleteRows(ids: string[]): { deleted: string[]; missing: string[] } {
+    const tab = tabulator.value;
+    const result = { deleted: [] as string[], missing: [] as string[] };
+    if (!tab) return result;
+    for (const id of ids) {
+      const row = tab.getRow(id);
+      if (!row) {
+        result.missing.push(id);
+        continue;
+      }
+      markDeleted(id);
+      row.delete();
+      result.deleted.push(id);
+    }
+    errorList.value = errorList.value.filter(
+      (e) => !result.deleted.includes(e.rowId),
+    );
+    rowCount.value = tab.getDataCount();
+    return result;
+  }
+
+  function showErrors(errors: GridSaveError[]) {
+    errorList.value = errors;
+    if (errors.length > 0) applyErrorHighlights(errors);
+    else clearErrorHighlights();
+  }
+
   return {
     tabulator,
     rowCount,
@@ -380,5 +460,10 @@ export function useGridEditor(opts: UseGridEditorOptions) {
     handleExportCSV,
     clearGrid,
     scrollToError,
+    getRows,
+    addRows,
+    updateRows,
+    deleteRows,
+    showErrors,
   };
 }

@@ -4,6 +4,7 @@ const ComplianceGridEditor = () => import('pages/ComplianceGridEditor');
 const CustomTableList = () => import('pages/CustomTableList');
 const CustomTableBuilder = () => import('pages/CustomTableBuilder');
 const CustomTableEditor = () => import('pages/CustomTableEditor');
+const BulkInviteUsers = () => import('pages/BulkInviteUsers');
 
 const router = createRouter({
   history: createWebHistory(),
@@ -23,6 +24,10 @@ const router = createRouter({
     {
       path: '/custom/:tableId',
       component: CustomTableEditor,
+    },
+    {
+      path: '/invite-users',
+      component: BulkInviteUsers,
     },
   ],
 });

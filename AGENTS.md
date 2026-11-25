@@ -123,6 +123,9 @@ selection — all in the free core.
 | `frontend/apps/admin/src/composables/useDirtyTracking.ts` | Track added/modified/deleted rows for diff-based save |
 | `frontend/apps/admin/src/composables/useGridEditor.ts`   | Grid engine composable — Tabulator lifecycle, paste, save, errors |
 | `frontend/apps/admin/src/components/GridEditor/GridEditor.tsx` | Shared grid editor component (toolbar, grid host, error sidebar) |
+| `frontend/apps/admin/src/pages/BulkInviteUsers.tsx` | SC15-706 bulk invite prototype — Excel template/import, paste, simulated send |
+| `frontend/apps/admin/src/utils/inviteAgentTools.ts` | Agent tools for the invite grid (edit-only; no send tool) |
+| `frontend/apps/admin/src/composables/useAgentTools.ts` | Registers tools on `document.modelContext` (WebMCP) + `window.scInvite` bridge |
 | `frontend/apps/admin/src/utils/test-infra.test.ts`       | Test infrastructure tests (localStorage polyfill, component mounting) |
 | `frontend/setup-localstorage.ts`                         | In-memory localStorage polyfill wired via vitest setupFiles |
 | `contracts/src/compliance-library/schemas/index.ts`       | Zod schema for compliance library entity              |
