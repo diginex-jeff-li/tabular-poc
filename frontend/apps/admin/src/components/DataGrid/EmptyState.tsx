@@ -27,10 +27,15 @@ export default defineComponent({
             Paste your Excel data here
           </p>
           <p class="text-sm text-muted">
-            Click any cell in the grid below, then press{' '}
+            Click here, then press{' '}
             <kbd class="rounded border border-default bg-default px-1.5 py-0.5 text-xs font-mono">
               Ctrl+V
-            </kbd>
+            </kbd>{' '}
+            (
+            <kbd class="rounded border border-default bg-default px-1.5 py-0.5 text-xs font-mono">
+              ⌘V
+            </kbd>{' '}
+            on a Mac)
           </p>
           <p class="text-xs text-muted">
             or click “Add Row” to create manually

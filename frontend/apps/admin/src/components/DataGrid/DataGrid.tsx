@@ -507,6 +507,14 @@ export default defineComponent({
             return;
           default:
             if (
+              (e.ctrlKey || e.metaKey) &&
+              !e.altKey &&
+              e.key.toLowerCase() === 'v'
+            ) {
+              catchPaste();
+              return;
+            }
+            if (
               pos &&
               e.key.length === 1 &&
               !e.ctrlKey &&
@@ -535,17 +543,36 @@ export default defineComponent({
 
     // Paste always inserts new rows at the bottom (Tabulator's `insert`
     // action); it never writes over the selected range.
-    useEventListener(gridEl, 'paste', (e: ClipboardEvent) => {
-      if (fromControl(e)) {
-        return;
-      }
-      e.preventDefault();
-      const text = e.clipboardData?.getData('text/plain') ?? '';
+    function pasteRows(text: string) {
       const positional = () => parsePositionalPaste(text, props.columns);
       const ids = grid.addRows(
         props.pasteParser?.(text, positional) ?? positional(),
       );
       props.onUserEdit?.(ids);
+    }
+
+    // Some browsers (Safari; Chrome depending on the platform) only paste
+    // into an editable element, so a keyboard paste on the grid root, a plain
+    // div, may do nothing. Cmd/Ctrl+V therefore moves focus to a hidden
+    // textarea for that one keystroke: the browser pastes there, the sink's
+    // `paste` handler takes the text, and focus returns to the grid.
+    const pasteSink = ref<HTMLTextAreaElement | null>(null);
+    function catchPaste() {
+      pasteSink.value?.focus({ preventScroll: true });
+      setTimeout(() => gridEl.value?.focus({ preventScroll: true }));
+    }
+    function onSinkPaste(e: ClipboardEvent) {
+      e.preventDefault();
+      pasteRows(e.clipboardData?.getData('text/plain') ?? '');
+    }
+
+    // A paste from the browser's menu while the grid has focus.
+    useEventListener(gridEl, 'paste', (e: ClipboardEvent) => {
+      if (fromControl(e)) {
+        return;
+      }
+      e.preventDefault();
+      pasteRows(e.clipboardData?.getData('text/plain') ?? '');
     });
 
     /** A sidebar error: bring its row into view, select and outline the cell. */
@@ -614,6 +641,14 @@ export default defineComponent({
             onActivate={() => {
               focused.value = true;
             }}
+          />
+          <textarea
+            ref={pasteSink}
+            data-paste-sink
+            aria-hidden="true"
+            tabindex={-1}
+            class="sr-only"
+            onPaste={onSinkPaste}
           />
           <ErrorSidebar
             grid={grid}

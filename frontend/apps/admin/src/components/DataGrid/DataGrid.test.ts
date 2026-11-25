@@ -449,6 +449,26 @@ describe('DataGrid paste', () => {
     expect(visibleTopics(w)).toEqual(['Noise', 'Wages']);
     expect(w.find('[data-testid="grid-empty"]').exists()).toBe(false);
   });
+
+  it('Cmd/Ctrl+V on the grid pastes through an editable sink, then gives focus back', async () => {
+    vi.useFakeTimers();
+    try {
+      const { wrapper: w } = await mountGrid(undefined, { data: [] });
+      await w.get('[data-testid="grid-empty"]').trigger('click');
+      await root(w).trigger('keydown', { key: 'v', metaKey: true });
+
+      // The browser pastes into whatever has focus after keydown.
+      const sink = document.activeElement as HTMLElement;
+      expect(sink.tagName).toBe('TEXTAREA');
+      await paste(sink, 'Noise\tLow');
+      expect(visibleTopics(w)).toEqual(['Noise']);
+
+      await vi.runAllTimersAsync();
+      expect(document.activeElement).toBe(root(w).element);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 const STATUS: GridColumn = {
