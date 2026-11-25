@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
 import { ref, nextTick } from 'vue';
-import { useGridEditor, parseClipboardPaste } from './useGridEditor';
+import {
+  useGridEditor,
+  parseClipboardPaste,
+  clearRangeCells,
+} from './useGridEditor';
 
 // ── Mock Tabulator module ──
 // vi.mock replaces 'tabulator-tables' entirely — the real Tabulator is never
@@ -314,6 +318,42 @@ describe('parseClipboardPaste', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 // useGridEditor — composable tests with mock Tabulator
 // ═══════════════════════════════════════════════════════════════════════════
+
+describe('clearRangeCells', () => {
+  // The row hands out a fresh cell on every lookup, as Tabulator does after a
+  // row re-render; clears land on `row.cleared` by field.
+  const row = {
+    validate: vi.fn(),
+    cleared: [] as Array<string>,
+    getCell(field: string) {
+      return { setValue: () => row.cleared.push(field) };
+    },
+  };
+  function cell(def: Record<string, unknown>, value: unknown) {
+    return {
+      getColumn: () => ({ getDefinition: () => def }),
+      getValue: () => value,
+      getRow: () => row,
+    };
+  }
+
+  it('clears only editable, non-empty cells and leaves read-only columns untouched', () => {
+    const status = cell({ field: 'status' }, 'Ready');
+    const select = cell({ field: '__select', formatter: 'rowSelection' }, true);
+    const email = cell({ field: 'email', editor: 'input' }, 'a@acme.com');
+    const locked = cell({ field: 'id', editor: 'input', editable: false }, 'x');
+    const empty = cell({ field: 'role', editor: 'list' }, '');
+    const tab = {
+      getRanges: () => [
+        { getCells: () => [[status, select, email, locked, empty]] },
+      ],
+    };
+
+    expect(clearRangeCells(tab)).toBe(1);
+    expect(row.cleared).toEqual(['email']);
+    expect(row.validate).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('useGridEditor', () => {
   beforeEach(() => {
@@ -1224,7 +1264,9 @@ describe('useGridEditor', () => {
     expect(opts.validationMode).toBe('highlight');
     expect(opts.layout).toBe('fitDataFill');
     expect(opts.headerSortClickElement).toBe('icon');
-    expect(opts.selectable).toBe(true);
+    expect(opts).toHaveProperty('selectableRows', undefined);
+    expect(opts.selectableRange).toBe(true);
+    expect(opts.editTriggerEvent).toBe('dblclick');
     expect(opts.reactiveData).toBe(true);
     expect(opts.height).toBe('100%');
   });

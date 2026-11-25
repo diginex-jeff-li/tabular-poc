@@ -162,6 +162,10 @@ describe('zodToTabulatorColumns', () => {
       'required',
       { type: 'in', parameters: 'Red|Green|Blue' },
     ]);
+    expect(columns[0]).toMatchObject({
+      headerFilter: 'list',
+      headerFilterParams: { values: ['Red', 'Green', 'Blue'], clearable: true },
+    });
   });
 
   it('handles a simple string schema', () => {
@@ -176,6 +180,7 @@ describe('zodToTabulatorColumns', () => {
       field: 'name',
       editor: 'input',
       validator: 'required',
+      headerFilter: 'input',
     });
   });
 

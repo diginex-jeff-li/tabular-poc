@@ -73,10 +73,48 @@ export function parseClipboardPaste(
   });
 }
 
-// ── Composable ──
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyTabulator = any;
+
+// ── Delete/Backspace on a range selection ──
+//
+// Clears the selected cells a person could have typed into: columns with an
+// editor that is not `editable: false`. Tabulator's own
+// `selectableRangeClearCells` writes to every cell in the range, read-only
+// ones (Status, __select) included, which leaks junk fields into the row.
+// Each clear is a `setValue`, so it fires `cellEdited` like a typed edit.
+// That edit may re-render the row (normalizeRow → row.update), which deletes
+// the row's cell objects, so targets are kept as (row, field) and each cell is
+// looked up again just before it is cleared. `setValue` skips column
+// validators, so each touched row is validated afterwards to get the same
+// highlight a typed clear would. Returns how many cells were cleared.
+export function clearRangeCells(tab: AnyTabulator): number {
+  const targets: Array<{ row: AnyTabulator; field: string }> = [];
+  for (const range of tab.getRanges?.() ?? []) {
+    for (const cell of range.getCells().flat()) {
+      const def = cell.getColumn().getDefinition();
+      const value = cell.getValue();
+      if (!def.editor || def.editable === false) {
+        continue;
+      }
+      if (value === null || value === undefined || value === '') {
+        continue;
+      }
+      targets.push({ row: cell.getRow(), field: def.field });
+    }
+  }
+  const rows = new Set<AnyTabulator>();
+  for (const { row, field } of targets) {
+    row.getCell(field).setValue(null);
+    rows.add(row);
+  }
+  for (const row of rows) {
+    row.validate();
+  }
+  return targets.length;
+}
+
+// ── Composable ──
 
 interface UseGridEditorOptions {
   tableEl: Ref<HTMLElement | null>;
@@ -168,12 +206,29 @@ export function useGridEditor(opts: UseGridEditorOptions) {
         },
         clipboardPasteAction: 'insert',
         clipboardCopyConfig: { columnHeaders: false },
+        // Copy the selected cells, not the whole table.
+        clipboardCopyRowRange: 'range',
         validationMode: 'highlight',
         height: '100%',
         layout: 'fitDataFill',
         movableColumns: false,
         autoColumns: false,
-        selectable: true,
+        // Rows are selected by the __select checkboxes only. Explicitly
+        // `undefined` (Tabulator issue #4847): `true` adds click-to-select on
+        // the whole row, so every cell click also toggles the row; `false`, or
+        // the "highlight" default with range selection on, breaks the
+        // checkboxes (one row at a time / none).
+        selectableRows: undefined,
+        // Spreadsheet behaviour: an active cell, arrow/Tab moves, drag or
+        // Shift+click a block, click a row or column header to take it all.
+        // Delete/Backspace clearing is ours (clearRangeCells), not Tabulator's
+        // selectableRangeClearCells, which also writes to read-only columns.
+        selectableRange: true,
+        selectableRangeColumns: true,
+        selectableRangeRows: true,
+        // Enter or double-click edits; arrows navigate instead of opening editors.
+        editTriggerEvent: 'dblclick',
+        // Sorting is on the header icon so a header click can select the column.
         headerSortClickElement: 'icon',
       } as Options;
 
@@ -236,10 +291,26 @@ export function useGridEditor(opts: UseGridEditorOptions) {
 
       tab.on('cellEdited', onCellEdited);
 
+      // Delete/Backspace clears the range unless focus is in an editor or a
+      // header filter (there the key edits text). The key is swallowed either
+      // way: some browsers navigate back on Backspace.
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (e.key !== 'Delete' && e.key !== 'Backspace') {
+          return;
+        }
+        if ((e.target as HTMLElement).closest('input, textarea, select')) {
+          return;
+        }
+        e.preventDefault();
+        clearRangeCells(tab);
+      };
+      el.addEventListener('keydown', onKeyDown);
+
       onCleanup(() => {
         tab.off('dataProcessed');
         tab.off('clipboardPasted', onClipboardPasted);
         tab.off('cellEdited', onCellEdited);
+        el.removeEventListener('keydown', onKeyDown);
       });
     },
     { immediate: true },

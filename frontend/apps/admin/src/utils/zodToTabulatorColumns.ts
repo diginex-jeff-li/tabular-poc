@@ -5,14 +5,15 @@ import type { z } from 'zod';
  * Derives Tabulator column definitions from a Zod object schema.
  *
  * Mapping rules:
- * - z.enum() → { editor: 'list', editorParams: { values }, validator: ['required', { type: 'in', parameters }] }
+ * - z.enum() → { editor: 'list', editorParams: { values }, validator: ['required', { type: 'in', parameters }],
+ *   headerFilter: 'list' over the same values (clearable) }
  *   (a nullable enum drops 'required'; Tabulator's 'in' accepts empty cells)
  * - z.string() with its own rules (email, min, max, regex…) → adds a
  *   validator that runs that same Zod string on non-empty cells, so the
  *   in-cell highlight and the save check never disagree
  * - z.string().uuid() / z.string().datetime() → hidden (visible: false, editable: false)
- * - z.string() (required) → { editor: 'input', validator: 'required' }
- * - z.string().nullable() → { editor: 'input' } (no required validator)
+ * - z.string() (required) → { editor: 'input', validator: 'required', headerFilter: 'input' }
+ * - z.string().nullable() → { editor: 'input', headerFilter: 'input' } (no required validator)
  *
  * `titles` overrides the title derived from a field name.
  * Hidden fields (uuid, datetime) are excluded from the output entirely.
@@ -75,6 +76,8 @@ function deriveColumn(
       editorParams: { values },
       // VAL-GRID-021: tristate sort cycle asc → desc → none (clears on 3rd click)
       headerSortTristate: true,
+      headerFilter: 'list',
+      headerFilterParams: { values, clearable: true },
       validator: [
         ...(isNullable ? [] : ['required']),
         { type: 'in', parameters: values.join('|') },
@@ -98,6 +101,8 @@ function deriveColumn(
       editor: 'input',
       // VAL-GRID-021: tristate sort cycle asc → desc → none (clears on 3rd click)
       headerSortTristate: true,
+      headerFilter: 'input',
+      headerFilterPlaceholder: 'Filter…',
     };
 
     const validators: Array<unknown> = [];
