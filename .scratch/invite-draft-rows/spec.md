@@ -27,7 +27,7 @@ In the Codex demo the agent could not fix 7 of 19 pasted lines: the agent tool s
 15. **Space-only lines**: first match known role and group names as whole phrases, case-insensitively, longest first, any run of whitespace between words; then split the rest on spaces. Exactly one `@` word is the email; exactly two leftover words are first and last name; exactly one role. Anything else (no or two emails, a third leftover word, no or two roles, an unknown word) → needs review.
 16. **Fixtures**: rebuild the 19-row Codex demo paste, one assertion per row; plus multi-word cases `Ann Lee ann@x.com Account Admin` and `Bo Chan bo@x.com assessment manager vietnam suppliers; apparel`.
 17. **Derived vs stored**: Ready / Not ready / Needs review are derived from content each validation; Agent proposed is stored per row id on the page, cleared by confirm or a person's edit, lost on reload.
-18. **Agent delete**: `delete_rows` refuses needs-review rows with an error naming the rule; rows the agent adds with `add_rows` are not marked.
+18. **Agent delete**: `delete_rows` refuses needs-review rows with an error naming the rule; rows the agent adds with `add_rows` are not marked. **Amended (architecture review):** it also refuses agent-proposed rows, otherwise an agent could delete one and re-add an unmarked copy, bypassing decision 6.
 
 ## Acceptance
 

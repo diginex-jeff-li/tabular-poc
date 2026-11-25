@@ -300,6 +300,21 @@ describe('invite agent tools', () => {
     expect(grid.rows).toHaveLength(2);
   });
 
+  it('delete_rows refuses an agent-proposed row, so it cannot be swapped for an unmarked copy', async () => {
+    const { grid, call, agentProposed } = setup();
+    await call('add_rows', { rows: [{ email: 'Tom Lee tom@acme.com Owner' }] });
+    const tom = grid.rows[0].id as string;
+    await call('update_rows', {
+      rows: [{ id: tom, ...person, email: 'tom@acme.com', firstName: 'Tom' }],
+    });
+
+    await expect(call('delete_rows', { ids: [tom] })).rejects.toThrow(
+      /agent proposed/i,
+    );
+    expect(grid.rows.map((r) => r.id)).toEqual([tom]);
+    expect(agentProposed.has(tom)).toBe(true);
+  });
+
   it('update_rows fixes a row by id and reports ids that do not exist', async () => {
     const { grid, call } = setup();
     await call('add_rows', { rows: [person, { ...person }] });

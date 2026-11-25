@@ -274,7 +274,7 @@ export function createInviteTools({
           'Needs review':
             'A whole line in one cell that could not be split without guessing. Split it with update_rows; you cannot delete it',
           'Agent proposed':
-            'You resolved a needs-review row; the user must confirm it before sending',
+            'You resolved a needs-review row; the user must confirm it before sending, and you cannot delete it',
         },
         rowCount: api().getRows().length,
         sending:
@@ -349,19 +349,23 @@ export function createInviteTools({
     {
       name: 'delete_rows',
       description:
-        'Remove rows by id from the draft. Rows that need review cannot be deleted. Returns deleted ids, unknown ids and all remaining errors.',
+        'Remove rows by id from the draft. Rows that need review or are agent proposed cannot be deleted. Returns deleted ids, unknown ids and all remaining errors.',
       inputSchema: jsonSchema(z.object({ ids: z.array(z.string()) }).strict()),
       outputSchema: jsonSchema(DeleteRowsOutputSchema),
       annotations: { readOnlyHint: false },
       execute: async (args) => {
         const ids = requireArray(args, 'ids').map(String);
+        // Either kind of row is waiting on a person; deleting it would let an
+        // agent replace it with an unmarked copy.
         const refused = ids.filter((id) => {
           const row = rowById(id);
-          return row !== undefined && needsReview(row);
+          return (
+            row !== undefined && (needsReview(row) || agentProposed.has(id))
+          );
         });
         if (refused.length > 0) {
           throw new Error(
-            `Rows that need review cannot be deleted by an agent: ${refused.join(', ')}. Split them with update_rows or leave them for the user. Nothing was deleted.`,
+            `Rows that need review or are agent proposed cannot be deleted by an agent: ${refused.join(', ')}. Split needs-review rows with update_rows; leave agent-proposed rows for the user to confirm or delete. Nothing was deleted.`,
           );
         }
         const { deleted, missing } = api().deleteRows(ids);
