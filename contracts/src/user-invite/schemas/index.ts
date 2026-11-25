@@ -100,7 +100,7 @@ export const INVITE_TITLES = Object.fromEntries(
 ) as Record<InviteField, string>;
 
 const headerKey = (header: string) =>
-  header.toLowerCase().replace(/[^a-z0-9]/g, '');
+  header.toLowerCase().replaceAll(/[^a-z0-9]/g, '');
 const FIELD_BY_HEADER_KEY = new Map<string, InviteField>(
   INVITE_COLUMNS.flatMap((c) =>
     [c.header, ...c.aliases].map((h) => [headerKey(h), c.field] as const),

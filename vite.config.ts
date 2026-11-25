@@ -92,7 +92,6 @@ export default defineConfig({
       'react/jsx-key': 'off', // 9
       'quality/no-unknown-returns': 'off', // 9
       'no-console': 'off', // 8
-      'unicorn/prefer-string-replace-all': 'off', // 6
     },
     overrides: [
       {

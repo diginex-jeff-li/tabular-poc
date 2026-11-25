@@ -33,7 +33,7 @@ const PHRASES = [
     pattern: new RegExp(
       `(?<=\\s)${value
         .split(' ')
-        .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`))
+        .map((w) => w.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`))
         .join(String.raw`\s+`)}(?=\\s)`,
       'gi',
     ),
@@ -96,7 +96,7 @@ function parseSeparated(line: string, separator: string): Fields | null {
 function parseSpaced(line: string): Fields | null {
   const roles: Array<string> = [];
   const groups: Array<{ value: string; at: number }> = [];
-  let rest = ` ${line.replace(/;/g, ' ')} `;
+  let rest = ` ${line.replaceAll(';', ' ')} `;
   for (const { value, kind, pattern } of PHRASES) {
     // Blank the match out at equal length so offsets keep the typed order.
     rest = rest.replace(pattern, (match: string, at: number) => {

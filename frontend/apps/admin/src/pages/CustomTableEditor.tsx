@@ -80,9 +80,9 @@ function slugifyFilename(name: string): string {
     .trim()
     .toLowerCase()
     // Replace any run of characters that are not a-z, 0-9 with a hyphen.
-    .replace(/[^a-z0-9]+/g, '-')
+    .replaceAll(/[^a-z0-9]+/g, '-')
     // Strip leading/trailing hyphens left by the substitution above.
-    .replace(/^-+|-+$/g, '');
+    .replaceAll(/^-+|-+$/g, '');
   // An all-symbol name produces an empty slug; fall back to a generic name
   // so the download always has a sensible filename.
   return `${slug || 'table'}.csv`;

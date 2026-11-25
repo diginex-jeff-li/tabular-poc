@@ -122,7 +122,7 @@ function deriveColumn(
 
 function fieldToTitle(field: string): string {
   return field
-    .replace(/([A-Z])/g, ' $1')
+    .replaceAll(/([A-Z])/g, ' $1')
     .replace(/^./, (s) => s.toUpperCase())
     .trim();
 }
