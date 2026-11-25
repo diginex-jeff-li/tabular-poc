@@ -1,5 +1,5 @@
-import { z } from 'zod';
 import type { ColumnDefinition } from 'tabulator-tables';
+import type { z } from 'zod';
 
 /**
  * Derives Tabulator column definitions from a Zod object schema.
@@ -51,23 +51,23 @@ function deriveColumn(
   type: z.ZodType,
   title: string,
 ): ColumnDefinition | null {
-  // Unwrap nullable
+  // Schema kinds come from `_zod.def.type`, which (unlike instanceof) also
+  // holds when two copies of zod are installed.
   let innerType = type;
   let isNullable = false;
 
-  if (innerType instanceof z.ZodNullable) {
+  if (innerType._zod.def.type === 'nullable') {
     isNullable = true;
-    innerType = innerType.unwrap() as z.ZodType;
+    innerType = (innerType as z.ZodNullable).unwrap() as z.ZodType;
   }
 
-  // Unwrap optional
-  if (innerType instanceof z.ZodOptional) {
-    innerType = innerType.unwrap() as z.ZodType;
+  if (innerType._zod.def.type === 'optional') {
+    innerType = (innerType as z.ZodOptional).unwrap() as z.ZodType;
   }
 
   // Enum → list editor
-  if (innerType instanceof z.ZodEnum) {
-    const values = innerType.options as Array<string>;
+  if (innerType._zod.def.type === 'enum') {
+    const values = (innerType as z.ZodEnum).options as Array<string>;
     return {
       title,
       field,
@@ -83,12 +83,13 @@ function deriveColumn(
   }
 
   // String
-  if (innerType instanceof z.ZodString) {
+  if (innerType._zod.def.type === 'string') {
+    const stringType = innerType as z.ZodString;
     // uuid or datetime → hidden
-    if (innerType.format === 'uuid' || innerType.format === 'datetime') {
+    if (stringType.format === 'uuid' || stringType.format === 'datetime') {
       return null; // exclude from visible columns
     }
-    const checks = innerType._zod.def.checks ?? [];
+    const checks = stringType._zod.def.checks ?? [];
 
     // Regular string
     const col: Record<string, unknown> = {
@@ -104,7 +105,7 @@ function deriveColumn(
       validators.push('required');
     }
     if (checks.length > 0) {
-      validators.push(schemaValidator(innerType));
+      validators.push(schemaValidator(stringType));
     }
     if (validators.length === 1) {
       col.validator = validators[0];

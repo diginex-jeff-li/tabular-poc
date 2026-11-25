@@ -95,7 +95,6 @@ export default defineConfig({
       'typescript/no-misused-promises': 'off', // 5
       'typescript/no-floating-promises': 'off', // 5
       'react/jsx-no-undef': 'off', // 4
-      '@nkzw/no-instanceof': 'off', // 4
     },
     // The preset's TypeScript override re-enables these; keep the baseline.
     overrides: [
