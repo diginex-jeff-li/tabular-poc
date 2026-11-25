@@ -76,6 +76,9 @@ export default defineConfig({
       'jsx-a11y/label-has-associated-control': 'off',
       // Needs strictNullChecks; frontend/apps/admin/tsconfig.json sets it false.
       'typescript/no-useless-default-assignment': 'off',
+      // Grid cell values, Tabulator mutators, WebMCP registerTool and agent
+      // tool results are dynamic by contract; `unknown` is the honest type.
+      'quality/no-unknown-returns': 'off',
 
       // @cloudflare/oxlint-config migration baseline: rules the existing code
       // breaks (count at adoption). Remove one per commit, fix or justify.
@@ -90,7 +93,6 @@ export default defineConfig({
       'typescript/no-base-to-string': 'off', // 13
       'unicorn/consistent-function-scoping': 'off', // 10
       'react/jsx-key': 'off', // 9
-      'quality/no-unknown-returns': 'off', // 9
     },
     overrides: [
       {
