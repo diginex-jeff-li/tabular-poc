@@ -33,8 +33,8 @@ const PHRASES = [
     pattern: new RegExp(
       `(?<=\\s)${value
         .split(' ')
-        .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-        .join('\\s+')}(?=\\s)`,
+        .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`))
+        .join(String.raw`\s+`)}(?=\\s)`,
       'gi',
     ),
   }));
