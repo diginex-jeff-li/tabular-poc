@@ -174,7 +174,9 @@ async function mockBulkSave(payload: {
   upserts: Array<Record<string, unknown>>;
   deletes: Array<string>;
 }): Promise<SaveResponse> {
-  await new Promise((r) => setTimeout(r, 300));
+  await new Promise((resolve) => {
+    setTimeout(resolve, 300);
+  });
   const errors: Array<BackendError> = [];
 
   for (let i = 0; i < payload.upserts.length; i++) {
