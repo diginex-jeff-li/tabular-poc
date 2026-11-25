@@ -270,6 +270,19 @@ describe('DataGrid selection', () => {
     expect(w.find('[data-grid-editor]').exists()).toBe(false);
   });
 
+  it('a drag that starts in a header filter never changes the range', async () => {
+    const { wrapper: w } = await mountGrid();
+    await cell(w, 'r1', 'topic').trigger('pointerdown', { button: 0 });
+    window.dispatchEvent(new PointerEvent('pointerup'));
+    const filter = w.get('input[aria-label="Filter Topic"]');
+    await filter.trigger('pointerdown', { button: 0 });
+    await filter.trigger('mousedown', { button: 0 });
+    await cell(w, 'r2', 'risk').trigger('pointerenter');
+
+    expect(cell(w, 'r1', 'topic').attributes('aria-selected')).toBe('true');
+    expect(cell(w, 'r2', 'risk').attributes('aria-selected')).toBe('false');
+  });
+
   it('selects a whole column from its header title', async () => {
     const { wrapper: w } = await mountGrid();
     await w.get('th span').trigger('pointerdown', { button: 0 });

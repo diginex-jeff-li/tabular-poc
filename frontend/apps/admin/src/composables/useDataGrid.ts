@@ -132,7 +132,7 @@ export function useDataGrid(opts: {
   }
 
   function addRow() {
-    const row: Row = { id: crypto.randomUUID() };
+    const row = normalized({ id: crypto.randomUUID() });
     rows.value = [row, ...rows.value];
     opts.onUserEdit?.([row.id]);
   }

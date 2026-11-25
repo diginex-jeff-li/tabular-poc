@@ -32,7 +32,6 @@ import {
   refAutoReset,
   useEventListener,
   useFocus,
-  useMousePressed,
   useRafFn,
 } from '@vueuse/core';
 import { gridEngineProps } from 'components/gridEngineProps';
@@ -289,10 +288,11 @@ export default defineComponent({
     const selection = useGridSelection(order);
     const sorting = ref<Sorting>([]);
     const columnFilters = ref<ColumnFilters>([]);
-    const { pressed } = useMousePressed({
-      target: gridEl,
-      touch: false,
-      drag: false,
+    // True while the primary button is held after a press on a body cell.
+    // A press on a header filter, checkbox or editor never starts a drag.
+    const pressed = ref(false);
+    useEventListener(window, 'pointerup', () => {
+      pressed.value = false;
     });
     const { focused } = useFocus(gridEl);
 
@@ -403,7 +403,13 @@ export default defineComponent({
     useEventListener(gridEl, 'pointerdown', (e: PointerEvent) => {
       pointer.x = e.clientX;
       pointer.y = e.clientY;
-      if (e.button === 0 && (e.target as Element).closest('[role=gridcell]')) {
+      const target = e.target as Element;
+      if (
+        e.button === 0 &&
+        target.closest('[role=gridcell]') &&
+        !target.closest('input,button,[role=checkbox],[data-grid-editor]')
+      ) {
+        pressed.value = true;
         dragScroll.resume();
       }
     });
