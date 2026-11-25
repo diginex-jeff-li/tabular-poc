@@ -171,8 +171,9 @@ export default defineComponent({
     }
 
     const toolbarActions = (): Array<VNode> => [
-      <div class="mx-1 h-5 w-px bg-default" />,
+      <div key="separator" class="mx-1 h-5 w-px bg-default" />,
       <UButton
+        key="template"
         label="Download template"
         color="neutral"
         variant="outline"
@@ -185,6 +186,7 @@ export default defineComponent({
         }
       />,
       <UButton
+        key="export"
         label="Download as Excel"
         color="neutral"
         variant="ghost"
@@ -197,6 +199,7 @@ export default defineComponent({
         }
       />,
       <UButton
+        key="import"
         label="Import .xlsx"
         color="neutral"
         variant="outline"
@@ -204,6 +207,7 @@ export default defineComponent({
         onClick={() => fileInput.value?.click()}
       />,
       <input
+        key="file"
         ref={fileInput}
         type="file"
         accept=".xlsx"
@@ -211,7 +215,10 @@ export default defineComponent({
         data-testid="invite-import"
         onChange={importFile}
       />,
-      <label class="ml-2 flex items-center gap-1 text-xs text-muted">
+      <label
+        key="auto-match"
+        class="ml-2 flex items-center gap-1 text-xs text-muted"
+      >
         <input
           type="checkbox"
           checked={autoMatch.value}

@@ -47,7 +47,11 @@ export default defineComponent({
           Ignore
         </option>
         {INVITE_COLUMNS.map((c) => (
-          <option value={c.field} selected={props.mapping[column] === c.field}>
+          <option
+            key={c.field}
+            value={c.field}
+            selected={props.mapping[column] === c.field}
+          >
             {c.header}
           </option>
         ))}
@@ -74,7 +78,7 @@ export default defineComponent({
           </thead>
           <tbody>
             {props.table.headers.map((header, i) => (
-              <tr>
+              <tr key={i}>
                 <td class="pr-4">{header}</td>
                 <td class="pr-4 text-muted">
                   {props.table.rows[0]?.[i] ?? ''}
@@ -94,7 +98,7 @@ export default defineComponent({
         {problems.value.length > 0 && (
           <ul class="text-xs text-error">
             {problems.value.map((p) => (
-              <li>{p}</li>
+              <li key={p}>{p}</li>
             ))}
           </ul>
         )}

@@ -92,7 +92,6 @@ export default defineConfig({
       'quality/no-chained-type-assertions': 'off', // 19
       'typescript/no-base-to-string': 'off', // 13
       'unicorn/consistent-function-scoping': 'off', // 10
-      'react/jsx-key': 'off', // 9
     },
     overrides: [
       {
