@@ -105,11 +105,10 @@ export default defineConfig({
         },
       },
       {
-        // Logging is the job here: a CLI's report, and warnings for
-        // localStorage failures and WebMCP tools that fail to register.
+        // Logging is the job here: a CLI's report, and warnings for WebMCP
+        // tools that fail to register.
         files: [
           'scripts/**',
-          'frontend/apps/admin/src/utils/tableStorage.ts',
           'frontend/apps/admin/src/composables/useAgentTools.ts',
         ],
         rules: { 'no-console': 'off' },

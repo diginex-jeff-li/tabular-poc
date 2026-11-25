@@ -33,14 +33,14 @@ const PlaceholderPage = defineComponent({
 // ── Helper to mount Application with a real router ──
 //
 // createMemoryHistory avoids URL/history issues under happy-dom. The router
-// includes the routes registered in config/router.ts: '/' and '/custom'.
+// includes the nav targets registered in config/router.ts: '/' and '/invite-users'.
 
 async function mountApplication(initialPath = '/') {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
       { path: '/', component: PlaceholderPage },
-      { path: '/custom', component: PlaceholderPage },
+      { path: '/invite-users', component: PlaceholderPage },
     ],
   });
   await router.push(initialPath);
@@ -89,11 +89,13 @@ describe('Application — nav shell', () => {
     // — either way it is a link, not a dead-end
   });
 
-  it('the header contains a "Custom Tables" RouterLink navigating to "/custom"', async () => {
+  it('the header nav links are exactly "Compliance Library" and "Invite Users"', async () => {
     const wrapper = await mountApplication();
     const links = wrapper.findAll('header a[href]');
-    const customLink = links.find((l) => l.text() === 'Custom Tables');
-    expect(customLink).toBeDefined();
+    expect(links.map((l) => l.text())).toEqual([
+      'Compliance Library',
+      'Invite Users',
+    ]);
   });
 
   it('the "Compliance Library" link is visually distinguished as active when on "/"', async () => {
@@ -107,12 +109,12 @@ describe('Application — nav shell', () => {
     expect(classes).toContain('text-primary');
   });
 
-  it('the "Custom Tables" link is visually distinguished as active when on "/custom"', async () => {
-    const wrapper = await mountApplication('/custom');
+  it('the "Invite Users" link is visually distinguished as active when on "/invite-users"', async () => {
+    const wrapper = await mountApplication('/invite-users');
     const links = wrapper.findAll('header a');
-    const customLink = links.find((l) => l.text() === 'Custom Tables');
-    expect(customLink).toBeDefined();
-    const classes = customLink.classes();
+    const inviteLink = links.find((l) => l.text() === 'Invite Users');
+    expect(inviteLink).toBeDefined();
+    const classes = inviteLink.classes();
     expect(classes).toContain('font-semibold');
     expect(classes).toContain('text-primary');
   });

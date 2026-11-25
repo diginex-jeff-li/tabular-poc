@@ -1,9 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 const ComplianceGridEditor = () => import('pages/ComplianceGridEditor');
-const CustomTableList = () => import('pages/CustomTableList');
-const CustomTableBuilder = () => import('pages/CustomTableBuilder');
-const CustomTableEditor = () => import('pages/CustomTableEditor');
 const BulkInviteUsers = () => import('pages/BulkInviteUsers');
 
 const router = createRouter({
@@ -18,18 +15,6 @@ const router = createRouter({
       path: '/next',
       component: ComplianceGridEditor,
       props: { engine: 'tanstack' },
-    },
-    {
-      path: '/custom',
-      component: CustomTableList,
-    },
-    {
-      path: '/custom/new',
-      component: CustomTableBuilder,
-    },
-    {
-      path: '/custom/:tableId',
-      component: CustomTableEditor,
     },
     {
       path: '/invite-users',

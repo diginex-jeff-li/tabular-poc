@@ -3,7 +3,7 @@ import UBadge from '@nuxt/ui/components/Badge.vue';
  * GridEditor — the shared grid engine's presentation.
  *
  * Owns the DOM only; all grid behaviour lives in `useGridEditor`. This
- * component knows nothing about compliance or custom tables — it receives
+ * component knows nothing about the compliance domain — it receives
  * Tabulator column definitions, initial rows, a save callback, a toolbar
  * title, a CSV export filename, and an optional `toolbarActions` render
  * prop for extra toolbar buttons.

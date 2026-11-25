@@ -1,11 +1,8 @@
 # sc-tabulator
 
-Tabulator grid editor prototype with three areas:
+Tabulator grid editor prototype with two areas:
 
 - **Compliance Library** (`/`) — admin grid for compliance reference data.
-- **Custom Tables** (`/custom`) — user-defined table structures (column name,
-  type, validation) persisted to localStorage, editable via the same grid
-  engine.
 - **Invite Users** (`/invite-users`) — SC15-706 bulk invite prototype: Excel
   template with built-in validation, import, paste, and AI agent tools via
   WebMCP.
@@ -30,7 +27,6 @@ pnpm dev              # run frontend dev server (port 3500)
 ```
 
 Open <http://localhost:3500> for the compliance library grid, or
-<http://localhost:3500/custom> to manage custom tables, or
 <http://localhost:3500/invite-users> for the bulk invite prototype.
 
 ## Commands
@@ -91,26 +87,6 @@ Vue 3.5 + Vite+ (Vite 8) + TSX (NOT SFCs) + Nuxt UI v4 + Tailwind v4.
 - Vite resolve aliases: `src`, `components`, `composables`, `config`, `pages`,
   `styles`, `utils`.
 
-#### Custom Tables
-
-Users define their own table structures and fill them with the same grid editor
-used by the compliance library. Tables persist to localStorage.
-
-- **Routes**: `/custom` (list), `/custom/new` (builder), `/custom/:tableId` (editor).
-- **Domain types**: `types/customTable.ts` — Zod schemas for `ColumnDef`,
-  `TableDefinition`, and `TableRow`.
-- **Runtime schema**: `utils/buildRuntimeSchema.ts` compiles `ColumnDef[]` into
-  a Zod object schema for validation at edit time.
-- **Column mapping**: `utils/definitionToColumns.ts` converts `ColumnDef[]` to
-  Tabulator column definitions.
-- **Persistence**: `utils/tableStorage.ts` — localStorage layer with corruption
-  tolerance. Wrapped by `composables/useTableDefinitions.ts` (VueUse
-  `useLocalStorage`).
-- **Shared grid engine**: `composables/useGridEditor.ts` (editing, paste, save,
-  dirty tracking, error sidebar, validation, sort/filter, export, clear) +
-  `components/GridEditor/GridEditor.tsx` (toolbar, status area, error sidebar).
-  Both compliance library and custom table editors use this engine.
-
 #### Bulk Invite + WebMCP (`/invite-users`)
 
 Prototype for SC15-706 Scenario A. Columns are assumed (the ticket defines no
@@ -160,9 +136,6 @@ Trying it with an agent (observed):
 | Path              | Page                   | Description                                |
 | ----------------- | ---------------------- | ------------------------------------------ |
 | `/`               | ComplianceGridEditor   | Compliance library reference data grid     |
-| `/custom`         | CustomTableList        | List all user-defined custom tables        |
-| `/custom/new`     | CustomTableBuilder     | Define a new table (columns, types, rules) |
-| `/custom/:tableId` | CustomTableEditor     | Edit rows of a custom table in the grid    |
 | `/invite-users`   | BulkInviteUsers        | SC15-706 bulk invite + WebMCP prototype    |
 
 ## Monorepo Conventions
@@ -198,19 +171,10 @@ selection — all in the free core.
 | File                                                      | Purpose                                               |
 | --------------------------------------------------------- | ----------------------------------------------------- |
 | `frontend/apps/admin/src/pages/ComplianceGridEditor.tsx`  | Compliance library grid editor page                   |
-| `frontend/apps/admin/src/pages/CustomTableList.tsx`       | Custom tables list page (`/custom`)                   |
-| `frontend/apps/admin/src/pages/CustomTableBuilder.tsx`    | New custom table builder page (`/custom/new`)         |
-| `frontend/apps/admin/src/pages/CustomTableEditor.tsx`     | Custom table grid editor page (`/custom/:tableId`)    |
 | `frontend/apps/admin/src/composables/useGridEditor.ts`   | Shared grid engine — editing, paste, save, dirty tracking, validation, sort/filter, export |
 | `frontend/apps/admin/src/components/GridEditor/GridEditor.tsx` | Grid presentation component — toolbar, status area, error sidebar |
 | `frontend/apps/admin/src/composables/useDirtyTracking.ts` | Track added/modified/deleted rows for diff-based save |
-| `frontend/apps/admin/src/composables/useTableDefinitions.ts` | VueUse `useLocalStorage` wrapper for table definitions |
-| `frontend/apps/admin/src/types/customTable.ts`            | Zod schemas for ColumnDef, TableDefinition, TableRow |
 | `frontend/apps/admin/src/utils/zodToTabulatorColumns.ts`  | Derive Tabulator column defs from Zod schema          |
-| `frontend/apps/admin/src/utils/buildRuntimeSchema.ts`     | Compile ColumnDef[] → Zod object schema for validation |
-| `frontend/apps/admin/src/utils/definitionToColumns.ts`    | Convert ColumnDef[] → Tabulator column definitions    |
-| `frontend/apps/admin/src/utils/tableStorage.ts`           | localStorage persistence layer with corruption tolerance |
-| `frontend/apps/admin/src/utils/columnValidation.ts`       | Shared validation helpers for builder + add-column modal |
 | `frontend/apps/admin/src/pages/BulkInviteUsers.tsx`       | Bulk invite page (`/invite-users`) — Excel, paste, agent tools |
 | `frontend/apps/admin/src/utils/validateInvites.ts`        | Send checks for the invite draft (also behind the agent `validate` tool) |
 | `frontend/apps/admin/src/utils/inviteDraft.ts`            | Invite draft module — who may change which rows, statuses, unmapped tables, Send gate |
