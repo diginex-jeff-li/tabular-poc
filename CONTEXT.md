@@ -23,3 +23,11 @@ _Avoid_: ambiguous, flagged
 **Agent proposed**:
 A needs-review row the agent has resolved; it blocks sending until a person confirms or edits it.
 _Avoid_: AI-fixed, auto-resolved
+
+**Unmapped table**:
+A pasted table held outside the invite draft because its columns could not be matched to the template's columns.
+_Avoid_: staging, raw paste
+
+**Column mapping**:
+Which pasted column fills which template column, or is ignored.
+_Avoid_: header map, field map

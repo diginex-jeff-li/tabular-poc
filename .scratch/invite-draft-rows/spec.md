@@ -34,3 +34,16 @@ In the Codex demo the agent could not fix 7 of 19 pasted lines: the agent tool s
 - The Codex demo lines that Q14/Q15 call unambiguous split; Tom (`Owner`) and Kim (`kim park@…`) need review.
 - An agent can write any text; `validate` and Send report what is wrong.
 - Send is blocked by any needs-review or agent-proposed row.
+
+## Pasted client tables (grilling round 5)
+
+19. **Header aliases**: each template column carries a short alias list (`INVITE_COLUMNS` in contracts); headers match ignoring case, spaces and punctuation. Paste and Excel import share it.
+20. **Hold a paste** when a header row leaves a required column (Email, First Name, Last Name, Role) unmatched, or a header-less paste is wider than the template. A header-less paste of at most 5 columns keeps the positional fill (template body copy, line parser). Extra columns are ignored and listed.
+21. **Held paste inserts nothing**: a mapping panel lists each pasted column with a sample and a template-column select (or Ignore); Apply is disabled while a required column is missing or a column is mapped twice.
+22. **Agent tools**: `read_pasted_table` (headers, ≤5 sample rows, mapping, problems) and `propose_column_mapping` (fills the panel, marked Agent proposed per column until the person changes it). Only a person clicks Apply.
+23. **Terms**: unmapped table, column mapping (`CONTEXT.md`).
+24. **Auto-match switch** on the page (default on). Off: every paste with a header row is held unmatched, so the agent demo works with a template-shaped table.
+
+### Scope note (pending owner decision)
+
+Decision 1 kept the change to the bulk invite page, but decisions 3 and 20 need the shared grid to expose hooks: `normalizeRow`, `onUserEdit` and `pasteParser` on `GridEditor`/`useGridEditor`. They are optional; the compliance and custom-table grids do not use them.

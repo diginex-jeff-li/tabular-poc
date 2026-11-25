@@ -7,6 +7,7 @@ import {
   UpdateRowsOutputSchema,
 } from './inviteAgentTools';
 import { validateInvites } from './validateInvites';
+import type { ColumnMapping, UnmappedTable } from './columnMapping';
 import type { GridApi } from 'composables/useGridEditor';
 
 // In-memory stand-in for the Tabulator-backed grid API.
@@ -53,17 +54,27 @@ function fakeGrid(): GridApi & { rows: Record<string, unknown>[] } {
 function setup() {
   const grid = fakeGrid();
   const agentProposed = new Set<string>();
+  const pasted = {
+    held: null as { table: UnmappedTable; mapping: ColumnMapping } | null,
+    proposed: null as ColumnMapping | null,
+  };
   const tools = createInviteTools({
     grid: () => grid,
     validate: (rows) =>
       validateInvites(rows, new Set(['jane.doe@acme.com']), agentProposed),
     agentProposed,
+    unmappedTable: {
+      current: () => pasted.held,
+      propose: (mapping) => {
+        pasted.proposed = mapping;
+      },
+    },
   });
   const call = (name: string, args: Record<string, unknown> = {}) =>
     tools.find((t) => t.name === name)!.execute(args) as Promise<
       Record<string, unknown>
     >;
-  return { grid, tools, call, agentProposed };
+  return { grid, tools, call, agentProposed, pasted };
 }
 
 const person = {
@@ -74,7 +85,7 @@ const person = {
 };
 
 describe('invite agent tools', () => {
-  it('offers no tool that sends invites', () => {
+  it('offers no tool that sends invites or applies a column mapping', () => {
     expect(setup().tools.map((t) => t.name)).toEqual([
       'get_invite_form',
       'read_rows',
@@ -82,7 +93,83 @@ describe('invite agent tools', () => {
       'update_rows',
       'delete_rows',
       'validate',
+      'read_pasted_table',
+      'propose_column_mapping',
     ]);
+  });
+
+  describe('unmapped table', () => {
+    const held = {
+      table: {
+        headers: ['Employee ID', 'Mail', 'Nom', 'Apellido', 'Access'],
+        rows: Array.from({ length: 8 }, (_, i) => [
+          `EMP-${i}`,
+          `p${i}@acme.com`,
+          'Ann',
+          'Lee',
+          'Viewer',
+        ]),
+      },
+      mapping: [null, null, null, null, null] as ColumnMapping,
+    };
+
+    it('read_pasted_table reports nothing pending when no paste is held', async () => {
+      expect(await setup().call('read_pasted_table')).toEqual({
+        pending: false,
+      });
+    });
+
+    it('read_pasted_table shows headers, at most five sample rows and what is missing', async () => {
+      const { call, pasted } = setup();
+      pasted.held = held;
+      const result = await call('read_pasted_table');
+
+      expect(result).toMatchObject({
+        pending: true,
+        headers: held.table.headers,
+        rowCount: 8,
+        mapping: [null, null, null, null, null],
+        problems: expect.arrayContaining(['No column for Email']),
+      });
+      expect(result.sampleRows).toHaveLength(5);
+      expect(result.templateColumns).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            field: 'lastName',
+            aliases: expect.arrayContaining(['surname']),
+          }),
+        ]),
+      );
+    });
+
+    it('propose_column_mapping hands the mapping to the page and inserts nothing', async () => {
+      const { call, pasted, grid } = setup();
+      pasted.held = held;
+      const mapping = [null, 'email', 'firstName', 'lastName', 'role'];
+
+      const result = await call('propose_column_mapping', { mapping });
+
+      expect(pasted.proposed).toEqual(mapping);
+      expect(result).toEqual({ mapping, problems: [], applied: false });
+      expect(grid.rows).toHaveLength(0);
+    });
+
+    it('propose_column_mapping rejects a mapping that does not fit the held table', async () => {
+      const { call, pasted } = setup();
+      await expect(
+        call('propose_column_mapping', { mapping: [] }),
+      ).rejects.toThrow(/no pasted table/i);
+      pasted.held = held;
+      await expect(
+        call('propose_column_mapping', { mapping: ['email'] }),
+      ).rejects.toThrow(/5 columns/);
+      await expect(
+        call('propose_column_mapping', {
+          mapping: [null, 'mail', null, null, null],
+        }),
+      ).rejects.toThrow(/unknown template column "mail"/i);
+      expect(pasted.proposed).toBeNull();
+    });
   });
 
   it('add_rows accepts draft rows: any text per column, no extra keys, rules as hints', () => {

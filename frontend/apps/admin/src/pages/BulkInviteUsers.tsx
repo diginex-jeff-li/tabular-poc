@@ -20,9 +20,16 @@
  */
 import UAlert from '@nuxt/ui/components/Alert.vue';
 import UButton from '@nuxt/ui/components/Button.vue';
+import ColumnMappingPanel from 'components/ColumnMappingPanel';
 import GridEditor from 'components/GridEditor';
 import { useAgentTools } from 'composables/useAgentTools';
-import { InviteRowSchema } from 'contracts';
+import { InviteRowSchema, type InviteField } from 'contracts';
+import {
+  applyColumnMapping,
+  planPaste,
+  type ColumnMapping,
+  type UnmappedTable,
+} from 'utils/columnMapping';
 import { createInviteTools } from 'utils/inviteAgentTools';
 import {
   inviteRowStatus,
@@ -138,10 +145,31 @@ export default defineComponent({
         revalidate();
       },
     );
-    useAgentTools(
-      'scInvite',
-      createInviteTools({ grid: () => grid, validate, agentProposed }),
-    );
+    // A paste whose columns could not be matched waits here for a mapping.
+    const autoMatch = ref(true);
+    const unmapped = ref<{
+      table: UnmappedTable;
+      mapping: ColumnMapping;
+      agentColumns: number[];
+    } | null>(null);
+
+    const tools = createInviteTools({
+      grid: () => grid,
+      validate,
+      agentProposed,
+      unmappedTable: {
+        current: () => unmapped.value,
+        propose: (mapping) => {
+          if (!unmapped.value) return;
+          unmapped.value = {
+            ...unmapped.value,
+            mapping,
+            agentColumns: mapping.map((_, i) => i),
+          };
+        },
+      },
+    });
+    useAgentTools('scInvite', tools);
     onMounted(() => {
       webmcp.value = Boolean(document.modelContext ?? navigator.modelContext);
     });
@@ -150,6 +178,51 @@ export default defineComponent({
     function onUserEdit(rowIds: string[]) {
       for (const id of rowIds) agentProposed.delete(id);
       revalidate();
+    }
+
+    function pasteParser(
+      clipboard: string,
+      positional: () => Record<string, unknown>[],
+    ): Record<string, unknown>[] {
+      const plan = planPaste(clipboard, { autoMatch: autoMatch.value });
+      if (plan.kind === 'positional') return positional();
+      if (plan.kind === 'insert') {
+        if (plan.ignored.length > 0) {
+          notice.value = `Pasted by header name. Ignored columns: ${plan.ignored.join(', ')}.`;
+        }
+        return plan.rows;
+      }
+      unmapped.value = {
+        table: plan.table,
+        mapping: plan.mapping,
+        agentColumns: [],
+      };
+      return [];
+    }
+
+    function setMappingColumn(column: number, field: InviteField | null) {
+      if (!unmapped.value) return;
+      const mapping = [...unmapped.value.mapping];
+      mapping[column] = field;
+      unmapped.value = {
+        ...unmapped.value,
+        mapping,
+        agentColumns: unmapped.value.agentColumns.filter((c) => c !== column),
+      };
+    }
+
+    async function applyMapping() {
+      if (!unmapped.value || !grid) return;
+      const { rows, ignored } = applyColumnMapping(
+        unmapped.value.table,
+        unmapped.value.mapping,
+      );
+      unmapped.value = null;
+      await grid.addRows(rows);
+      revalidate();
+      notice.value =
+        `Added ${rows.length} pasted row(s); ${lastErrors.length} error(s) to fix.` +
+        (ignored.length ? ` Ignored columns: ${ignored.join(', ')}.` : '');
     }
 
     async function simulateSend(): Promise<GridSaveResponse> {
@@ -219,6 +292,16 @@ export default defineComponent({
         data-testid="invite-import"
         onChange={importFile}
       />,
+      <label class="ml-2 flex items-center gap-1 text-xs text-muted">
+        <input
+          type="checkbox"
+          checked={autoMatch.value}
+          onChange={(e: Event) => {
+            autoMatch.value = (e.target as HTMLInputElement).checked;
+          }}
+        />
+        Auto-match headers
+      </label>,
     ];
 
     return (): VNode => (
@@ -229,10 +312,10 @@ export default defineComponent({
             variant="soft"
             title={
               webmcp.value
-                ? 'WebMCP: 6 agent tools registered on this page'
+                ? `WebMCP: ${tools.length} agent tools registered on this page`
                 : 'WebMCP not available in this browser — agent tools only via window.scInvite'
             }
-            description="Agents can add, edit, delete and validate rows, and split lines that need review — a person confirms each of those. Only you can click Send invites. Existing users for testing: jane.doe@acme.com, tom.lee@acme.com, admin@acme.com."
+            description="Agents can add, edit, delete and validate rows, split lines that need review, and propose how a pasted table's columns map — a person confirms each of those. Only you can click Send invites. Existing users for testing: jane.doe@acme.com, tom.lee@acme.com, admin@acme.com."
           />
           {notice.value && (
             <UAlert
@@ -245,6 +328,18 @@ export default defineComponent({
               }}
             />
           )}
+          {unmapped.value && (
+            <ColumnMappingPanel
+              table={unmapped.value.table}
+              mapping={unmapped.value.mapping}
+              agentColumns={unmapped.value.agentColumns}
+              onChange={setMappingColumn}
+              onApply={applyMapping}
+              onDiscard={() => {
+                unmapped.value = null;
+              }}
+            />
+          )}
         </div>
         <div class="invite-grid min-h-0 flex-1">
           <GridEditor
@@ -253,6 +348,7 @@ export default defineComponent({
             onSave={simulateSend}
             normalizeRow={normalizeInviteRow}
             onUserEdit={onUserEdit}
+            pasteParser={pasteParser}
             onReady={(api: GridApi) => {
               grid = api;
             }}

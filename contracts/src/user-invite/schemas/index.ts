@@ -40,6 +40,59 @@ export function parseInviteGroups(value: unknown): string[] {
     .filter(Boolean);
 }
 
+/**
+ * The template's columns in order. `aliases` are other header names client
+ * spreadsheets use for the same column; paste and Excel import match headers
+ * against `header` and `aliases` ignoring case, spaces and punctuation.
+ */
+export const INVITE_COLUMNS = [
+  {
+    field: 'email',
+    header: 'Email',
+    required: true,
+    aliases: ['e-mail', 'email address', 'work email'],
+  },
+  {
+    field: 'firstName',
+    header: 'First Name',
+    required: true,
+    aliases: ['given name', 'forename'],
+  },
+  {
+    field: 'lastName',
+    header: 'Last Name',
+    required: true,
+    aliases: ['surname', 'family name'],
+  },
+  {
+    field: 'role',
+    header: 'Role',
+    required: true,
+    aliases: ['access level', 'permission'],
+  },
+  {
+    field: 'groups',
+    header: 'Groups',
+    required: false,
+    aliases: ['group', 'teams'],
+  },
+] as const;
+
+export type InviteField = (typeof INVITE_COLUMNS)[number]['field'];
+
+const headerKey = (header: string) =>
+  header.toLowerCase().replace(/[^a-z0-9]/g, '');
+const FIELD_BY_HEADER_KEY = new Map<string, InviteField>(
+  INVITE_COLUMNS.flatMap((c) =>
+    [c.header, ...c.aliases].map((h) => [headerKey(h), c.field] as const),
+  ),
+);
+
+/** The template column a client header names, or null. */
+export function matchInviteHeader(header: string): InviteField | null {
+  return FIELD_BY_HEADER_KEY.get(headerKey(header)) ?? null;
+}
+
 export const InviteRowSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),

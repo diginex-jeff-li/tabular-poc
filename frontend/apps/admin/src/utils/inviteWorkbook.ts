@@ -1,4 +1,9 @@
-import { INVITE_GROUPS, INVITE_ROLES } from 'contracts';
+import {
+  INVITE_COLUMNS,
+  INVITE_GROUPS,
+  INVITE_ROLES,
+  matchInviteHeader,
+} from 'contracts';
 import ExcelJS from 'exceljs';
 
 /**
@@ -17,14 +22,6 @@ import ExcelJS from 'exceljs';
  *
  * exceljs ships in the lazily loaded page chunk, not the main bundle.
  */
-const INVITE_COLUMNS = [
-  { field: 'email', header: 'Email' },
-  { field: 'firstName', header: 'First Name' },
-  { field: 'lastName', header: 'Last Name' },
-  { field: 'role', header: 'Role' },
-  { field: 'groups', header: 'Groups' },
-] as const;
-
 // Rows that carry validation in the template.
 const TEMPLATE_ROWS = 500;
 
@@ -146,14 +143,11 @@ export async function parseInviteWorkbook(
   const sheet = workbook.worksheets[0];
   if (!sheet) return { rows: [], ignoredHeaders: [] };
 
-  const fieldByHeader = new Map<string, string>(
-    INVITE_COLUMNS.map((c) => [c.header.toLowerCase(), c.field]),
-  );
   const fieldByColumn = new Map<number, string>();
   const ignoredHeaders: string[] = [];
   sheet.getRow(1).eachCell((cell, col) => {
     const header = cell.text.trim();
-    const field = fieldByHeader.get(header.toLowerCase());
+    const field = matchInviteHeader(header);
     if (field) fieldByColumn.set(col, field);
     else if (header) ignoredHeaders.push(header);
   });

@@ -1,4 +1,14 @@
-import { INVITE_GROUPS, INVITE_ROLES, InviteDraftRowSchema } from 'contracts';
+import {
+  INVITE_COLUMNS,
+  INVITE_GROUPS,
+  INVITE_ROLES,
+  InviteDraftRowSchema,
+} from 'contracts';
+import {
+  mappingProblems,
+  type ColumnMapping,
+  type UnmappedTable,
+} from 'utils/columnMapping';
 import {
   draftFields,
   INVITE_ROW_STATUSES,
@@ -24,12 +34,14 @@ import type { GridApi, GridSaveError } from 'composables/useGridEditor';
  * tools, which all return row ids an agent chains on.
  *
  * Safety rules:
- * - Tools only edit the draft. There is no tool that sends invites or
- *   confirms a row — both stay human clicks.
+ * - Tools only edit the draft. There is no tool that sends invites,
+ *   confirms a row or applies a column mapping — those stay human clicks.
  * - Resolving a needs-review row through `update_rows` marks it agent
  *   proposed, which blocks Send until a person confirms or edits it.
  * - `delete_rows` refuses needs-review rows, so the agent cannot swap one
  *   for a clean copy and hide the original.
+ * - `propose_column_mapping` only fills the page's mapping panel; a person
+ *   applies it, and only then do the pasted rows enter the draft.
  */
 export interface AgentTool {
   name: string;
@@ -46,6 +58,83 @@ interface InviteToolDeps {
   validate: (rows: Record<string, unknown>[]) => GridSaveError[];
   /** Row ids the agent resolved from needs review; owned by the page. */
   agentProposed: Set<string>;
+  /** The page's held paste, if any (see CONTEXT.md "Unmapped table"). */
+  unmappedTable: {
+    current(): { table: UnmappedTable; mapping: ColumnMapping } | null;
+    propose(mapping: ColumnMapping): void;
+  };
+}
+
+const SAMPLE_ROWS = 5;
+const FIELDS = INVITE_COLUMNS.map((c) => c.field);
+
+function createUnmappedTableTools(
+  unmappedTable: InviteToolDeps['unmappedTable'],
+): AgentTool[] {
+  const held = () => {
+    const current = unmappedTable.current();
+    if (!current)
+      throw new Error('There is no pasted table waiting for a column mapping.');
+    return current;
+  };
+  return [
+    {
+      name: 'read_pasted_table',
+      description:
+        'When the user pasted a table whose columns did not match the template, return its headers, up to 5 sample rows, the current column mapping and what is still missing. Nothing is in the draft until the user applies a mapping.',
+      inputSchema: jsonSchema(NoInputSchema),
+      annotations: { readOnlyHint: true },
+      execute: async () => {
+        const current = unmappedTable.current();
+        if (!current) return { pending: false };
+        return {
+          pending: true,
+          headers: current.table.headers,
+          sampleRows: current.table.rows.slice(0, SAMPLE_ROWS),
+          rowCount: current.table.rows.length,
+          mapping: current.mapping,
+          problems: mappingProblems(current.mapping),
+          templateColumns: INVITE_COLUMNS,
+        };
+      },
+    },
+    {
+      name: 'propose_column_mapping',
+      description:
+        'Propose which template column each pasted column fills: one entry per pasted column, in order, a template field or null to ignore the column. The user reviews and applies it; this tool does not add rows.',
+      inputSchema: jsonSchema(
+        z
+          .object({
+            mapping: z.array(
+              z.enum(FIELDS as [string, ...string[]]).nullable(),
+            ),
+          })
+          .strict(),
+      ),
+      annotations: { readOnlyHint: false },
+      execute: async (args) => {
+        const { table } = held();
+        const mapping = requireArray(args, 'mapping');
+        if (mapping.length !== table.headers.length) {
+          throw new Error(
+            `The pasted table has ${table.headers.length} columns; send one entry per column.`,
+          );
+        }
+        const unknown = mapping.find(
+          (f) => f !== null && !(FIELDS as unknown[]).includes(f),
+        );
+        if (unknown !== undefined) {
+          throw new Error(`Unknown template column "${String(unknown)}".`);
+        }
+        unmappedTable.propose(mapping as ColumnMapping);
+        return {
+          mapping,
+          problems: mappingProblems(mapping as ColumnMapping),
+          applied: false,
+        };
+      },
+    },
+  ];
 }
 
 // ── Input: a draft row minus the grid-owned id ──
@@ -125,6 +214,7 @@ export function createInviteTools({
   grid,
   validate,
   agentProposed,
+  unmappedTable,
 }: InviteToolDeps): AgentTool[] {
   const api = (): GridApi => {
     const g = grid();
@@ -288,5 +378,6 @@ export function createInviteTools({
       annotations: { readOnlyHint: true },
       execute: async () => check(),
     },
+    ...createUnmappedTableTools(unmappedTable),
   ];
 }

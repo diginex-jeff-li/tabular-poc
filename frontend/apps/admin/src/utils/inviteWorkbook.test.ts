@@ -54,10 +54,10 @@ describe('buildInviteWorkbook', () => {
 });
 
 describe('parseInviteWorkbook', () => {
-  it('maps columns by header text, skips blank rows and reports unknown headers', async () => {
+  it('maps columns by header name or alias, skips blank rows and reports unknown headers', async () => {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Anything');
-    sheet.addRow(['role', 'Notes', 'EMAIL', 'First Name', 'Last Name']);
+    sheet.addRow(['role', 'Notes', 'E-mail', 'Given name', 'Surname']);
     sheet.addRow(['Viewer', 'ignore me', 'a@acme.com', 'Ann', 'Lee']);
     sheet.addRow([]);
     sheet.addRow(['', '', 'b@acme.com', '', '']);

@@ -141,6 +141,16 @@ export default defineComponent({
       type: Function as PropType<(rowIds: string[]) => void>,
       default: undefined,
     },
+    /** Replaces the positional paste parser (see useGridEditor). */
+    pasteParser: {
+      type: Function as PropType<
+        (
+          clipboard: string,
+          positional: () => Record<string, unknown>[],
+        ) => Record<string, unknown>[]
+      >,
+      default: undefined,
+    },
   },
   setup(props) {
     const tableEl = ref<HTMLDivElement | null>(null);
@@ -155,6 +165,7 @@ export default defineComponent({
       exportFilename: props.exportFilename,
       normalizeRow: props.normalizeRow,
       onUserEdit: props.onUserEdit,
+      pasteParser: props.pasteParser,
     });
     const {
       rowCount,

@@ -86,6 +86,14 @@ interface UseGridEditorOptions {
   normalizeRow?: (row: Record<string, unknown>) => Record<string, unknown>;
   /** Called with row ids after a person adds, pastes, edits or deletes rows. */
   onUserEdit?: (rowIds: string[]) => void;
+  /**
+   * Replaces the positional paste parser; call `positional()` for the
+   * default. Return [] to insert nothing (e.g. to hold the paste elsewhere).
+   */
+  pasteParser?: (
+    clipboard: string,
+    positional: () => Record<string, unknown>[],
+  ) => Record<string, unknown>[];
 }
 
 export function useGridEditor(opts: UseGridEditorOptions) {
@@ -131,8 +139,14 @@ export function useGridEditor(opts: UseGridEditorOptions) {
         reactiveData: true,
         columns: columns.value,
         clipboard: true,
-        clipboardPasteParser: (clipboard: string) =>
-          parseClipboardPaste(clipboard, columns.value).map(normalize),
+        clipboardPasteParser: (clipboard: string) => {
+          const positional = () =>
+            parseClipboardPaste(clipboard, columns.value);
+          const rows = opts.pasteParser
+            ? opts.pasteParser(clipboard, positional)
+            : positional();
+          return rows.map(normalize);
+        },
         clipboardPasteAction: 'insert',
         clipboardCopyConfig: { columnHeaders: false },
         validationMode: 'highlight',
