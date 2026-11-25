@@ -55,6 +55,16 @@ export interface GridCellContext {
 
 type Finish = (end: EditEnd) => void;
 
+// Edit in place, as in a spreadsheet: the editor fills the cell with the
+// cell's own padding and font, no border or rounding; the cell's active
+// outline is the only frame. Hoisted: a new object each render is a new prop.
+const IN_CELL_UI = {
+  root: 'h-full w-full',
+  // `md:text-sm` overrides the size preset's `md:text-xs`; `text-muted` is
+  // the cell's own text colour, so opening the editor changes nothing visible.
+  base: 'h-full rounded-none px-3 py-0 text-sm md:text-sm text-muted',
+} as const;
+
 const TextEditor = defineComponent({
   name: 'TextEditor',
   props: {
@@ -95,7 +105,9 @@ const TextEditor = defineComponent({
       <UInput
         ref={input}
         size="xs"
-        class="w-full"
+        variant="none"
+        ui={IN_CELL_UI}
+        class="h-full w-full"
         aria-label="Edit cell"
         modelValue={draft.value}
         onUpdate:modelValue={(value: string | number) => {
@@ -128,7 +140,9 @@ const ChoiceEditor = defineComponent({
     return (): VNode => (
       <USelectMenu
         size="xs"
-        class="w-full"
+        variant="none"
+        ui={IN_CELL_UI}
+        class="h-full w-full"
         aria-label="Edit cell"
         defaultOpen
         items={[...props.options]}
@@ -156,10 +170,15 @@ function cellClass(cell: {
   invalid: boolean;
   saveError: boolean;
   outlined: boolean;
+  editing: boolean;
 }): Array<string | false> {
   return [
-    'flex select-none items-center border-b border-default px-3',
-    cell.saveError ? 'bg-error/10' : cell.selected && 'bg-primary/10',
+    'flex select-none items-center border-b border-default',
+    // An open editor fills the cell and supplies the same padding itself.
+    !cell.editing && 'px-3',
+    cell.saveError
+      ? 'bg-error/10'
+      : cell.selected && !cell.editing && 'bg-primary/10',
     (cell.invalid || cell.saveError) && 'ring-2 ring-inset ring-error',
     cell.outlined
       ? 'outline-3 -outline-offset-3 outline-error'
@@ -215,7 +234,7 @@ export default defineComponent({
       const onFinish: Finish = (end) => props.ctx.endEdit(pos(), end);
       const column = props.column;
       return (
-        <div data-grid-editor class="flex w-full">
+        <div data-grid-editor class="flex h-full w-full">
           {'options' in column ? (
             <ChoiceEditor
               options={column.options}
@@ -265,6 +284,7 @@ export default defineComponent({
           invalid: message.value !== null,
           saveError: saveError.value,
           outlined: outlined.value,
+          editing: editing.value,
         })}
         style={{ height: `${ROW_HEIGHT}px` }}
         onPointerdown={onPointerdown}
