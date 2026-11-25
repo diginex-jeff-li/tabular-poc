@@ -1,5 +1,6 @@
 import UApp from '@nuxt/ui/components/App.vue';
 import { defineComponent } from 'vue';
+import { RouterLink, RouterView } from 'vue-router';
 import type { VNode } from 'vue';
 
 /**
