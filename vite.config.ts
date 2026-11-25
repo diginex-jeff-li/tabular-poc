@@ -99,7 +99,6 @@ export default defineConfig({
       'typescript/no-unsafe-argument': 'off', // 3
       'jsx-a11y/prefer-tag-over-role': 'off', // 2
       'react/no-unescaped-entities': 'off', // 2
-      'jsx-a11y/click-events-have-key-events': 'off', // 2
     },
     // The preset's TypeScript override re-enables these; keep the baseline.
     overrides: [
