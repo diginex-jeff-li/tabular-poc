@@ -57,6 +57,7 @@
   "devDependencies": {
     "@swc/cli": "0.8.2",
     "@swc/core": "1.16.22",
+    "@types/node": "26.6.6",
     "typescript": "7.0.2",
     "vite-plus": "1.8.0"
   }
