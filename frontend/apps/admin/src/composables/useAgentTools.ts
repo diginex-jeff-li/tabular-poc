@@ -47,7 +47,15 @@ export function useAgentTools(globalName: string, tools: Array<AgentTool>) {
 
     Reflect.set(window, globalName, {
       webmcp: Boolean(modelContext),
-      tools: tools.map(({ execute: _execute, ...meta }) => meta),
+      tools: tools.map(
+        ({ name, description, inputSchema, outputSchema, annotations }) => ({
+          name,
+          description,
+          inputSchema,
+          outputSchema,
+          annotations,
+        }),
+      ),
       call: (name: string, args: Record<string, unknown> = {}) => {
         const tool = tools.find((t) => t.name === name);
         if (!tool) {

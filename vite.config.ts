@@ -113,7 +113,6 @@ export default defineConfig({
       'quality/no-array-filter-map': 'off', // 1
       'unicorn/prefer-node-protocol': 'off', // 1
       'typescript/use-unknown-in-catch-callback-variable': 'off', // 1
-      'typescript/unbound-method': 'off', // 1
     },
     // The preset's TypeScript override re-enables these; keep the baseline.
     overrides: [
