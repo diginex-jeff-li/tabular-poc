@@ -12,7 +12,7 @@ import type { ComputedRef, Ref, ShallowRef } from 'vue';
 export type Row = Record<string, unknown> & { id: string };
 
 /** Ticked rows by row id (TanStack's `RowSelectionState` shape). */
-export type RowSelection = Record<string, boolean>;
+type RowSelection = Record<string, boolean>;
 
 /** Height of every body row in px, border included. Editors must fit inside it. */
 export const ROW_HEIGHT = 36;

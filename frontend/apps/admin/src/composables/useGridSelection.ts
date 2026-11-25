@@ -14,14 +14,14 @@ import type { ComputedRef, Ref, ShallowRef } from 'vue';
  * The cell being edited. `seed` is the character typed to start editing,
  * which replaces the value (as in Excel); null starts from the value.
  */
-export type Editing = { pos: CellPos; seed: string | null };
+type Editing = { pos: CellPos; seed: string | null };
 
 /**
  * Everything a person is doing in the grid, by row and column id. The active
  * cell is the range's anchor; one selected cell is a range whose anchor and
  * focus are the same cell.
  */
-export type GridInteraction = { range: Range | null; editing: Editing | null };
+type GridInteraction = { range: Range | null; editing: Editing | null };
 
 export interface GridSelection {
   state: Readonly<ShallowRef<GridInteraction>>;

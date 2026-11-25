@@ -16,7 +16,7 @@ type HeaderContext = Parameters<
   Extract<NonNullable<TableColumn<Row>['header']>, (...args: never) => unknown>
 >[0];
 /** The TanStack column behind a header. */
-export type TableColumnApi = HeaderContext['column'];
+type TableColumnApi = HeaderContext['column'];
 
 const SORT_ICONS = {
   asc: 'i-lucide-arrow-up-narrow-wide',
