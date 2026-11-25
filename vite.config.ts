@@ -92,7 +92,19 @@ export default defineConfig({
       'unicorn/prefer-string-replace-all': 'off', // 6
       'vitest/no-conditional-expect': 'off', // 5
       'jsx-a11y/label-has-associated-control': 'off', // 5
-      'typescript/no-misused-promises': 'off', // 5
     },
+    overrides: [
+      {
+        // Preset README: async event handlers in JSX attributes are fine
+        // (Vue ignores the returned promise); keep every other check.
+        files: ['**/*.tsx'],
+        rules: {
+          'typescript/no-misused-promises': [
+            'error',
+            { checksVoidReturn: { attributes: false } },
+          ],
+        },
+      },
+    ],
   },
 });
