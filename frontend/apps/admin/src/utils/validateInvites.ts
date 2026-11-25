@@ -35,7 +35,9 @@ export function validateInvites(
     const rowId = String(raw.id ?? '');
     if (needsReview(raw)) {
       const field =
-        Object.keys(raw).find((k) => k !== 'id' && raw[k] != null) ?? 'email';
+        Object.keys(raw).find(
+          (k) => k !== 'id' && raw[k] !== null && raw[k] !== undefined,
+        ) ?? 'email';
       errors.push({
         row,
         rowId,
