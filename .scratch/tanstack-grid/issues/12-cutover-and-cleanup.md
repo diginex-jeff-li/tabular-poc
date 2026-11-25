@@ -149,3 +149,13 @@ Fresh loads of all 4 routes: 0 errors, 0 warnings. During the run, only my own l
 - Bug 4 (Tabulator compliance CSV empty first column): fixed in `08de335` (`download: false` on the checkbox column).
 - Bug 3 (Tabulator empty-state overlay doesn't focus the grid, so Cmd+V does nothing): predates this work and is on the comparison-only engine. Left as a recorded difference.
 - `zodToTabulatorColumns.ts` (type-only Tabulator import) still loads on the TanStack routes, and the shared production chunk is named after it. No Tabulator runtime or CSS loads there.
+
+## Lead: Tabulator split and agent-tool rerun
+
+- The Tabulator column builders now load only with the Tabulator grid: `components/TabulatorGrids/{Compliance,Invite}TabulatorGrid.tsx` are the only importers of `GridEditor`, `buildComplianceColumns` and `zodToTabulatorColumns`, and the pages reach them through `defineAsyncComponent`.
+- Network check (dev server, fresh tab per route, `performance` resource entries, repo path removed before matching): `/` and `/invite-users` load no module or stylesheet whose path contains `tabulator` or `GridEditor`. The only match was the page file `ComplianceGridEditor.tsx` itself. `/tabulator` and `/tabulator/invite-users` load the wrapper, `GridEditor`, `useGridEditor`, `zodToTabulatorColumns`, `tabulator-tables.js` and `tabulator_modern.min.css`.
+- Production build: the TanStack page chunks don't import the Tabulator chunk. It is reached only by dynamic import. Rolldown names that chunk `zodToTabulatorColumns-*`, and `index-*.js` contains `tabulator` only as nav text and route paths.
+- Agent tools, rerun after the route-key fix. Real nav clicks `/invite-users` → `/tabulator/invite-users` → `/invite-users`, with a scripted `document.modelContext` stub that records register and abort:
+  - The registration log reads `8 registered, 8 aborted, 8 registered, 8 aborted, 8 registered`. Each page unregisters all 8 tools before the next page registers.
+  - 8 tools are live on every route.
+  - A scripted `scInvite.call('add_rows')` row appeared in the visible grid each time. The other route's row was not there.
