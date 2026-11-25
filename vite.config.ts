@@ -110,7 +110,6 @@ export default defineConfig({
       'unicorn/prefer-array-some': 'off', // 1
       'unicorn/numeric-separators-style': 'off', // 1
       eqeqeq: 'off', // 1
-      'quality/no-array-filter-map': 'off', // 1
     },
     // The preset's TypeScript override re-enables these; keep the baseline.
     overrides: [

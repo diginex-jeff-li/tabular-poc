@@ -111,6 +111,7 @@ export function createInviteDraft(
   ): Promise<{ updated: Array<string>; missing: Array<string> }> {
     const wasReview = new Set(
       patches
+        .values()
         .filter((p) => {
           const row = rowById(p.id);
           return row !== undefined && needsReview(row);
