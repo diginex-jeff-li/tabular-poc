@@ -40,45 +40,60 @@ export function parseInviteGroups(value: unknown): string[] {
     .filter(Boolean);
 }
 
+/** First and last name length; the Excel template reads it too. */
+export const INVITE_NAME_LENGTH = { min: 1, max: 100 } as const;
+
 /**
- * The template's columns in order. `aliases` are other header names client
- * spreadsheets use for the same column; paste and Excel import match headers
- * against `header` and `aliases` ignoring case, spaces and punctuation.
+ * The invite template (CONTEXT.md): one ready row. Its keys give the
+ * template's columns and their order; everything below is derived from it.
  */
-export const INVITE_COLUMNS = [
-  {
-    field: 'email',
+export const InviteRowSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  firstName: z.string().min(INVITE_NAME_LENGTH.min).max(INVITE_NAME_LENGTH.max),
+  lastName: z.string().min(INVITE_NAME_LENGTH.min).max(INVITE_NAME_LENGTH.max),
+  role: InviteRoleEnum,
+  groups: z.string().nullable(),
+});
+
+export type InviteRowType = z.infer<typeof InviteRowSchema>;
+
+const { id: _id, ...INVITE_FIELD_SHAPE } = InviteRowSchema.shape;
+export type InviteField = keyof typeof INVITE_FIELD_SHAPE;
+
+/** The template's columns, in order. */
+export const INVITE_FIELDS = Object.keys(INVITE_FIELD_SHAPE) as InviteField[];
+
+/**
+ * What the schema cannot hold: each column's header, and the other header
+ * names client spreadsheets use for it. Paste and Excel import match headers
+ * against both, ignoring case, spaces and punctuation. A missing or extra
+ * column fails type-checking.
+ */
+const INVITE_COLUMN_META = {
+  email: {
     header: 'Email',
-    required: true,
     aliases: ['e-mail', 'email address', 'work email'],
   },
-  {
-    field: 'firstName',
-    header: 'First Name',
-    required: true,
-    aliases: ['given name', 'forename'],
-  },
-  {
-    field: 'lastName',
-    header: 'Last Name',
-    required: true,
-    aliases: ['surname', 'family name'],
-  },
-  {
-    field: 'role',
-    header: 'Role',
-    required: true,
-    aliases: ['access level', 'permission'],
-  },
-  {
-    field: 'groups',
-    header: 'Groups',
-    required: false,
-    aliases: ['group', 'teams'],
-  },
-] as const;
+  firstName: { header: 'First Name', aliases: ['given name', 'forename'] },
+  lastName: { header: 'Last Name', aliases: ['surname', 'family name'] },
+  role: { header: 'Role', aliases: ['access level', 'permission'] },
+  groups: { header: 'Groups', aliases: ['group', 'teams'] },
+} as const satisfies Record<
+  InviteField,
+  { header: string; aliases: readonly string[] }
+>;
 
-export type InviteField = (typeof INVITE_COLUMNS)[number]['field'];
+export const INVITE_COLUMNS = INVITE_FIELDS.map((field) => ({
+  field,
+  ...INVITE_COLUMN_META[field],
+  required: !INVITE_FIELD_SHAPE[field].isNullable(),
+}));
+
+/** Column titles by field, for the grid. */
+export const INVITE_TITLES = Object.fromEntries(
+  INVITE_COLUMNS.map((c) => [c.field, c.header]),
+) as Record<InviteField, string>;
 
 const headerKey = (header: string) =>
   header.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -93,29 +108,17 @@ export function matchInviteHeader(header: string): InviteField | null {
   return FIELD_BY_HEADER_KEY.get(headerKey(header)) ?? null;
 }
 
-export const InviteRowSchema = z.object({
-  id: z.string().uuid(),
-  email: z.string().email(),
-  firstName: z.string().min(1).max(100),
-  lastName: z.string().min(1).max(100),
-  role: InviteRoleEnum,
-  groups: z.string().nullable(),
-});
-
-export type InviteRowType = z.infer<typeof InviteRowSchema>;
-
 /**
  * A row of the invite draft: the template's columns, any text in each.
+ * Derived from `InviteRowSchema`, so it cannot drift from the template.
  * Agent tools and grid writes accept this; only Send enforces
  * `InviteRowSchema` (docs/adr/0001-draft-rows-vs-ready-rows.md).
  */
 export const InviteDraftRowSchema = z
   .object({
     id: z.string(),
-    email: z.string().nullable(),
-    firstName: z.string().nullable(),
-    lastName: z.string().nullable(),
-    role: z.string().nullable(),
-    groups: z.string().nullable(),
+    ...(Object.fromEntries(
+      INVITE_FIELDS.map((field) => [field, z.string().nullable()]),
+    ) as Record<InviteField, z.ZodNullable<z.ZodString>>),
   })
   .strict();

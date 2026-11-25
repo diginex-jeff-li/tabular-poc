@@ -6,10 +6,29 @@ describe('zodToTabulatorColumns', () => {
   it('derives column definitions from ComplianceLibrarySchema', () => {
     // Replicate the schema inline so the test is self-contained
     const CategoryCodeEnum = z.enum([
-      'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
-      'K', 'L', 'M', 'N', 'O', 'P', 'Q',
+      'A',
+      'B',
+      'C',
+      'D',
+      'E',
+      'F',
+      'G',
+      'H',
+      'I',
+      'J',
+      'K',
+      'L',
+      'M',
+      'N',
+      'O',
+      'P',
+      'Q',
     ]);
-    const ComplianceCategoryEnum = z.enum(['Governance', 'Social', 'Environment']);
+    const ComplianceCategoryEnum = z.enum([
+      'Governance',
+      'Social',
+      'Environment',
+    ]);
     const TopicEnum = z.enum([
       'Key Compliance Requirements',
       'Zero Tolerance Policy',
@@ -27,7 +46,13 @@ describe('zodToTabulatorColumns', () => {
       'Community & Environment',
     ]);
     const RiskLevelEnum = z.enum(['High', 'Medium', 'Low']);
-    const ClosureTimingEnum = z.enum(['7', '30', '60', '90', 'Next assessment']);
+    const ClosureTimingEnum = z.enum([
+      '7',
+      '30',
+      '60',
+      '90',
+      'Next assessment',
+    ]);
 
     const schema = z.object({
       id: z.string().uuid(),
@@ -235,5 +260,48 @@ describe('zodToTabulatorColumns', () => {
 
     expect(columns[0].headerSortTristate).toBe(true);
     expect(columns[1].headerSortTristate).toBe(true);
+  });
+
+  describe('string columns with their own rules', () => {
+    // Runs a column's validators the way Tabulator would for a non-empty cell.
+    const passes = (column: Record<string, unknown>, value: string) =>
+      [column.validator]
+        .flat()
+        .filter(
+          (v): v is { type: (...a: unknown[]) => boolean } =>
+            typeof (v as { type?: unknown } | null)?.type === 'function',
+        )
+        .every((v) => v.type({}, value, undefined));
+
+    const [email, name] = zodToTabulatorColumns(
+      z.object({
+        email: z.string().email(),
+        name: z.string().min(1).max(100),
+      }),
+    ) as unknown as Record<string, unknown>[];
+
+    it('checks a cell with the same rule the schema uses', () => {
+      expect(passes(email, 'ann@x.co')).toBe(true);
+      for (const bad of ['a@b.c', 'a..b@x.com', 'a@x..com', 'a@-x.com']) {
+        expect(passes(email, bad)).toBe(false);
+      }
+      expect(passes(name, 'x'.repeat(100))).toBe(true);
+      expect(passes(name, 'x'.repeat(101))).toBe(false);
+    });
+
+    it('leaves blank cells to the required check', () => {
+      expect(passes(email, '')).toBe(true);
+      expect(email.validator).toEqual(expect.arrayContaining(['required']));
+    });
+  });
+
+  it('takes column titles from the caller when given', () => {
+    const [column] = zodToTabulatorColumns(
+      z.object({ firstName: z.string() }),
+      {
+        titles: { firstName: 'Given name' },
+      },
+    ) as unknown as Record<string, unknown>[];
+    expect(column.title).toBe('Given name');
   });
 });

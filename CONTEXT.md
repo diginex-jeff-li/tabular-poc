@@ -8,6 +8,10 @@ Admins invite many users at once by building an invite draft in the grid (typed,
 The set of rows on the bulk invite page that have not been sent yet.
 _Avoid_: batch, upload, sheet
 
+**Invite template**:
+The columns and rules every invite row follows; the grid, the Excel template, header matching and the agent's rules are all built from it.
+_Avoid_: schema, form, column config
+
 **Draft row**:
 One row of the invite draft; each cell holds any text, and the row has exactly the template's columns.
 _Avoid_: raw row, staging row

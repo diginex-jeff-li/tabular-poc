@@ -1,4 +1,9 @@
-import { INVITE_GROUPS, INVITE_ROLES, parseInviteGroups } from 'contracts';
+import {
+  INVITE_FIELDS,
+  INVITE_GROUPS,
+  INVITE_ROLES,
+  parseInviteGroups,
+} from 'contracts';
 
 /**
  * PROTOTYPE — turns whatever reached the invite draft into draft rows
@@ -9,13 +14,7 @@ import { INVITE_GROUPS, INVITE_ROLES, parseInviteGroups } from 'contracts';
  * never guesses: a whole line in one cell is split only when every column is
  * clear; otherwise the text stays as typed and the row needs review.
  */
-const DRAFT_FIELDS = [
-  'email',
-  'firstName',
-  'lastName',
-  'role',
-  'groups',
-] as const;
+const DRAFT_FIELDS = INVITE_FIELDS;
 
 const byLowerCase = (values: readonly string[]) =>
   new Map(values.map((v) => [v.toLowerCase(), v]));

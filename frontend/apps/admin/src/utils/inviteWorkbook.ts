@@ -1,8 +1,12 @@
 import {
   INVITE_COLUMNS,
+  INVITE_FIELDS,
   INVITE_GROUPS,
+  INVITE_NAME_LENGTH,
   INVITE_ROLES,
+  INVITE_TITLES,
   matchInviteHeader,
+  type InviteField,
 } from 'contracts';
 import ExcelJS from 'exceljs';
 
@@ -24,6 +28,10 @@ import ExcelJS from 'exceljs';
  */
 // Rows that carry validation in the template.
 const TEMPLATE_ROWS = 500;
+
+// Excel column letter of a template column (the template has < 26 columns).
+const letter = (field: InviteField) =>
+  String.fromCharCode(65 + INVITE_FIELDS.indexOf(field));
 
 interface RangeValidations {
   add(range: string, validation: ExcelJS.DataValidation): void;
@@ -66,38 +74,44 @@ export async function buildInviteWorkbook(
     errorStyle: 'stop' as const,
     showInputMessage: true,
   };
+  const { min, max } = INVITE_NAME_LENGTH;
   const name = (title: string) => ({
     ...stop,
     type: 'textLength' as const,
     operator: 'between' as const,
     allowBlank: false,
-    formulae: [1, 100],
+    formulae: [min, max],
     promptTitle: title,
-    prompt: 'Required, up to 100 characters.',
+    prompt: `Required, up to ${max} characters.`,
     errorTitle: `Invalid ${title.toLowerCase()}`,
-    error: 'Enter 1–100 characters.',
+    error: `Enter ${min}–${max} characters.`,
   });
+  const range = (field: InviteField) =>
+    `${letter(field)}2:${letter(field)}${last}`;
 
-  validations.add(`A2:A${last}`, {
+  // Hand translation of the email rule into Excel formulas: a first-pass
+  // check only. Import re-checks every row with the contract's real rules.
+  const E = `${letter('email')}2`;
+  validations.add(range('email'), {
     ...stop,
     type: 'custom',
     allowBlank: false,
     formulae: [
-      `AND(ISERROR(FIND(" ",A2)),LEN(A2)-LEN(SUBSTITUTE(A2,"@",""))=1,LEFT(A2,1)<>"@",ISNUMBER(FIND(".",A2,FIND("@",A2)+2)),RIGHT(A2,1)<>".",COUNTIF($A$2:$A$${last},A2)=1)`,
+      `AND(ISERROR(FIND(" ",${E})),LEN(${E})-LEN(SUBSTITUTE(${E},"@",""))=1,LEFT(${E},1)<>"@",ISNUMBER(FIND(".",${E},FIND("@",${E})+2)),RIGHT(${E},1)<>".",COUNTIF($${letter('email')}$2:$${letter('email')}$${last},${E})=1)`,
     ],
-    promptTitle: 'Email',
+    promptTitle: INVITE_TITLES.email,
     prompt: 'Required. Must be unique in this sheet.',
     errorTitle: 'Invalid email',
     error: 'Enter a valid email address that is not already in this sheet.',
   });
-  validations.add(`B2:B${last}`, name('First name'));
-  validations.add(`C2:C${last}`, name('Last name'));
-  validations.add(`D2:D${last}`, {
+  validations.add(range('firstName'), name(INVITE_TITLES.firstName));
+  validations.add(range('lastName'), name(INVITE_TITLES.lastName));
+  validations.add(range('role'), {
     ...stop,
     type: 'list',
     allowBlank: false,
     formulae: [`Lists!$A$2:$A$${INVITE_ROLES.length + 1}`],
-    promptTitle: 'Role',
+    promptTitle: INVITE_TITLES.role,
     prompt: 'Pick a role from the list.',
     errorTitle: 'Invalid role',
     error: 'Pick a role from the list.',
@@ -105,15 +119,16 @@ export async function buildInviteWorkbook(
   // Every ";"-separated item must match a listed group: count items, count
   // listed groups found as whole items, and require the two to be equal.
   const groupsRange = `Lists!$B$2:$B$${INVITE_GROUPS.length + 1}`;
-  const normalized = `";"&SUBSTITUTE(SUBSTITUTE(E2,"; ",";")," ;",";")&";"`;
-  validations.add(`E2:E${last}`, {
+  const G = `${letter('groups')}2`;
+  const normalized = `";"&SUBSTITUTE(SUBSTITUTE(${G},"; ",";")," ;",";")&";"`;
+  validations.add(range('groups'), {
     ...stop,
     type: 'custom',
     allowBlank: true,
     formulae: [
-      `SUMPRODUCT(--ISNUMBER(SEARCH(";"&${groupsRange}&";",${normalized})))=LEN(E2)-LEN(SUBSTITUTE(E2,";",""))+1`,
+      `SUMPRODUCT(--ISNUMBER(SEARCH(";"&${groupsRange}&";",${normalized})))=LEN(${G})-LEN(SUBSTITUTE(${G},";",""))+1`,
     ],
-    promptTitle: 'Groups',
+    promptTitle: INVITE_TITLES.groups,
     prompt: `Optional. Separate with "; ". Allowed: ${INVITE_GROUPS.join('; ')}`,
     errorTitle: 'Invalid groups',
     error: `Use names from: ${INVITE_GROUPS.join('; ')}`,

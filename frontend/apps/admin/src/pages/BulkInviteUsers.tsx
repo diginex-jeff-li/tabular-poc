@@ -23,7 +23,7 @@ import UButton from '@nuxt/ui/components/Button.vue';
 import ColumnMappingPanel from 'components/ColumnMappingPanel';
 import GridEditor from 'components/GridEditor';
 import { useAgentTools } from 'composables/useAgentTools';
-import { InviteRowSchema, type InviteField } from 'contracts';
+import { INVITE_TITLES, InviteRowSchema, type InviteField } from 'contracts';
 import {
   applyColumnMapping,
   planPaste,
@@ -102,10 +102,9 @@ function buildColumns(
       formatter: 'rowSelection',
       titleFormatter: 'rowSelection',
     },
-    ...(zodToTabulatorColumns(InviteRowSchema) as unknown as Record<
-      string,
-      unknown
-    >[]),
+    ...(zodToTabulatorColumns(InviteRowSchema, {
+      titles: INVITE_TITLES,
+    }) as unknown as Record<string, unknown>[]),
   ];
 }
 

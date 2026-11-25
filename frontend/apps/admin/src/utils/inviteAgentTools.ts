@@ -1,6 +1,7 @@
 import {
   INVITE_COLUMNS,
   INVITE_GROUPS,
+  INVITE_NAME_LENGTH,
   INVITE_ROLES,
   InviteDraftRowSchema,
 } from 'contracts';
@@ -264,7 +265,7 @@ export function createInviteTools({
         groups: INVITE_GROUPS,
         rules: [
           'Email must be a valid address, unique within the grid (case-insensitive), and not belong to an existing user',
-          'First and last name: 1-100 characters',
+          `First and last name: ${INVITE_NAME_LENGTH.min}-${INVITE_NAME_LENGTH.max} characters`,
           'Values are trimmed and role/group names matched case-insensitively when written',
         ],
         statuses: {

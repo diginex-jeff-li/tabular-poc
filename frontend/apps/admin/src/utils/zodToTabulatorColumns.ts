@@ -1,31 +1,32 @@
 import { z } from 'zod';
 import type { ColumnDefinition } from 'tabulator-tables';
 
-// Loose shape check for the in-cell highlight only; Zod's email check stays
-// the authority on save.
-const EMAIL_PATTERN = '^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$';
-
 /**
  * Derives Tabulator column definitions from a Zod object schema.
  *
  * Mapping rules:
  * - z.enum() → { editor: 'list', editorParams: { values }, validator: ['required', { type: 'in', parameters }] }
  *   (a nullable enum drops 'required'; Tabulator's 'in' accepts empty cells)
- * - z.string().email() → adds a regex validator for an in-cell highlight
+ * - z.string() with its own rules (email, min, max, regex…) → adds a
+ *   validator that runs that same Zod string on non-empty cells, so the
+ *   in-cell highlight and the save check never disagree
  * - z.string().uuid() / z.string().datetime() → hidden (visible: false, editable: false)
  * - z.string() (required) → { editor: 'input', validator: 'required' }
  * - z.string().nullable() → { editor: 'input' } (no required validator)
  *
+ * `titles` overrides the title derived from a field name.
  * Hidden fields (uuid, datetime) are excluded from the output entirely.
  */
 export function zodToTabulatorColumns(
   schema: z.ZodObject<z.ZodRawShape>,
+  options: { titles?: Readonly<Record<string, string>> } = {},
 ): ColumnDefinition[] {
   const shape = schema.shape;
   const columns: ColumnDefinition[] = [];
 
   for (const [key, type] of Object.entries(shape)) {
-    const column = deriveColumn(key, type as z.ZodTypeAny);
+    const title = options.titles?.[key] ?? fieldToTitle(key);
+    const column = deriveColumn(key, type as z.ZodTypeAny, title);
     if (column) {
       columns.push(column);
     }
@@ -34,9 +35,22 @@ export function zodToTabulatorColumns(
   return columns;
 }
 
+// Blank cells are the required check's job; anything else must pass the
+// field's own Zod string.
+function schemaValidator(type: z.ZodString) {
+  return {
+    type: (_cell: unknown, value: unknown) =>
+      value === null ||
+      value === undefined ||
+      value === '' ||
+      type.safeParse(value).success,
+  };
+}
+
 function deriveColumn(
   field: string,
   type: z.ZodTypeAny,
+  title: string,
 ): ColumnDefinition | null {
   // Unwrap nullable
   let innerType = type;
@@ -56,7 +70,7 @@ function deriveColumn(
   if (innerType instanceof z.ZodEnum) {
     const values = innerType._def.values as string[];
     return {
-      title: fieldToTitle(field),
+      title,
       field,
       editor: 'list',
       editorParams: { values },
@@ -84,7 +98,7 @@ function deriveColumn(
 
     // Regular string
     const col: Record<string, unknown> = {
-      title: fieldToTitle(field),
+      title,
       field,
       editor: 'input',
       // VAL-GRID-021: tristate sort cycle asc → desc → none (clears on 3rd click)
@@ -93,9 +107,7 @@ function deriveColumn(
 
     const validators: unknown[] = [];
     if (!isNullable) validators.push('required');
-    if (checks.some((c: { kind: string }) => c.kind === 'email')) {
-      validators.push({ type: 'regex', parameters: EMAIL_PATTERN });
-    }
+    if (checks.length > 0) validators.push(schemaValidator(innerType));
     if (validators.length === 1) col.validator = validators[0];
     else if (validators.length > 1) col.validator = validators;
 
