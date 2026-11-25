@@ -109,6 +109,7 @@ export default defineComponent({
                   <UCard key={d.id}>
                     <div
                       class="cursor-pointer"
+                      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- the card holds a Delete button; an <a> cannot contain interactive content
                       role="link"
                       tabindex={0}
                       aria-label={`Open table ${d.name}`}

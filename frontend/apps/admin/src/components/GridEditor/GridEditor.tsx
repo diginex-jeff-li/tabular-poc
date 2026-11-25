@@ -250,6 +250,7 @@ export default defineComponent({
           {/* ── Status chips (role="status" aria-live="polite") ── */}
           <div
             class="ml-auto flex items-center gap-3 text-xs"
+            // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- toolbar status chips, not a calculation result (<output>)
             role="status"
             aria-live="polite"
           >

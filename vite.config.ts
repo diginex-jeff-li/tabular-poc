@@ -97,7 +97,6 @@ export default defineConfig({
       'react/jsx-no-undef': 'off', // 4
       '@nkzw/no-instanceof': 'off', // 4
       'typescript/no-unsafe-argument': 'off', // 3
-      'jsx-a11y/prefer-tag-over-role': 'off', // 2
     },
     // The preset's TypeScript override re-enables these; keep the baseline.
     overrides: [
