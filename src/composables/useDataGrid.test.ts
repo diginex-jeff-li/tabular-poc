@@ -428,6 +428,30 @@ describe('useDataGrid', () => {
       expect(onUserEdit).not.toHaveBeenCalled();
     });
 
+    it('imports rows as one person write: fresh ids through normalizeRow, reported once, one undo step after the ones before it', () => {
+      const { grid, api, onUserEdit } = setupApi();
+      grid.editCell({ rowId: 'a', colId: 'name' }, 'Anna');
+
+      const ids = api.importRows([
+        { id: 'forged', name: ' Cy ' },
+        { name: 'Di' },
+      ]);
+      expect(ids).toHaveLength(2);
+      expect(ids).not.toContain('forged');
+      expect(api.getRows().slice(2)).toEqual([
+        { id: ids[0], name: 'Cy' },
+        { id: ids[1], name: 'Di' },
+      ]);
+      expect(onUserEdit).toHaveBeenCalledTimes(2);
+      expect(onUserEdit).toHaveBeenLastCalledWith(ids);
+
+      expect(grid.undo()).toBe(true);
+      expect(api.getRows().map((r) => r.name)).toEqual(['Anna', 'Bo']);
+      expect(grid.undo()).toBe(true);
+      expect(api.getRows().map((r) => r.name)).toEqual(['Ann', 'Bo']);
+      expect(grid.undo()).toBe(false);
+    });
+
     it('merges patches through normalizeRow, reports unknown ids and counts as a change', () => {
       const { grid, api, onUserEdit } = setupApi();
       const untouched = grid.rows.value[1];

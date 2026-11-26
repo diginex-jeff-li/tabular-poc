@@ -191,7 +191,7 @@ describe('BulkInviteUsers undo', () => {
     expect(w.text()).toContain('Simulated — no invitations sent (2 valid)');
   });
 
-  it.fails('undoes an .xlsx import in one step and keeps the undo steps before it', async () => {
+  it('undoes an .xlsx import in one step and keeps the undo steps before it', async () => {
     const { w } = await mountPage();
     await paste(w, 'bo@acme.com\tBo\tKim\tViewer');
     const data = await buildInviteWorkbook([
@@ -219,7 +219,7 @@ describe('BulkInviteUsers undo', () => {
     expect(emails(w)).toEqual([]);
   });
 
-  it.fails('undoes an applied column mapping in one step and keeps the undo steps before it', async () => {
+  it('undoes an applied column mapping in one step and keeps the undo steps before it', async () => {
     const { w } = await mountPage();
     await paste(w, 'bo@acme.com\tBo\tKim\tViewer');
     await paste(

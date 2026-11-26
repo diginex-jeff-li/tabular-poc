@@ -7,7 +7,8 @@ import type { InviteDraft, InviteDraftStore, StoredDraft } from './inviteDraft';
 import type { EffectScope } from 'vue';
 
 // The draft runs on the page's grid adapter, headless: each grid in its own
-// scope, stopped after the test, so window listeners never outlive it.
+// scope, stopped after the test, so window listeners never outlive it. As on
+// the page, the grid reports a person's writes to the draft (`edited`).
 const scopes: Array<EffectScope> = [];
 
 function setup(store?: InviteDraftStore) {
@@ -19,13 +20,21 @@ function setup(store?: InviteDraftStore) {
       columns: [],
       onSave: vi.fn(),
       normalizeRow: normalizeInviteRow,
+      onUserEdit: (ids) => draft.edited(ids),
     }),
   );
   const draft = createInviteDraft(() => grid.api, {
     existingEmails: new Set(['jane.doe@acme.com']),
     store,
   });
-  return { grid, draft };
+  /** A person ticks the rows and deletes them in the grid. */
+  const personDeletes = (ids: Array<string>) => {
+    for (const id of ids) {
+      grid.setRowSelected(id, true);
+    }
+    grid.deleteSelected();
+  };
+  return { grid, draft, personDeletes };
 }
 
 /** The test adapter for the draft's store: a plain object. */
@@ -65,16 +74,13 @@ describe('invite draft', () => {
     }
   });
 
-  it('normalizes what is added, checks every row and paints the errors', () => {
+  it('normalizes what a person imports, checks every row and paints the errors', () => {
     const { draft, grid } = setup();
-    draft.add(
-      [
-        { ...ann, email: ' ANN@acme.com ', role: 'viewer' },
-        { ...ann, email: 'jane.doe@acme.com' },
-        TOM_LINE,
-      ],
-      'person',
-    );
+    draft.importRows([
+      { ...ann, email: ' ANN@acme.com ', role: 'viewer' },
+      { ...ann, email: 'jane.doe@acme.com' },
+      TOM_LINE,
+    ]);
 
     expect(draft.rows()[0]).toMatchObject({
       email: 'ann@acme.com',
@@ -87,8 +93,8 @@ describe('invite draft', () => {
   describe('agent proposed', () => {
     function proposed() {
       const s = setup();
-      const [tom] = s.draft.add([TOM_LINE], 'person');
-      s.draft.update([{ id: tom, ...tomFixed }], 'agent');
+      const [tom] = s.draft.importRows([TOM_LINE]);
+      s.draft.update([{ id: tom, ...tomFixed }]);
       return { ...s, tom };
     }
 
@@ -105,44 +111,40 @@ describe('invite draft', () => {
       expect(draft.send()).toEqual({ errors: [], saved: 1 });
     });
 
-    it('a person editing it, here or in the grid, clears the mark', () => {
-      const a = proposed();
-      a.draft.update([{ id: a.tom, firstName: 'Thomas' }], 'person');
-      expect(statuses(a.draft)).toEqual(['Ready']);
-
-      const b = proposed();
-      b.draft.edited([b.tom]);
-      expect(statuses(b.draft)).toEqual(['Ready']);
+    it('a person editing it in the grid clears the mark', () => {
+      const { draft, grid, tom } = proposed();
+      grid.editCell({ rowId: tom, colId: 'firstName' }, 'Thomas');
+      expect(statuses(draft)).toEqual(['Ready']);
     });
 
     it('an agent editing a row that did not need review does not mark it', () => {
       const { draft } = setup();
-      const [id] = draft.add([ann], 'person');
-      draft.update([{ id, firstName: 'Anne' }], 'agent');
+      const [id] = draft.importRows([ann]);
+      draft.update([{ id, firstName: 'Anne' }]);
       expect(statuses(draft)).toEqual(['Ready']);
     });
 
-    it('an agent cannot delete it and swap in an unmarked copy', () => {
-      const { draft, tom, grid } = proposed();
-      expect(() => draft.remove([tom], 'agent')).toThrow(/agent proposed/i);
+    it('an agent cannot delete it and swap in an unmarked copy; a person can delete it', () => {
+      const { draft, tom, grid, personDeletes } = proposed();
+      expect(() => draft.remove([tom])).toThrow(/agent proposed/i);
       expect(grid.rows.value).toHaveLength(1);
-      draft.remove([tom], 'person');
+      personDeletes([tom]);
       expect(grid.rows.value).toHaveLength(0);
     });
   });
 
   it('an agent cannot delete a row that needs review; nothing is deleted', () => {
     const { draft, grid } = setup();
-    const ids = draft.add([ann, TOM_LINE], 'agent');
-    expect(() => draft.remove(ids, 'agent')).toThrow(/need review/i);
+    const ids = draft.add([ann, TOM_LINE]);
+    expect(() => draft.remove(ids)).toThrow(/need review/i);
     expect(grid.rows.value).toHaveLength(2);
   });
 
-  it('re-checks after a delete: the surviving duplicate becomes ready', () => {
-    const { draft } = setup();
-    const [, second] = draft.add([ann, ann], 'person');
+  it('re-checks after a person deletes: the surviving duplicate becomes ready', () => {
+    const { draft, personDeletes } = setup();
+    const [, second] = draft.importRows([ann, ann]);
     expect(statuses(draft)).toEqual(['Ready', 'Not ready']);
-    draft.remove([second], 'person');
+    personDeletes([second]);
     expect(statuses(draft)).toEqual(['Ready']);
   });
 
@@ -150,7 +152,7 @@ describe('invite draft', () => {
     it('saves the rows and the agent-proposed ids after every write', () => {
       const store = memoryStore();
       const { draft } = setup(store);
-      const [annId, tom] = draft.add([ann, TOM_LINE], 'person');
+      const [annId, tom] = draft.importRows([ann, TOM_LINE]);
       expect(store.saved).toEqual({
         rows: [
           expect.objectContaining({ id: annId, email: 'ann@acme.com' }),
@@ -159,7 +161,7 @@ describe('invite draft', () => {
         agentProposed: [],
       });
 
-      draft.update([{ id: tom, ...tomFixed }], 'agent');
+      draft.update([{ id: tom, ...tomFixed }]);
       expect(store.saved?.agentProposed).toEqual([tom]);
 
       draft.confirm(tom);

@@ -40,11 +40,11 @@ export type PasteParser = (
 /**
  * State behind `DataGrid`. `rows` is the single source of truth; the table only renders it.
  *
- * Person writes (edit, paste, fill, clear, Add Row, Delete, Clear all): the
- * touched rows still in the grid run through `normalizeRow`, the previous
- * rows become one undo step (redo is dropped), and `onUserEdit(touchedIds)`
- * is called once. A write that changes nothing records no undo step and
- * calls nothing.
+ * Person writes (edit, paste, fill, clear, Add Row, Delete, Clear all, and
+ * `api.importRows`): the touched rows still in the grid run through
+ * `normalizeRow`, the previous rows become one undo step (redo is dropped),
+ * and `onUserEdit(touchedIds)` is called once, synchronously. A write that
+ * changes nothing records no undo step and calls nothing.
  */
 export interface DataGridState {
   rows: ShallowRef<ReadonlyArray<Row>>;
@@ -66,11 +66,12 @@ export interface DataGridState {
   /** Inserts an empty row at the top. */
   addRow: () => void;
   /**
-   * Programmatic access for agent tools and file import (`onReady`). Rows
-   * it adds or patches go through `normalizeRow`, as a person's writes do.
-   * Writes through it are not reported to `onUserEdit` (the caller already
-   * knows what it changed) and are not undoable: a write that changes rows
-   * empties the undo and redo history.
+   * Programmatic access (`onReady`): a person's import (`importRows`, a
+   * person write) and the agent's writes (`addRows`, `updateRows`,
+   * `deleteRows`). Agent writes go through `normalizeRow` too, are not
+   * reported to `onUserEdit` (the caller already knows what it changed) and
+   * are not undoable: a write that changes rows empties the undo and redo
+   * history.
    */
   api: GridApi;
   /** Removes the ticked rows. */
@@ -236,6 +237,14 @@ export function useDataGrid(opts: {
     });
   }
 
+  /** A person brings rows (file import, an applied column mapping): an append paste's write. */
+  function importRows(added: ReadonlyArray<Record<string, unknown>>) {
+    const change = appendRows(rows.value, added);
+    commit(change);
+    return change.touchedIds;
+  }
+
+  /** The agent appends rows. */
   function addRows(added: ReadonlyArray<Record<string, unknown>>) {
     const change = appendRows(rows.value, added);
     const fresh = new Set(change.touchedIds);
@@ -293,6 +302,7 @@ export function useDataGrid(opts: {
 
   const api: GridApi = {
     getRows: () => rows.value.map((row) => ({ ...row })),
+    importRows,
     addRows,
     updateRows,
     deleteRows,

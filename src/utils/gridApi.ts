@@ -27,17 +27,33 @@ export function fieldProblems(error: ZodError): Array<FieldProblem> {
   }));
 }
 
-/** Programmatic grid access for agent tools and file import. Rows by `id`. */
+/**
+ * Programmatic grid access for the invite draft, agent tools and file
+ * import. Rows by `id`. Every row written goes through the grid's
+ * `normalizeRow`.
+ */
 export interface GridApi {
-  getRows(): Array<Record<string, unknown>>;
-  addRows(rows: Array<Record<string, unknown>>): Array<string>;
-  updateRows(patches: Array<{ id: string } & Record<string, unknown>>): {
+  getRows: () => Array<Record<string, unknown>>;
+  /**
+   * A person brings rows (file import, an applied column mapping): appended
+   * with fresh ids as an append paste is, one undo step, reported to
+   * `onUserEdit`. Returns the new ids.
+   */
+  importRows: (rows: Array<Record<string, unknown>>) => Array<string>;
+  /**
+   * The agent writes: `addRows` appends with fresh ids (returned),
+   * `updateRows` merges patches, `deleteRows` removes. Not reported to
+   * `onUserEdit` and not undoable: a write that changes rows empties the
+   * undo and redo history.
+   */
+  addRows: (rows: Array<Record<string, unknown>>) => Array<string>;
+  updateRows: (patches: Array<{ id: string } & Record<string, unknown>>) => {
     updated: Array<string>;
     missing: Array<string>;
   };
-  deleteRows(ids: Array<string>): {
+  deleteRows: (ids: Array<string>) => {
     deleted: Array<string>;
     missing: Array<string>;
   };
-  showErrors(errors: Array<GridSaveError>): void;
+  showErrors: (errors: Array<GridSaveError>) => void;
 }

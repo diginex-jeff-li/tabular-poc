@@ -153,7 +153,7 @@ export default defineComponent({
       const { rows, ignoredHeaders } = await parseInviteWorkbook(
         await file.arrayBuffer(),
       );
-      draft.add(rows, 'person');
+      draft.importRows(rows);
       notice.value =
         `Imported ${rows.length} row(s) from ${file.name}; ${draft.errors().length} error(s) to fix.` +
         (ignoredHeaders.length

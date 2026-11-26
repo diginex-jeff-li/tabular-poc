@@ -35,9 +35,9 @@ Vue 3.5 + Vite+ (Vite 8) + TSX (NOT SFCs) + Nuxt UI v4 + Tailwind v4.
 - Nuxt UI v4 components imported explicitly with `U` prefix (no auto-registration).
 - AutoImport configured for Vue + vue-router APIs only. VueUse (`@vueuse/core`)
   is imported explicitly; reach for a VueUse composable before custom code.
-- Vite resolve aliases (mirrored in `tsconfig.json` paths): `src`, `components`,
-  `composables`, `config`, `pages`, `styles`, `utils`, and `contracts` →
-  `src/contracts`.
+- Vite resolve aliases (mirrored in `tsconfig.json` paths): `components`,
+  `composables`, `utils`, and `contracts` → `src/contracts`. Everything else
+  under `src/` is imported by relative path.
 - `vite.config.ts` is the only config: app, `test` (happy-dom, the
   `setup-localstorage.ts` polyfill), `lint`, `fmt` and `staged`.
 
@@ -109,7 +109,7 @@ own `computed`, never in the column `cell` function. Rows have a fixed
 | `src/pages/ComplianceGridEditor.tsx`                      | Compliance grid page                                  |
 | `src/utils/complianceLibrary.ts` | Compliance library: grid columns and the fake backend (`list`, `save` = `onSave`), tested through `save` |
 | `src/components/DataGrid/DataGrid.tsx` | Grid component: `UTable`, toolbar, keyboard, clipboard, error sidebar |
-| `src/composables/useDataGrid.ts` | DataGrid state: rows, every person write (edit, paste, fill, clear), undo/redo (`useManualRefHistory`), derived dirty diff, save loop, `GridApi` |
+| `src/composables/useDataGrid.ts` | DataGrid state: rows, every person write (edit, paste, fill, clear, `api.importRows`), undo/redo (`useManualRefHistory`), derived dirty diff, save loop, `GridApi` |
 | `src/composables/useGridSelection.ts` | Active cell, range and editing state (ids, not indexes) |
 | `src/utils/zodToColumnDefs.ts` | Derive `GridColumn`s from a Zod schema |
 | `src/utils/gridApi.ts` | `GridApi` seam implemented by `useDataGrid`'s `api`; draft and agent-tool tests run on it headless in an `effectScope` |

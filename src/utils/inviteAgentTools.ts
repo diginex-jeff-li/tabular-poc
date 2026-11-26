@@ -187,10 +187,7 @@ export function createInviteTools(draft: InviteDraft): Array<AgentTool> {
       outputSchema: jsonSchema(AddRowsOutputSchema),
       annotations: { readOnlyHint: false },
       execute: async (args) => {
-        const added = draft.add(
-          requireArray(args, 'rows').map(toDraftRow),
-          'agent',
-        );
+        const added = draft.add(requireArray(args, 'rows').map(toDraftRow));
         return { added, ...result(added) } satisfies z.infer<
           typeof AddRowsOutputSchema
         >;
@@ -210,7 +207,7 @@ export function createInviteTools(draft: InviteDraft): Array<AgentTool> {
           id: String((r as Record<string, unknown>)?.id ?? ''),
           ...toDraftRow(r),
         }));
-        const { updated, missing } = draft.update(patches, 'agent');
+        const { updated, missing } = draft.update(patches);
         return {
           updated,
           missingIds: missing,
@@ -228,7 +225,6 @@ export function createInviteTools(draft: InviteDraft): Array<AgentTool> {
       execute: async (args) => {
         const { deleted, missing } = draft.remove(
           requireArray(args, 'ids').map(String),
-          'agent',
         );
         return { deleted, missingIds: missing, ...result() } satisfies z.infer<
           typeof DeleteRowsOutputSchema

@@ -20,6 +20,14 @@ import type { ShallowRef } from 'vue';
  * (`useDataGrid`'s `api`, built with `normalizeRow: normalizeInviteRow`, so
  * the grid normalizes every row the draft writes).
  *
+ * Who writes:
+ * - `add`, `update` and `remove` are the agent's writes (the grid's agent
+ *   write: not undoable)
+ * - a person writes in the grid, or brings a table through `importRows` (a
+ *   person write: one undo step). Those writes reach the draft only through
+ *   `edited`, so the grid's `onUserEdit` must call `edited`; that call runs
+ *   the check after a person's write
+ *
  * Rules it owns:
  * - every write is followed by a full check and repaint, then a save to the
  *   draft's store (if it has one)
@@ -32,7 +40,6 @@ import type { ShallowRef } from 'vue';
  *   agent may propose a column mapping, only a person applies it
  * - Send passes only when every row is ready
  */
-export type Actor = 'person' | 'agent';
 
 export type DraftRowView = { id: string } & Record<
   InviteField,
@@ -109,18 +116,26 @@ export function createInviteDraft(
       }));
   }
 
-  // Who added rows changes no rule today; the actor stays in the interface so
-  // every write names it (agreed design, spec decision Q31).
-  function add(newRows: Array<Row>, _by: Actor): Array<string> {
+  /** The agent appends rows. */
+  function add(newRows: Array<Row>): Array<string> {
     const ids = api().addRows(newRows);
     check();
     return ids;
   }
 
-  function update(
-    patches: Array<{ id: string } & Row>,
-    by: Actor,
-  ): { updated: Array<string>; missing: Array<string> } {
+  /**
+   * A person brings a table (file import, an applied column mapping). The
+   * grid reports the new rows to `onUserEdit`, whose `edited` checks them.
+   */
+  function importRows(newRows: Array<Row>): Array<string> {
+    return api().importRows(newRows);
+  }
+
+  /** The agent patches rows; resolving a needs-review row makes it agent proposed. */
+  function update(patches: Array<{ id: string } & Row>): {
+    updated: Array<string>;
+    missing: Array<string>;
+  } {
     const wasReview = new Set(
       patches.flatMap((p) => {
         const row = rowById(p.id);
@@ -129,9 +144,7 @@ export function createInviteDraft(
     );
     const result = api().updateRows(patches);
     for (const id of result.updated) {
-      if (by === 'person') {
-        agentProposed.delete(id);
-      } else if (wasReview.has(id) && !needsReview(rowById(id) ?? {})) {
+      if (wasReview.has(id) && !needsReview(rowById(id) ?? {})) {
         agentProposed.add(id);
       }
     }
@@ -139,22 +152,21 @@ export function createInviteDraft(
     return result;
   }
 
-  function remove(
-    ids: Array<string>,
-    by: Actor,
-  ): { deleted: Array<string>; missing: Array<string> } {
-    if (by === 'agent') {
-      // Either kind of row waits on a person; deleting it would let an agent
-      // replace it with an unmarked copy.
-      const refused = ids.filter((id) => {
-        const row = rowById(id);
-        return row !== undefined && (needsReview(row) || agentProposed.has(id));
-      });
-      if (refused.length > 0) {
-        throw new Error(
-          `Rows that need review or are agent proposed cannot be deleted by an agent: ${refused.join(', ')}. Split needs-review rows with update_rows; leave agent-proposed rows for the user to confirm or delete. Nothing was deleted.`,
-        );
-      }
+  /** The agent deletes rows; it may not delete a row that waits on a person. */
+  function remove(ids: Array<string>): {
+    deleted: Array<string>;
+    missing: Array<string>;
+  } {
+    // Either kind of row waits on a person; deleting it would let an agent
+    // replace it with an unmarked copy.
+    const refused = ids.filter((id) => {
+      const row = rowById(id);
+      return row !== undefined && (needsReview(row) || agentProposed.has(id));
+    });
+    if (refused.length > 0) {
+      throw new Error(
+        `Rows that need review or are agent proposed cannot be deleted by an agent: ${refused.join(', ')}. Split needs-review rows with update_rows; leave agent-proposed rows for the user to confirm or delete. Nothing was deleted.`,
+      );
     }
     const result = api().deleteRows(ids);
     for (const id of result.deleted) {
@@ -271,7 +283,7 @@ export function createInviteDraft(
     }
     const { rows: mapped, ignored } = applyColumnMapping(table, mapping);
     held.value = null;
-    add(mapped, 'person');
+    importRows(mapped);
     return { added: mapped.length, ignored };
   }
 
@@ -295,6 +307,7 @@ export function createInviteDraft(
     rows,
     check,
     add,
+    importRows,
     update,
     remove,
     confirm,
