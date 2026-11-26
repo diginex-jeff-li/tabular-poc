@@ -1,6 +1,7 @@
 import { INVITE_GROUPS, InviteRowSchema, parseInviteGroups } from 'contracts';
 import { needsReview } from 'utils/draftRow';
-import type { GridSaveError } from 'utils/gridApi';
+import { fieldProblems } from 'utils/gridApi';
+import type { FieldProblem, GridSaveError } from 'utils/gridApi';
 
 const ALLOWED_GROUPS: ReadonlySet<string> = new Set(INVITE_GROUPS);
 
@@ -19,9 +20,7 @@ export interface ReadyRowCheck {
   statusOf: (rowId: string) => InviteRowStatus;
 }
 
-type Problem = Pick<GridSaveError, 'field' | 'message'>;
-
-const AGENT_PROPOSED: Problem = {
+const AGENT_PROPOSED: FieldProblem = {
   field: 'status',
   message: 'Agent proposed: confirm or edit this row before sending',
 };
@@ -58,8 +57,8 @@ export function checkReadyRows(
   function sendProblems(
     raw: Record<string, unknown>,
     row: number,
-  ): Array<Problem> {
-    const problems: Array<Problem> = [];
+  ): Array<FieldProblem> {
+    const problems: Array<FieldProblem> = [];
     const trimmed = Object.fromEntries(
       Object.entries(raw).map(([k, v]) => [
         k,
@@ -75,12 +74,7 @@ export function checkReadyRows(
     };
     const result = InviteRowSchema.safeParse(candidate);
     if (!result.success) {
-      for (const issue of result.error.issues) {
-        problems.push({
-          field: String(issue.path[0] ?? '?'),
-          message: issue.message,
-        });
-      }
+      problems.push(...fieldProblems(result.error));
     }
     const unknownGroups = parseInviteGroups(candidate.groups).filter(
       (g) => !ALLOWED_GROUPS.has(g),
@@ -119,7 +113,7 @@ export function checkReadyRows(
     raw: Record<string, unknown>,
     rowId: string,
     row: number,
-  ): { status: InviteRowStatus; problems: Array<Problem> } {
+  ): { status: InviteRowStatus; problems: Array<FieldProblem> } {
     if (needsReview(raw)) {
       const field =
         Object.keys(raw).find(
@@ -151,7 +145,7 @@ export function checkReadyRows(
     const { status, problems } = checkRow(raw, rowId, row);
     statuses.set(rowId, status);
     for (const problem of problems) {
-      errors.push({ row, rowId, ...problem });
+      errors.push({ rowId, ...problem });
     }
   });
 

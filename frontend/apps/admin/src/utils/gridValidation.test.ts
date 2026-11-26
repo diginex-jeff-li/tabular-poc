@@ -48,9 +48,9 @@ describe('validateRows', () => {
 describe('indexSaveErrors', () => {
   it('keys backend errors by row id and field, first message first', () => {
     const messages = indexSaveErrors([
-      { row: 0, rowId: 'a', field: 'email', message: 'Taken' },
-      { row: 0, rowId: 'a', field: 'email', message: 'Second' },
-      { row: 2, rowId: 'c', field: 'role', message: 'Bad role' },
+      { rowId: 'a', field: 'email', message: 'Taken' },
+      { rowId: 'a', field: 'email', message: 'Second' },
+      { rowId: 'c', field: 'role', message: 'Bad role' },
     ]);
     expect(messages.get('a')).toEqual({ email: 'Taken' });
     expect(messages.get('c')).toEqual({ role: 'Bad role' });

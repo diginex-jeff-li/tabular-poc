@@ -1,12 +1,11 @@
+import type { ZodError } from 'zod';
+
 /**
  * The seams `DataGrid` (through `useDataGrid`) exposes: the save result
- * shape, which matches the contracts' BulkSaveError/Response, and the
- * programmatic grid access the invite draft, agent tools and file import
- * use.
+ * every `onSave` returns, and the programmatic grid access the invite draft,
+ * agent tools and file import use.
  */
 export interface GridSaveError {
-  /** Index in the save request's `upserts`, not the row's place in the grid. */
-  row: number;
   rowId: string;
   field: string;
   message: string;
@@ -17,12 +16,15 @@ export interface GridSaveResponse {
   saved: number;
 }
 
-/**
- * Sidebar label for a save error's row: its 1-based place in the grid as
- * shown, or "Hidden row" when a filter hides it.
- */
-export function rowLabel(rowNumber: number | null): string {
-  return rowNumber === null ? 'Hidden row' : `Row ${rowNumber}`;
+/** A save error before it is pinned to a row. */
+export type FieldProblem = Pick<GridSaveError, 'field' | 'message'>;
+
+/** A failed Zod parse of one row as save errors: the top-level field, or "?". */
+export function fieldProblems(error: ZodError): Array<FieldProblem> {
+  return error.issues.map((issue) => ({
+    field: String(issue.path[0] ?? '?'),
+    message: issue.message,
+  }));
 }
 
 /** Programmatic grid access for agent tools and file import. Rows by `id`. */

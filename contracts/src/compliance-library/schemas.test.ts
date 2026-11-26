@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vite-plus/test';
 import {
-  BulkSaveResponseSchema,
-  BulkSaveErrorSchema,
-} from './responses/index.js';
-import {
   ComplianceLibrarySchema,
   CategoryCodeEnum,
   ComplianceCategoryEnum,
@@ -128,73 +124,5 @@ describe('Enum exports', () => {
 
   it('TopicEnum has 14 values', () => {
     expect(TopicEnum.options).toHaveLength(14);
-  });
-});
-
-describe('BulkSaveResponseSchema', () => {
-  it('parses a success response with no errors', () => {
-    const result = BulkSaveResponseSchema.safeParse({ errors: [], saved: 10 });
-    expect(result.success).toBe(true);
-  });
-
-  it('parses an error response with row-level errors including rowId', () => {
-    const result = BulkSaveResponseSchema.safeParse({
-      errors: [
-        {
-          row: 0,
-          rowId: '550e8400-e29b-41d4-a716-446655440000',
-          field: 'riskLevel',
-          message: 'Invalid enum value',
-        },
-        {
-          row: 2,
-          rowId: '550e8400-e29b-41d4-a716-446655440001',
-          field: 'issue',
-          message: 'Required',
-        },
-      ],
-      saved: 0,
-    });
-    expect(result.success).toBe(true);
-  });
-});
-
-describe('BulkSaveErrorSchema', () => {
-  it('parses a valid error entry with rowId', () => {
-    const data = BulkSaveErrorSchema.parse({
-      row: 0,
-      rowId: '550e8400-e29b-41d4-a716-446655440000',
-      field: 'riskLevel',
-      message: 'Invalid enum value',
-    });
-    expect(data.rowId).toBe('550e8400-e29b-41d4-a716-446655440000');
-  });
-
-  it('rejects missing message', () => {
-    const result = BulkSaveErrorSchema.safeParse({
-      row: 0,
-      rowId: '550e8400-e29b-41d4-a716-446655440000',
-      field: 'riskLevel',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects missing rowId (rowId is required)', () => {
-    const result = BulkSaveErrorSchema.safeParse({
-      row: 0,
-      field: 'riskLevel',
-      message: 'Invalid enum value',
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects non-string rowId', () => {
-    const result = BulkSaveErrorSchema.safeParse({
-      row: 0,
-      rowId: 42,
-      field: 'riskLevel',
-      message: 'Invalid enum value',
-    });
-    expect(result.success).toBe(false);
   });
 });

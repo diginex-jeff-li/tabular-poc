@@ -101,8 +101,8 @@ describe('useDataGrid', () => {
     const { grid } = setup(undefined, async () => ({
       saved: 0,
       errors: [
-        { row: 0, rowId: 'a', field: 'name', message: 'Bad' },
-        { row: 1, rowId: 'b', field: 'name', message: 'Bad' },
+        { rowId: 'a', field: 'name', message: 'Bad' },
+        { rowId: 'b', field: 'name', message: 'Bad' },
       ],
     }));
     grid.addRow();
@@ -114,7 +114,7 @@ describe('useDataGrid', () => {
   });
 
   it('keeps the rows dirty when the backend reports errors', async () => {
-    const errors = [{ row: 0, rowId: 'a', field: 'name', message: 'Bad' }];
+    const errors = [{ rowId: 'a', field: 'name', message: 'Bad' }];
     const { grid } = setup(undefined, async () => ({ saved: 0, errors }));
     grid.setRowSelected('a', true);
     grid.deleteSelected();
@@ -131,7 +131,7 @@ describe('useDataGrid', () => {
     await grid.save();
     expect(grid.saveResult.value).toEqual({
       saved: 0,
-      errors: [{ row: 0, rowId: '', field: 'network', message: 'Save failed' }],
+      errors: [{ rowId: '', field: 'network', message: 'Save failed' }],
     });
     expect(grid.isSaving.value).toBe(false);
     expect(grid.dirtyCount.value).toBe(1);
@@ -403,7 +403,6 @@ describe('useDataGrid', () => {
       return { grid, api: grid.api, onUserEdit };
     }
     const error = (rowId: string) => ({
-      row: 0,
       rowId,
       field: 'name',
       message: 'Bad',

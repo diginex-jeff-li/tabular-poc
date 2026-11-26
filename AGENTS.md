@@ -56,8 +56,9 @@ Always rebuild contracts after changing them before running frontend:
 ### Contracts (`contracts/`)
 
 Zod schemas only (no oRPC — backend was removed for the prototype). Per-resource
-folders under `src/`: `schemas/`, plus `responses/` where a resource has one. Each
-exports a barrel `index.ts`. The root `src/index.ts` aggregates all resources.
+folders under `src/` hold `schemas/` behind a barrel `index.ts`; the root
+`src/index.ts` aggregates all resources. The save result every `onSave` returns
+is the grid's `GridSaveResponse` (`utils/gridApi.ts`), not a contract.
 
 - Build: SWC compiles `src` → `dist/esm`, `tsc` emits `dist/types`.
 - Consumed by frontend via `contracts` workspace dependency.

@@ -1,5 +1,6 @@
 import { ComplianceLibrarySchema } from 'contracts';
-import type { BulkSaveErrorType, BulkSaveResponseType } from 'contracts';
+import { fieldProblems } from 'utils/gridApi';
+import type { GridSaveResponse } from 'utils/gridApi';
 import type { SavePayload } from 'utils/gridDiff';
 
 /**
@@ -160,7 +161,7 @@ export interface ComplianceLibrary {
    * failing field and changes nothing. Otherwise applies the deletes, then
    * the upserts (an update keeps `createdAt`; both set `updatedAt`).
    */
-  save: (payload: SavePayload) => Promise<BulkSaveResponseType>;
+  save: (payload: SavePayload) => Promise<GridSaveResponse>;
 }
 
 export function createComplianceLibrary(
@@ -176,22 +177,15 @@ export function createComplianceLibrary(
       await new Promise((resolve) => {
         setTimeout(resolve, 300);
       });
-      const errors: Array<BulkSaveErrorType> = [];
-
-      for (let i = 0; i < payload.upserts.length; i++) {
-        const row = payload.upserts[i];
+      const errors = payload.upserts.flatMap((row) => {
         const result = UpsertSchema.safeParse(row);
-        if (!result.success) {
-          for (const issue of result.error.issues) {
-            errors.push({
-              row: i,
-              rowId: row.id as string,
-              field: issue.path[0]?.toString() ?? '?',
-              message: issue.message,
-            });
-          }
-        }
-      }
+        return result.success
+          ? []
+          : fieldProblems(result.error).map((problem) => ({
+              rowId: String(row.id),
+              ...problem,
+            }));
+      });
 
       if (errors.length > 0) {
         return { errors, saved: 0 };

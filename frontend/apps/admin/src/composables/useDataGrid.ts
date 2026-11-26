@@ -23,7 +23,6 @@ type RowSelection = Record<string, boolean>;
 export const ROW_HEIGHT = 36;
 
 const NETWORK_ERROR: GridSaveError = {
-  row: 0,
   rowId: '',
   field: 'network',
   message: 'Save failed',

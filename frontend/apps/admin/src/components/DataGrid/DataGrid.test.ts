@@ -297,7 +297,7 @@ describe('DataGrid selection', () => {
 describe('DataGrid save errors', () => {
   it('lists backend errors and outlines the clicked one’s cell for 2 s', async () => {
     const onSave = vi.fn(async () => ({
-      errors: [{ row: 0, rowId: 'r3', field: 'risk', message: 'Too risky' }],
+      errors: [{ rowId: 'r3', field: 'risk', message: 'Too risky' }],
       saved: 0,
     }));
     const { wrapper: w } = await mountGrid(onSave);

@@ -3,11 +3,15 @@
  * the cell. A failed request (no response) shows as a network entry with
  * nothing to point at.
  */
-import { rowLabel } from 'utils/gridApi';
 import { computed, defineComponent } from 'vue';
 import type { DataGridState } from 'composables/useDataGrid';
 import type { GridSaveError } from 'utils/gridApi';
 import type { PropType, VNode } from 'vue';
+
+/** A row's 1-based place in the grid as shown, or "Hidden row" when a filter hides it. */
+function rowLabel(rowNumber: number | null): string {
+  return rowNumber === null ? 'Hidden row' : `Row ${rowNumber}`;
+}
 
 export default defineComponent({
   name: 'ErrorSidebar',
