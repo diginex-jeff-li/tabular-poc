@@ -1,22 +1,37 @@
 /**
  * Save errors beside the grid: one entry per backend error; clicking it shows
  * the cell. A failed request (no response) shows as a network entry with
- * nothing to point at.
+ * nothing to point at. The × hides the drawer; the cells keep their error
+ * state, and `DataGrid` owns whether the drawer is open.
  */
-import { computed, defineComponent } from 'vue';
+import UButton from '@nuxt/ui/components/Button.vue';
+import { Transition, computed, defineComponent } from 'vue';
 import type { DataGridState } from 'composables/useDataGrid';
 import type { GridSaveError } from 'utils/gridApi';
-import type { PropType, VNode } from 'vue';
+import type { PropType, Ref, VNode } from 'vue';
 
 /** A row's 1-based place in the grid as shown, or "Hidden row" when a filter hides it. */
 function rowLabel(rowNumber: number | null): string {
   return rowNumber === null ? 'Hidden row' : `Row ${rowNumber}`;
 }
 
+// Slides in from the edge it covers; leaves faster than it came. Under
+// reduced motion only the opacity changes.
+const MOTION = {
+  enterActiveClass: 'transition-[translate,opacity] duration-300 ease-drawer',
+  leaveActiveClass:
+    'transition-[translate,opacity] duration-200 ease-out-strong',
+  enterFromClass: 'translate-x-full opacity-0 motion-reduce:translate-x-0',
+  leaveToClass: 'translate-x-full opacity-0 motion-reduce:translate-x-0',
+} as const;
+
 export default defineComponent({
   name: 'ErrorSidebar',
   props: {
     grid: { type: Object as PropType<DataGridState>, required: true },
+    /** Read here, not in `DataGrid`'s render, so a toggle never re-renders `UTable`. */
+    open: { type: Object as PropType<Readonly<Ref<boolean>>>, required: true },
+    onClose: { type: Function as PropType<() => void>, required: true },
     onPick: {
       type: Function as PropType<(error: GridSaveError) => void>,
       required: true,
@@ -35,17 +50,27 @@ export default defineComponent({
         ) ?? [],
     );
 
-    return (): VNode | null => {
+    const renderDrawer = (): VNode => {
       const errors = props.grid.errorList.value;
-      if (errors.length === 0 && networkErrors.value.length === 0) {
-        return null;
-      }
       return (
-        <div class="absolute right-0 top-0 z-10 w-80 max-h-full overflow-auto border-l border-default bg-default shadow-lg">
-          <div class="sticky top-0 bg-error/10 px-3 py-2 border-b border-default">
-            <h2 class="text-sm font-semibold text-error">
-              Validation Errors ({errors.length})
+        <aside
+          aria-label="Validation errors"
+          class="absolute right-0 top-0 z-10 w-80 max-h-full overflow-auto border-l border-default bg-default shadow-lg"
+        >
+          <div class="sticky top-0 z-10 flex items-center gap-2 border-b border-default bg-default py-1.5 pl-3 pr-1.5">
+            <span class="size-1.5 shrink-0 rounded-full bg-error" />
+            <h2 class="flex-1 text-sm font-semibold text-highlighted">
+              Validation Errors{' '}
+              <span class="font-normal text-error">({errors.length})</span>
             </h2>
+            <UButton
+              icon="i-lucide-x"
+              aria-label="Hide errors"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              onClick={props.onClose}
+            />
           </div>
           <div class="space-y-2 p-3">
             {networkErrors.value.map((error) => (
@@ -62,7 +87,7 @@ export default defineComponent({
               <button
                 key={i}
                 type="button"
-                class="block w-full cursor-pointer rounded border border-default bg-muted p-3 text-left text-xs hover:bg-default focus-visible:ring-2 focus-visible:ring-primary"
+                class="block w-full cursor-pointer rounded border border-default bg-muted p-3 text-left text-xs transition-transform duration-150 ease-out-strong hover:bg-elevated active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary"
                 onClick={() => props.onPick(error)}
               >
                 <div class="font-semibold text-error">
@@ -72,7 +97,17 @@ export default defineComponent({
               </button>
             ))}
           </div>
-        </div>
+        </aside>
+      );
+    };
+
+    return (): VNode => {
+      const shown =
+        props.open.value &&
+        (props.grid.errorList.value.length > 0 ||
+          networkErrors.value.length > 0);
+      return (
+        <Transition {...MOTION}>{shown ? renderDrawer() : null}</Transition>
       );
     };
   },

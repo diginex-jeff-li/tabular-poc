@@ -13,7 +13,7 @@ import { defineComponent, nextTick, shallowRef } from 'vue';
 import type { ColumnVisibilityItem } from 'components/ColumnVisibilityMenu';
 import type { DataGridState } from 'composables/useDataGrid';
 import type { GridColumn } from 'utils/gridApi';
-import type { PropType, VNode } from 'vue';
+import type { PropType, Ref, VNode } from 'vue';
 
 export default defineComponent({
   name: 'DataGridToolbar',
@@ -42,6 +42,12 @@ export default defineComponent({
       type: Function as PropType<() => VNode | Array<VNode>>,
       default: undefined,
     },
+    /** Whether the error drawer is open; `DataGrid` owns it. */
+    errorsOpen: {
+      type: Object as PropType<Readonly<Ref<boolean>>>,
+      required: true,
+    },
+    onToggleErrors: { type: Function as PropType<() => void>, required: true },
   },
   setup(props) {
     const clearDialog = useConfirmDialog();
@@ -75,7 +81,7 @@ export default defineComponent({
       const saved = saveResult.value?.saved ?? 0;
       return (
         <div
-          class="ml-auto flex items-center gap-3 text-xs"
+          class="ml-3 flex shrink-0 items-center gap-3 whitespace-nowrap text-xs"
           // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- toolbar status chips, not a calculation result (<output>)
           role="status"
           aria-live="polite"
@@ -91,10 +97,17 @@ export default defineComponent({
             </span>
           )}
           {errorList.value.length > 0 && (
-            <span class="text-error">
+            <UButton
+              icon="i-lucide-circle-alert"
+              color="error"
+              variant="ghost"
+              size="xs"
+              aria-expanded={props.errorsOpen.value}
+              onClick={props.onToggleErrors}
+            >
               <strong class="font-semibold">{errorList.value.length}</strong>{' '}
-              errors
-            </span>
+              {errorList.value.length === 1 ? 'error' : 'errors'}
+            </UButton>
           )}
           {saved > 0 && (
             <UBadge
@@ -109,52 +122,59 @@ export default defineComponent({
     };
 
     return (): VNode => (
-      <div class="flex h-12 shrink-0 items-center gap-2 border-b border-default bg-muted px-4">
-        <h1 class="mr-4 text-sm font-semibold text-highlighted">
+      <div class="flex h-12 shrink-0 items-center gap-1 border-b border-default bg-muted px-4">
+        <h1 class="mr-3 shrink-0 whitespace-nowrap text-sm font-semibold text-highlighted">
           {props.title}
         </h1>
-        <UButton
-          label="Add Row"
-          color="primary"
-          variant="outline"
-          size="xs"
-          onClick={props.grid.addRow}
-        />
-        <UButton
-          label={props.saveLabel}
-          color="primary"
-          size="xs"
-          loading={props.grid.isSaving.value}
-          disabled={props.grid.dirtyCount.value === 0}
-          onClick={props.grid.save}
-        />
-        <UButton
-          label="Delete"
-          color="error"
-          variant="ghost"
-          size="xs"
-          onClick={props.grid.deleteSelected}
-        />
-        <div class="mx-1 h-5 w-px bg-default" />
-        <UButton
-          label="Export"
-          color="neutral"
-          variant="outline"
-          size="xs"
-          onClick={exportCsv}
-        />
-        <UButton
-          label="Clear"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          onClick={confirmClear}
-        />
-        <ColumnVisibilityMenu
-          columns={props.columnMenu}
-          onToggle={props.onToggleColumn}
-        />
-        {props.toolbarActions?.()}
+        {/* Title and status stay whole; on a narrow screen the actions scroll. */}
+        <div class="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+          <UButton
+            label="Add Row"
+            icon="i-lucide-plus"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            onClick={props.grid.addRow}
+          />
+          <UButton
+            label={props.saveLabel}
+            color="primary"
+            size="xs"
+            loading={props.grid.isSaving.value}
+            disabled={props.grid.dirtyCount.value === 0}
+            onClick={props.grid.save}
+          />
+          <UButton
+            label="Delete"
+            icon="i-lucide-trash-2"
+            color="error"
+            variant="ghost"
+            size="xs"
+            onClick={props.grid.deleteSelected}
+          />
+          <div class="mx-1 h-5 w-px shrink-0 bg-default" />
+          <UButton
+            label="Export"
+            icon="i-lucide-download"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            onClick={exportCsv}
+          />
+          <UButton
+            label="Clear"
+            icon="i-lucide-eraser"
+            color="error"
+            variant="ghost"
+            size="xs"
+            onClick={confirmClear}
+          />
+          <ColumnVisibilityMenu
+            columns={props.columnMenu}
+            onToggle={props.onToggleColumn}
+          />
+          {props.toolbarActions?.()}
+        </div>
         {renderStatus()}
         <UModal
           open={clearDialog.isRevealed.value}

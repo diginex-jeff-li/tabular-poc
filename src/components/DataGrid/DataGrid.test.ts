@@ -5,7 +5,7 @@ import { nextTick } from 'vue';
 import DataGrid from './DataGrid';
 import { useGridLayout } from './testLayout';
 import type { VueWrapper } from '@vue/test-utils';
-import type { GridColumn } from 'utils/gridApi';
+import type { GridApi, GridColumn } from 'utils/gridApi';
 
 const COLUMNS: Array<GridColumn> = [
   {
@@ -338,6 +338,70 @@ describe('DataGrid save errors', () => {
     await flushPromises();
 
     expect(w.get('[role="alert"]').text()).toBe('NetworkSave failed');
+  });
+
+  /** Mounts a grid whose Save fails on r3's risk, and saves once. */
+  async function saveWithError() {
+    let api: GridApi | undefined;
+    const onSave = vi.fn(async () => ({
+      errors: [{ rowId: 'r3', field: 'risk', message: 'Too risky' }],
+      saved: 0,
+    }));
+    const { wrapper: w } = await mountGrid(onSave, {
+      onReady: (ready: GridApi) => {
+        api = ready;
+      },
+    });
+    await w.get('[aria-label="Select row"]').trigger('click');
+    await button(w, 'Delete')?.trigger('click');
+    await button(w, 'Save')?.trigger('click');
+    await flushPromises();
+    return { w, onSave, api };
+  }
+
+  const drawerShown = (w: VueWrapper): boolean =>
+    w.text().includes('Validation Errors (');
+
+  it('× hides the errors drawer; the failed cell keeps its error ring', async () => {
+    const { w } = await saveWithError();
+    expect(drawerShown(w)).toBe(true);
+
+    await w.get('[aria-label="Hide errors"]').trigger('click');
+
+    expect(drawerShown(w)).toBe(false);
+    const failed = cell(w, 'r3', 'risk');
+    expect(failed.attributes('aria-invalid')).toBe('true');
+    expect(failed.classes()).toContain('ring-error');
+  });
+
+  it('the toolbar error count reopens the drawer', async () => {
+    const { w } = await saveWithError();
+    await w.get('[aria-label="Hide errors"]').trigger('click');
+
+    const count = button(w, '1 error');
+    expect(count?.attributes('aria-expanded')).toBe('false');
+    await count?.trigger('click');
+
+    expect(drawerShown(w)).toBe(true);
+    expect(button(w, '1 error')?.attributes('aria-expanded')).toBe('true');
+  });
+
+  it('a Save that returns errors reopens a hidden drawer; errors the page repaints don’t', async () => {
+    const { w, api, onSave } = await saveWithError();
+    await w.get('[aria-label="Hide errors"]').trigger('click');
+
+    api.showErrors([
+      { rowId: 'r2', field: 'topic', message: 'Taken' },
+      { rowId: 'r3', field: 'risk', message: 'Too risky' },
+    ]);
+    await nextTick();
+    expect(drawerShown(w)).toBe(false);
+    expect(button(w, '2 errors')?.attributes('aria-expanded')).toBe('false');
+
+    await button(w, 'Save')?.trigger('click');
+    await flushPromises();
+    expect(onSave).toHaveBeenCalledTimes(2);
+    expect(drawerShown(w)).toBe(true);
   });
 });
 

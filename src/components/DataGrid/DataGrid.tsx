@@ -21,7 +21,8 @@
  *   `HeaderCell`) that read per-cell state through their own `computed`; the
  *   column `cell`/`header` functions read no reactive state.
  * - Toolbar and error state render in `DataGridToolbar` and `ErrorSidebar`,
- *   so they don't re-render the component that renders `UTable`.
+ *   so they don't re-render the component that renders `UTable`; both read
+ *   the error drawer's open state, which lives here, from its ref.
  * - A column's width is its TanStack size: fixed until a person drags its
  *   header edge, so filtering never reflows the columns.
  *
@@ -486,6 +487,15 @@ export default defineComponent({
     ];
     props.onReady?.(grid.api);
 
+    // A person may hide the error drawer; a Save that returns errors shows it
+    // again. Errors a page repaints after each edit (`api.showErrors`) don't.
+    const errorsOpen = ref(true);
+    watch(grid.saveResult, (result) => {
+      if (result && result.errors.length > 0) {
+        errorsOpen.value = true;
+      }
+    });
+
     /** Where a key was typed (`KeySource`). */
     function keySource(target: EventTarget | null): KeySource {
       // Keys typed with nothing focused target the window or document.
@@ -576,6 +586,10 @@ export default defineComponent({
           saveLabel={props.saveLabel}
           savedLabel={props.savedLabel}
           toolbarActions={props.toolbarActions}
+          errorsOpen={errorsOpen}
+          onToggleErrors={() => {
+            errorsOpen.value = !errorsOpen.value;
+          }}
         />
         <div class="relative min-h-0 flex-1 overflow-hidden">
           <UTable
@@ -625,6 +639,10 @@ export default defineComponent({
           <ErrorSidebar
             grid={grid}
             onPick={showError}
+            open={errorsOpen}
+            onClose={() => {
+              errorsOpen.value = false;
+            }}
             rowNumber={(rowId: string) => {
               const index = order.value.rowIds.indexOf(rowId);
               return index === -1 ? null : index + 1;
