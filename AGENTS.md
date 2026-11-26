@@ -3,67 +3,30 @@
 ## Project
 
 Spreadsheet-style grid prototype — compliance library admin grid and bulk
-invite page on TanStack Table (Nuxt UI `UTable`). A pnpm workspace monorepo
-with two packages:
-
-- **`contracts/`** — Shared Zod schemas (oRPC removed, Zod only). SWC-compiled
-  ESM + tsc declaration files. Consumed by frontend.
-- **`frontend/`** — Vue 3.5 + TSX admin app (port 3500). Vite+ (Vite 8),
-  Nuxt UI v4, Tailwind v4. Both pages (`/` and `/invite-users`) render the
-  `DataGrid` component.
+invite page on TanStack Table (Nuxt UI `UTable`). One package at the repo root:
+a Vue 3.5 + TSX admin app (port 3500) on Vite+ (Vite 8), Nuxt UI v4 and
+Tailwind v4. Both pages (`/` and `/invite-users`) render the `DataGrid`
+component. The shared Zod schemas live in `src/contracts/`.
 
 Requires Node >= 24 and pnpm >= 12. Use pnpm only.
 
 ## Commands
 
 ```bash
-pnpm install          # install all deps
-pnpm dev              # run frontend dev server (port 3500)
-pnpm build            # build contracts → frontend
-pnpm test             # run all tests (contracts + frontend)
-pnpm lint             # vp lint (Oxlint) across all packages + root
-pnpm fmt              # vp fmt (Oxfmt) across all packages
-pnpm typecheck        # tsc --noEmit (contracts build first)
+pnpm install          # install deps
+pnpm dev              # dev server (port 3500)
+pnpm build            # vp build → dist/
+pnpm test             # vp test run (every test, one config)
+pnpm lint             # vp lint (Oxlint)
+pnpm fmt              # vp fmt (Oxfmt) on TypeScript files
+pnpm typecheck        # tsc --noEmit
 pnpm knip             # dead code detection
 pnpm jscpd            # duplicate code detection
 pnpm agents:check     # validate AGENTS.md documents essential commands
 pnpm validate         # lint + typecheck + test + knip (full gate)
 ```
 
-### contracts
-
-```bash
-pnpm --filter contracts build        # SWC ESM + tsc declarations → dist
-pnpm --filter contracts test          # vp test run (Zod schema tests)
-pnpm --filter contracts lint          # vp lint src
-pnpm --filter contracts fmt           # vp fmt --write "src/**/*.ts"
-```
-
-### frontend
-
-```bash
-pnpm --filter @sc/admin dev           # vp dev (port 3500)
-pnpm --filter @sc/admin build         # vp build
-pnpm --filter @sc/admin typecheck     # tsc --noEmit
-pnpm --filter @sc/admin test          # vp test run (component tests)
-```
-
-Always rebuild contracts after changing them before running frontend:
-`pnpm --filter contracts build` (both import from `dist/`).
-
 ## Architecture
-
-### Contracts (`contracts/`)
-
-Zod schemas only (no oRPC — backend was removed for the prototype). Per-resource
-folders under `src/` hold `schemas/` behind a barrel `index.ts`; the root
-`src/index.ts` aggregates all resources. The save result every `onSave` returns
-is the grid's `GridSaveResponse` (`utils/gridApi.ts`), not a contract.
-
-- Build: SWC compiles `src` → `dist/esm`, `tsc` emits `dist/types`.
-- Consumed by frontend via `contracts` workspace dependency.
-
-### Frontend (`frontend/apps/admin/`)
 
 Vue 3.5 + Vite+ (Vite 8) + TSX (NOT SFCs) + Nuxt UI v4 + Tailwind v4.
 
@@ -72,38 +35,31 @@ Vue 3.5 + Vite+ (Vite 8) + TSX (NOT SFCs) + Nuxt UI v4 + Tailwind v4.
 - Nuxt UI v4 components imported explicitly with `U` prefix (no auto-registration).
 - AutoImport configured for Vue + vue-router APIs only. VueUse (`@vueuse/core`)
   is imported explicitly; reach for a VueUse composable before custom code.
-- Vite resolve aliases: `src`, `components`, `composables`, `config`, `pages`,
-  `styles`, `utils`.
+- Vite resolve aliases (mirrored in `tsconfig.json` paths): `src`, `components`,
+  `composables`, `config`, `pages`, `styles`, `utils`, and `contracts` →
+  `src/contracts`.
+- `vite.config.ts` is the only config: app, `test` (happy-dom, the
+  `setup-localstorage.ts` polyfill), `lint`, `fmt` and `staged`.
 
-### Test config (dual vitest)
+### Contracts (`src/contracts/`)
 
-There are two frontend vitest configs and root `pnpm test` only loads one:
+Zod schemas only (no oRPC — backend was removed for the prototype), imported as
+`'contracts'`. Per-resource folders hold `schemas/` behind a barrel `index.ts`;
+`src/contracts/index.ts` aggregates them. The save result every `onSave`
+returns is the grid's `GridSaveResponse` (`utils/gridApi.ts`), not a contract.
 
-- `frontend/apps/admin/vite.config.ts` (`test` block) — loaded by
-  `pnpm --filter @sc/admin test`, which is what root `pnpm test` runs. **This is
-  the config that takes effect.**
-- `frontend/vitest.config.ts` — loaded by `pnpm --filter frontend test` (the
-  parent workspace package, not run by root `pnpm test`).
+## Conventions
 
-Both currently carry the same `setupFiles` (the `frontend/setup-localstorage.ts`
-localStorage polyfill). If you change test configuration, change **both** configs
-or you will produce a config change that silently never applies.
-
-## Monorepo Conventions
-
-**Dependency versions** — no `catalog:` references anywhere (StackBlitz does not
-support catalogs). External dependencies are pinned to explicit versions in each
-`package.json` (e.g. `"vue": "3.5.38"`). The only `workspace:` reference is the
-internal `contracts` package, declared as `"contracts": "workspace:*"` in
-`frontend/apps/admin/package.json`. `pnpm-workspace.yaml` holds workspace globs,
+**Dependency versions** — no `catalog:` references (StackBlitz does not support
+catalogs). Dependencies are pinned to explicit versions in `package.json`
+(e.g. `"vue": "3.5.38"`). `pnpm-workspace.yaml` holds only pnpm settings:
 `allowBuilds`, and one `overrides` entry that pins every `vite` to Vite+'s
-bundled core (`npm:@voidzero-dev/vite-plus-core@…`, an explicit version, not a
-catalog) so tests and the app share one Vite. `vp migrate` maintains it; keep it,
-the `vite` devDependencies and `vite-plus` in step when upgrading Vite+.
+bundled core (`npm:@voidzero-dev/vite-plus-core@…`, an explicit version) so
+tests and the app share one Vite. `vp migrate` maintains it; keep it, the
+`vite` devDependency and `vite-plus` in step when upgrading Vite+.
 
 **Toolchain** — Vite+ (`vite-plus`, the `vp` CLI) supplies Vite, Vitest
-(`vite-plus/test` imports), Oxlint and Oxfmt. Lint, format and staged-file
-config live in the root `vite.config.ts`.
+(`vite-plus/test` imports), Oxlint and Oxfmt.
 
 **Guardrails** — vp lint (Oxlint), vp fmt (Oxfmt), vp test (Vitest), tsc
 (typecheck), knip (dead code), jscpd (duplicate code). Run `pnpm validate`
@@ -127,8 +83,8 @@ Oxlint `unicorn/filename-case` rule enforces file naming. Cyclomatic complexity
 is capped at 15 via the Oxlint `complexity` rule.
 
 **Module boundaries** — `import/no-cycle` prevents circular dependencies.
-Contracts must not import from frontend. Frontend imports contracts via the
-`contracts` workspace dependency only.
+`src/contracts/` must not import from the app; a `no-restricted-imports` lint
+override enforces it.
 
 **Grid** — both pages render `DataGrid` (`components/DataGrid/`) with
 `GridColumn`s and expose the `GridApi` in `utils/gridApi.ts`.
@@ -150,27 +106,27 @@ own `computed`, never in the column `cell` function. Rows have a fixed
 
 | File                                                      | Purpose                                               |
 | --------------------------------------------------------- | ----------------------------------------------------- |
-| `frontend/apps/admin/src/pages/ComplianceGridEditor.tsx`  | Compliance grid page                                  |
-| `frontend/apps/admin/src/utils/complianceLibrary.ts` | Compliance library: grid columns and the fake backend (`list`, `save` = `onSave`), tested through `save` |
-| `frontend/apps/admin/src/components/DataGrid/DataGrid.tsx` | Grid component: `UTable`, toolbar, keyboard, clipboard, error sidebar |
-| `frontend/apps/admin/src/composables/useDataGrid.ts` | DataGrid state: rows, every person write (edit, paste, fill, clear), undo/redo (`useManualRefHistory`), derived dirty diff, save loop, `GridApi` |
-| `frontend/apps/admin/src/composables/useGridSelection.ts` | Active cell, range and editing state (ids, not indexes) |
-| `frontend/apps/admin/src/utils/zodToColumnDefs.ts` | Derive `GridColumn`s from a Zod schema |
-| `frontend/apps/admin/src/utils/gridApi.ts` | `GridApi` seam implemented by `useDataGrid`'s `api`; draft and agent-tool tests run on it headless in an `effectScope` |
-| `frontend/apps/admin/src/utils/gridClipboard.ts` | Clipboard TSV codec: `serializeTsv` and `parseTsv`, the one reader for every paste path |
-| `frontend/apps/admin/src/pages/BulkInviteUsers.tsx` | SC15-706 bulk invite prototype — Excel template/import, paste, simulated send |
-| `frontend/apps/admin/src/utils/inviteDraft.ts` | Invite draft module — every rule on who may change which rows (agent proposed, confirm, refused deletes, unmapped tables, Send gate) |
-| `frontend/apps/admin/src/utils/inviteAgentTools.ts` | Agent tools: adapter over the invite draft module (edit-only; no send/confirm/apply tool) |
-| `frontend/apps/admin/src/utils/draftRow.ts` | One draft row: cleanup + line parser (never guesses), needs-review detection |
-| `frontend/apps/admin/src/utils/readyRows.ts` | Ready-row check: Send errors and each row's status (needs review › agent proposed › not ready › ready) |
-| `frontend/apps/admin/src/utils/columnMapping.ts` | Pasted client tables: header/alias matching, hold vs insert, column mapping |
-| `frontend/apps/admin/src/components/ColumnMappingPanel/ColumnMappingPanel.tsx` | Mapping panel for an unmapped table (person applies; agent may propose) |
+| `src/pages/ComplianceGridEditor.tsx`                      | Compliance grid page                                  |
+| `src/utils/complianceLibrary.ts` | Compliance library: grid columns and the fake backend (`list`, `save` = `onSave`), tested through `save` |
+| `src/components/DataGrid/DataGrid.tsx` | Grid component: `UTable`, toolbar, keyboard, clipboard, error sidebar |
+| `src/composables/useDataGrid.ts` | DataGrid state: rows, every person write (edit, paste, fill, clear), undo/redo (`useManualRefHistory`), derived dirty diff, save loop, `GridApi` |
+| `src/composables/useGridSelection.ts` | Active cell, range and editing state (ids, not indexes) |
+| `src/utils/zodToColumnDefs.ts` | Derive `GridColumn`s from a Zod schema |
+| `src/utils/gridApi.ts` | `GridApi` seam implemented by `useDataGrid`'s `api`; draft and agent-tool tests run on it headless in an `effectScope` |
+| `src/utils/gridClipboard.ts` | Clipboard TSV codec: `serializeTsv` and `parseTsv`, the one reader for every paste path |
+| `src/pages/BulkInviteUsers.tsx` | SC15-706 bulk invite prototype — Excel template/import, paste, simulated send |
+| `src/utils/inviteDraft.ts` | Invite draft module — every rule on who may change which rows (agent proposed, confirm, refused deletes, unmapped tables, Send gate) |
+| `src/utils/inviteAgentTools.ts` | Agent tools: adapter over the invite draft module (edit-only; no send/confirm/apply tool) |
+| `src/utils/draftRow.ts` | One draft row: cleanup + line parser (never guesses), needs-review detection |
+| `src/utils/readyRows.ts` | Ready-row check: Send errors and each row's status (needs review › agent proposed › not ready › ready) |
+| `src/utils/columnMapping.ts` | Pasted client tables: header/alias matching, hold vs insert, column mapping |
+| `src/components/ColumnMappingPanel/ColumnMappingPanel.tsx` | Mapping panel for an unmapped table (person applies; agent may propose) |
 | `CONTEXT.md` / `docs/adr/` | Domain glossary (bulk invite terms) and ADRs |
-| `frontend/apps/admin/src/composables/useAgentTools.ts` | Registers tools on `document.modelContext` (WebMCP) + `window.scInvite` bridge |
-| `frontend/apps/admin/src/composables/useInviteDraftStorage.ts` | Invite draft in localStorage (`/invite-users` only): rows + agent-proposed ids, saved on every draft check, restored on load |
-| `frontend/apps/admin/src/utils/test-infra.test.ts`       | Test infrastructure tests (localStorage polyfill, component mounting) |
-| `frontend/setup-localstorage.ts`                         | In-memory localStorage polyfill wired via vitest setupFiles |
-| `contracts/src/compliance-library/schemas/index.ts`       | Zod schema for compliance library entity              |
+| `src/composables/useAgentTools.ts` | Registers tools on `document.modelContext` (WebMCP) + `window.scInvite` bridge |
+| `src/composables/useInviteDraftStorage.ts` | Invite draft in localStorage (`/invite-users` only): rows + agent-proposed ids, saved on every draft check, restored on load |
+| `src/utils/test-infra.test.ts`                           | Test infrastructure tests (localStorage polyfill, component mounting) |
+| `setup-localstorage.ts`                                  | In-memory localStorage polyfill wired via vitest setupFiles |
+| `src/contracts/compliance-library/schemas/index.ts`       | Zod schema for compliance library entity              |
 | `.wayfinder/map.md`                                       | Wayfinder decision map                                |
 | `knip.json`                                               | Dead code detection config                            |
 | `.jscpd.json`                                             | Duplicate code detection config                       |
