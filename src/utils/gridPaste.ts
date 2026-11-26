@@ -1,8 +1,8 @@
 import { parseTsv } from './gridClipboard';
 import { appendRows, editableIds, writeCells } from './gridWrite';
+import type { Row } from './gridApi';
 import type { CellPos, GridOrder } from './gridRange';
 import type { RowChange, WritableColumn } from './gridWrite';
-import type { Row } from 'composables/useDataGrid';
 
 /**
  * Paste over the grid, as in Excel: the block is written at its own size

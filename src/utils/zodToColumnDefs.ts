@@ -1,39 +1,5 @@
-import type { Row } from 'composables/useDataGrid';
-import type { VNode } from 'vue';
+import type { GridColumn } from './gridApi';
 import type { z } from 'zod';
-
-/**
- * One grid column, kept apart from `UTable`'s column type. `DataGrid` maps it
- * to a `UTable` column; validation, paste, CSV and range logic read it
- * directly.
- */
-export type GridColumn = {
-  id: string;
-  title: string;
-  /** The message for an invalid value, or null when the value is valid. */
-  validate: (value: unknown) => string | null;
-  /** Takes a position when pasted rows are parsed. */
-  paste: boolean;
-  /** Included in CSV export. */
-  export: boolean;
-  /** Fixed width in px. */
-  width?: number;
-  /** Stays at the left edge while the grid scrolls sideways. */
-  pinned?: boolean;
-} & (
-  | { editor: 'choice'; options: ReadonlyArray<string>; filter: 'choice' }
-  | { editor: 'text'; filter: 'text' }
-  | {
-      editor: null;
-      filter: null;
-      /**
-       * Renders the cell instead of the row's value; the column can't be
-       * sorted. Re-runs when the row changes and when errors are shown
-       * (`GridApi.showErrors`), so it may show state kept outside the row.
-       */
-      render?: (row: Row) => VNode;
-    }
-);
 
 /**
  * Derives grid columns from a Zod object schema, field order kept.

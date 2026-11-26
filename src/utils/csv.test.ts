@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vite-plus/test';
 import { buildCsv } from './csv';
-import type { GridColumn } from './zodToColumnDefs';
-import type { Row } from 'composables/useDataGrid';
+import type { GridColumn, Row } from './gridApi';
 
 const text = (id: string, title: string): GridColumn => ({
   id,

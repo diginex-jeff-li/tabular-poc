@@ -2,17 +2,14 @@ import { ComplianceLibrarySchema } from 'contracts';
 import { fieldProblems } from 'utils/gridApi';
 import { zodToColumnDefs } from 'utils/zodToColumnDefs';
 import type { ComplianceLibraryType } from 'contracts';
-import type { GridSaveResponse } from 'utils/gridApi';
+import type { GridColumn, GridSaveResponse, Row } from 'utils/gridApi';
 import type { SavePayload } from 'utils/gridDiff';
-import type { GridColumn } from 'utils/zodToColumnDefs';
 
 /**
  * PROTOTYPE — the compliance library: its grid columns and its fake backend,
  * an in-memory store of rows, seeded once, with the bulk save `DataGrid`
  * calls as `onSave`. NOT PRODUCTION.
  */
-
-type Row = Record<string, unknown>;
 
 // Fixed widths in px, wide enough for the seed data and for each header title
 // beside its sort button, so filtering never reflows them.
@@ -206,7 +203,7 @@ export function createComplianceLibrary(
         return result.success
           ? []
           : fieldProblems(result.error).map((problem) => ({
-              rowId: String(row.id),
+              rowId: row.id,
               ...problem,
             }));
       });
@@ -216,7 +213,7 @@ export function createComplianceLibrary(
       }
 
       const deleteSet = new Set(payload.deletes);
-      store = store.filter((r) => !deleteSet.has(r.id as string));
+      store = store.filter((r) => !deleteSet.has(r.id));
 
       for (const upsert of payload.upserts) {
         const idx = store.findIndex((r) => r.id === upsert.id);

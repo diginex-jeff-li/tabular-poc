@@ -1,4 +1,4 @@
-import type { Row } from 'composables/useDataGrid';
+import type { Row } from './gridApi';
 
 /** How the grid's rows differ from the rows last loaded or saved, by id. */
 export interface RowDiff {
@@ -11,7 +11,7 @@ export interface RowDiff {
 }
 
 export interface SavePayload {
-  upserts: Array<Record<string, unknown>>;
+  upserts: Array<Row>;
   deletes: Array<string>;
 }
 

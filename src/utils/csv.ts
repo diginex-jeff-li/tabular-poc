@@ -1,5 +1,4 @@
-import type { GridColumn } from './zodToColumnDefs';
-import type { Row } from 'composables/useDataGrid';
+import type { GridColumn, Row } from './gridApi';
 
 /**
  * The grid as CSV for download: a header line of column titles, then every

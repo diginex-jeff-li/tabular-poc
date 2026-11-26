@@ -5,7 +5,7 @@ import { nextTick } from 'vue';
 import DataGrid from './DataGrid';
 import { useGridLayout } from './testLayout';
 import type { VueWrapper } from '@vue/test-utils';
-import type { GridColumn } from 'utils/zodToColumnDefs';
+import type { GridColumn } from 'utils/gridApi';
 
 const COLUMNS: Array<GridColumn> = [
   {

@@ -9,8 +9,7 @@ import UInput from '@nuxt/ui/components/Input.vue';
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue';
 import { computed, defineComponent } from 'vue';
 import type { TableColumn } from '@nuxt/ui/components/Table.vue';
-import type { Row } from 'composables/useDataGrid';
-import type { GridColumn } from 'utils/zodToColumnDefs';
+import type { GridColumn, Row } from 'utils/gridApi';
 import type { PropType, Ref, VNode } from 'vue';
 
 type HeaderContext = Parameters<

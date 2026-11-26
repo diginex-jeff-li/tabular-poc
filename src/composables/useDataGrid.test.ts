@@ -2,9 +2,8 @@ import { afterEach, describe, it, expect, vi } from 'vite-plus/test';
 import { effectScope, nextTick } from 'vue';
 import { useDataGrid } from './useDataGrid';
 import type { PasteParser } from './useDataGrid';
-import type { GridSaveResponse } from 'utils/gridApi';
+import type { GridColumn, GridSaveResponse } from 'utils/gridApi';
 import type { SavePayload } from 'utils/gridDiff';
-import type { GridColumn } from 'utils/zodToColumnDefs';
 import type { EffectScope } from 'vue';
 
 // Each grid runs in its own scope, stopped after the test, so window

@@ -20,11 +20,10 @@ import {
   onMounted,
   ref,
 } from 'vue';
-import type { Row } from 'composables/useDataGrid';
 import type { GridSelection } from 'composables/useGridSelection';
+import type { GridColumn, Row } from 'utils/gridApi';
 import type { CellPos, Dir } from 'utils/gridRange';
 import type { CellMessages } from 'utils/gridValidation';
-import type { GridColumn } from 'utils/zodToColumnDefs';
 import type { ComputedRef, PropType, Ref, VNode } from 'vue';
 
 /**

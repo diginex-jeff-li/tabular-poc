@@ -1,10 +1,49 @@
+import type { VNode } from 'vue';
 import type { ZodError } from 'zod';
 
 /**
- * The seams `DataGrid` (through `useDataGrid`) exposes: the save result
- * every `onSave` returns, and the programmatic grid access the invite draft,
- * agent tools and file import use.
+ * The seams `DataGrid` (through `useDataGrid`) exposes: the row and column
+ * shapes every page and grid module shares, the save result every `onSave`
+ * returns, and the programmatic grid access the invite draft, agent tools
+ * and file import use.
  */
+
+/** A grid row. Rows are never mutated; every change replaces the row and the array. */
+export type Row = Record<string, unknown> & { id: string };
+
+/**
+ * One grid column, kept apart from `UTable`'s column type. `DataGrid` maps it
+ * to a `UTable` column; validation, paste, CSV and range logic read it
+ * directly. `zodToColumnDefs` derives most columns; a page may build its own.
+ */
+export type GridColumn = {
+  id: string;
+  title: string;
+  /** The message for an invalid value, or null when the value is valid. */
+  validate: (value: unknown) => string | null;
+  /** Takes a position when pasted rows are parsed. */
+  paste: boolean;
+  /** Included in CSV export. */
+  export: boolean;
+  /** Fixed width in px. */
+  width?: number;
+  /** Stays at the left edge while the grid scrolls sideways. */
+  pinned?: boolean;
+} & (
+  | { editor: 'choice'; options: ReadonlyArray<string>; filter: 'choice' }
+  | { editor: 'text'; filter: 'text' }
+  | {
+      editor: null;
+      filter: null;
+      /**
+       * Renders the cell instead of the row's value; the column can't be
+       * sorted. Re-runs when the row changes and when errors are shown
+       * (`GridApi.showErrors`), so it may show state kept outside the row.
+       */
+      render?: (row: Row) => VNode;
+    }
+);
+
 export interface GridSaveError {
   rowId: string;
   field: string;
@@ -33,7 +72,7 @@ export function fieldProblems(error: ZodError): Array<FieldProblem> {
  * `normalizeRow`.
  */
 export interface GridApi {
-  getRows: () => Array<Record<string, unknown>>;
+  getRows: () => Array<Row>;
   /**
    * A person brings rows (file import, an applied column mapping): appended
    * with fresh ids as an append paste is, one undo step, reported to
@@ -47,7 +86,7 @@ export interface GridApi {
    * undo and redo history.
    */
   addRows: (rows: Array<Record<string, unknown>>) => Array<string>;
-  updateRows: (patches: Array<{ id: string } & Record<string, unknown>>) => {
+  updateRows: (patches: Array<Row>) => {
     updated: Array<string>;
     missing: Array<string>;
   };

@@ -112,7 +112,7 @@ own `computed`, never in the column `cell` function. Rows have a fixed
 | `src/composables/useDataGrid.ts` | DataGrid state: rows, every person write (edit, paste, fill, clear, `api.importRows`), undo/redo (`useManualRefHistory`), derived dirty diff, save loop, `GridApi` |
 | `src/composables/useGridSelection.ts` | Active cell, range and editing state (ids, not indexes) |
 | `src/utils/zodToColumnDefs.ts` | Derive `GridColumn`s from a Zod schema |
-| `src/utils/gridApi.ts` | `GridApi` seam implemented by `useDataGrid`'s `api`; draft and agent-tool tests run on it headless in an `effectScope` |
+| `src/utils/gridApi.ts` | The grid's seams: `Row` and `GridColumn` (pure grid modules import them from here, never from `useDataGrid`), the save result, and the `GridApi` implemented by `useDataGrid`'s `api`; draft and agent-tool tests run on it headless in an `effectScope` |
 | `src/utils/gridClipboard.ts` | Clipboard TSV codec: `serializeTsv` and `parseTsv`, the one reader for every paste path |
 | `src/pages/BulkInviteUsers.tsx` | SC15-706 bulk invite prototype — Excel template/import, paste, simulated send |
 | `src/utils/inviteDraft.ts` | Invite draft module — every rule on who may change which rows (agent proposed, confirm, refused deletes, unmapped tables, Send gate) |

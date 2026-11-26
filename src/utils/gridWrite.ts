@@ -1,5 +1,4 @@
-import type { GridColumn } from './zodToColumnDefs';
-import type { Row } from 'composables/useDataGrid';
+import type { GridColumn, Row } from './gridApi';
 
 /**
  * A person's write as data: the rows after it, and the ids of the rows it

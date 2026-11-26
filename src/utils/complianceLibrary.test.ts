@@ -8,6 +8,7 @@ import {
 } from 'vite-plus/test';
 import { createComplianceLibrary } from './complianceLibrary';
 import type { ComplianceLibrary } from './complianceLibrary';
+import type { Row } from './gridApi';
 import type { SavePayload } from './gridDiff';
 
 const A = '00000000-0000-4000-8000-00000000000a';
@@ -18,7 +19,7 @@ const LATER = '2026-02-01T00:00:00.000Z';
 /** The save stamps rows when it completes, 300 ms after it starts. */
 const SAVED = '2026-02-01T00:00:00.300Z';
 
-function entry(id: string, issue: string): Record<string, unknown> {
+function entry(id: string, issue: string): Row {
   return {
     id,
     categoryCode: 'A',

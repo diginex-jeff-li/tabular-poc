@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vite-plus/test';
 import { z } from 'zod';
 import { zodToColumnDefs } from './zodToColumnDefs';
-import type { GridColumn } from './zodToColumnDefs';
+import type { GridColumn } from './gridApi';
 
 const byId = (columns: Array<GridColumn>, id: string): GridColumn => {
   const column = columns.find((c) => c.id === id);

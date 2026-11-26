@@ -12,7 +12,7 @@ import { buildCsv } from 'utils/csv';
 import { defineComponent, nextTick, shallowRef } from 'vue';
 import type { ColumnVisibilityItem } from 'components/ColumnVisibilityMenu';
 import type { DataGridState } from 'composables/useDataGrid';
-import type { GridColumn } from 'utils/zodToColumnDefs';
+import type { GridColumn } from 'utils/gridApi';
 import type { PropType, VNode } from 'vue';
 
 export default defineComponent({

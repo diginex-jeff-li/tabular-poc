@@ -61,11 +61,17 @@ import { SELECT_ID, useColumnLayout } from './useColumnLayout';
 import type { EditEnd, GridCellContext } from './GridCell';
 import type { ColumnDrag } from './HeaderCell';
 import type { TableColumn } from '@nuxt/ui/components/Table.vue';
-import type { DataGridState, PasteParser, Row } from 'composables/useDataGrid';
+import type { DataGridState, PasteParser } from 'composables/useDataGrid';
 import type { GridSelection } from 'composables/useGridSelection';
-import type { GridApi, GridSaveError, GridSaveResponse } from 'utils/gridApi';
+import type {
+  GridApi,
+  GridColumn,
+  GridSaveError,
+  GridSaveResponse,
+  Row,
+} from 'utils/gridApi';
+import type { SavePayload } from 'utils/gridDiff';
 import type { CellPos, Dir, GridOrder } from 'utils/gridRange';
-import type { GridColumn } from 'utils/zodToColumnDefs';
 import type { PropType, VNode } from 'vue';
 
 const DEFAULT_WIDTH = 160;
@@ -288,10 +294,7 @@ export default defineComponent({
     },
     onSave: {
       type: Function as PropType<
-        (payload: {
-          upserts: Array<Record<string, unknown>>;
-          deletes: Array<string>;
-        }) => Promise<GridSaveResponse>
+        (payload: SavePayload) => Promise<GridSaveResponse>
       >,
       required: true,
     },

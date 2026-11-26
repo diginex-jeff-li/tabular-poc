@@ -6,15 +6,17 @@ import { fillRange } from 'utils/gridFill';
 import { overwritePaste } from 'utils/gridPaste';
 import { appendRows, writeCells } from 'utils/gridWrite';
 import { computed, readonly, ref, shallowRef, watch } from 'vue';
-import type { GridApi, GridSaveError, GridSaveResponse } from 'utils/gridApi';
+import type {
+  GridApi,
+  GridColumn,
+  GridSaveError,
+  GridSaveResponse,
+  Row,
+} from 'utils/gridApi';
 import type { SavePayload } from 'utils/gridDiff';
 import type { CellPos, GridOrder, Range } from 'utils/gridRange';
 import type { RowChange } from 'utils/gridWrite';
-import type { GridColumn } from 'utils/zodToColumnDefs';
 import type { ComputedRef, Ref, ShallowRef } from 'vue';
-
-/** A grid row. Rows are never mutated; every change replaces the row and the array. */
-export type Row = Record<string, unknown> & { id: string };
 
 /** Ticked rows by row id (TanStack's `RowSelectionState` shape). */
 type RowSelection = Record<string, boolean>;
@@ -255,9 +257,10 @@ export function useDataGrid(opts: {
   }
 
   /** Merges each patch into its row, in order, through `normalizeRow`. */
-  function updateRows(
-    patches: ReadonlyArray<{ id: string } & Record<string, unknown>>,
-  ): { updated: Array<string>; missing: Array<string> } {
+  function updateRows(patches: ReadonlyArray<Row>): {
+    updated: Array<string>;
+    missing: Array<string>;
+  } {
     const byId = new Map(rows.value.map((row) => [row.id, row]));
     const result = {
       updated: [] as Array<string>,

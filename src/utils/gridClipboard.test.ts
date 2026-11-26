@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vite-plus/test';
 import { parsePositionalPaste, parseTsv, serializeTsv } from './gridClipboard';
+import type { GridColumn } from './gridApi';
 import type { CellPos } from './gridRange';
-import type { GridColumn } from './zodToColumnDefs';
 
 const text = (id: string): GridColumn => ({
   id,

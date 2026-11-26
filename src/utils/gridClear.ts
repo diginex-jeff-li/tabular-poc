@@ -1,7 +1,7 @@
 import { editableIds, writeCells } from './gridWrite';
+import type { Row } from './gridApi';
 import type { CellPos } from './gridRange';
 import type { RowChange, WritableColumn } from './gridWrite';
-import type { Row } from 'composables/useDataGrid';
 
 /**
  * Delete/Backspace over a block of cells: sets to null every cell a person

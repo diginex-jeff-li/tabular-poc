@@ -1,8 +1,8 @@
 import { cellsIn } from './gridRange';
 import { editableIds, writeCells } from './gridWrite';
+import type { Row } from './gridApi';
 import type { GridOrder, Range } from './gridRange';
 import type { RowChange, WritableColumn } from './gridWrite';
-import type { Row } from 'composables/useDataGrid';
 
 /**
  * The fill handle: copies the `source` range's rows into the visible rows

@@ -110,7 +110,7 @@ export function createInviteDraft(
     return api()
       .getRows()
       .map((row) => ({
-        id: String(row.id),
+        id: row.id,
         ...draftFields(row),
         status: status(row),
       }));

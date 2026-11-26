@@ -1,6 +1,5 @@
+import type { GridColumn, Row } from './gridApi';
 import type { CellPos } from './gridRange';
-import type { GridColumn } from './zodToColumnDefs';
-import type { Row } from 'composables/useDataGrid';
 
 /**
  * Copies a block of cells as TSV, no header row: one line per row, cells

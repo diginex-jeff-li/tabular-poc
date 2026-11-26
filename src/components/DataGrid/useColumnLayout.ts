@@ -2,7 +2,7 @@ import { useEventListener } from '@vueuse/core';
 import { computed, ref, shallowRef } from 'vue';
 import type { ColumnDrag } from './HeaderCell';
 import type { ColumnVisibilityItem } from 'components/ColumnVisibilityMenu';
-import type { GridColumn } from 'utils/zodToColumnDefs';
+import type { GridColumn } from 'utils/gridApi';
 import type { ComputedRef, Ref } from 'vue';
 
 /** The checkbox column's id. It sits right after the pinned columns. */
