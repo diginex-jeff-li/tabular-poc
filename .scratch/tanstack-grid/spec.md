@@ -103,3 +103,32 @@ Each row is one acceptance check. "Today" is where the behaviour lives in the Ta
 01 spike: `UTable` vs headless · 02 column defs + read-only grid · 03 sort + filters · 04 rows, selection, dirty, save · 05 editing + validation + errors · 06 active cell, keyboard, range, copy · 07 paste + empty state · 08 range clear · 09 CSV export · 10 `GridApi` + invite page · 11 virtualization · 12 cutover + cleanup
 
 Order: 01 → 02 → (03, 04 in parallel) → 05 → 06 → (07, 08, 09 in parallel) → 10 → 11 → 12.
+
+## Phase 2: spreadsheet editing features (tickets 13–17)
+
+Both engines get the same four features: undo/redo, paste over a range, fill down, and column resize/reorder/hide. Feature parity is a requirement, so each ticket's acceptance is checked on `/` and `/invite-users` (TanStack) and on `/tabulator` and `/tabulator/invite-users` (Tabulator).
+
+### Decisions (user, 2026-11-26)
+
+1. **Undo scope.** A person's grid changes are undoable: edit, paste (append or overwrite), range clear, fill, Add Row, Delete selected, Clear all. An agent's write (`GridApi.addRows/updateRows/deleteRows`) is not undoable and **clears both the undo and redo stacks**. The user asked for "everything" if it were easier. It is not: Tabulator's history module records only person actions, and snapshot-undo on TanStack across an agent write would silently drop the agent's change. Clearing the stacks gives one rule both engines can keep.
+2. **Undo controls.** Keys only: ⌘/Ctrl+Z undoes; ⌘/Ctrl+Shift+Z and Ctrl+Y redo. Keys typed in an editor or a header filter keep their native meaning.
+3. **Paste target.** With a cell or range selected in the grid, paste overwrites starting at the active cell (Excel). With nothing selected, or on an empty grid, paste appends rows as today (P13). The invite page's `pasteParser` (header matching, held tables) applies to the append path only. An overwrite always pastes values positionally.
+4. **Overflow.** A pasted block taller than the rows below the active cell adds new rows at the bottom for the extra lines. Columns past the last pasteable column are dropped. Read-only columns (Status, checkbox) are skipped, never written.
+5. **Fill.** A fill handle on the range's corner. Dragging it down (or up) copies the selected values, repeating the pattern; there is no numeric series. Only editable columns are written.
+6. **Columns.** Resize by dragging the header edge, reorder by dragging the header, hide/show from a column menu. Layout lasts until reload (no persistence).
+
+### Invariant both engines must hold
+
+Every write path (typing, paste, overwrite, clear, fill, undo, redo, agent tools) runs `normalizeRow`, updates the dirty count and validation, and reaches Save. A person write calls `onUserEdit(ids)` once with the rows it touched. Undo and redo count as person writes. On the invite page, a person undoing an agent-proposed row's change clears its agent-proposed mark.
+
+Tabulator's dirty tracking is event-driven (`cellEdited` + `markDirty`). A probe on 2026-11-26 showed `history` undo leaving "1 change" after the value was restored, and `selectableRangeFill` leaving "0 changes" after a fill. Ticket 13 replaces it with the derived diff the TanStack engine already uses, before 14–17 add more write paths.
+
+| # | Behaviour | Ticket |
+|---|---|---|
+| P21 | ⌘/Ctrl+Z undoes and ⌘/Ctrl+Shift+Z / Ctrl+Y redoes a person's grid change; an agent write clears both stacks | 14 |
+| P22 | Paste with a selection overwrites from the active cell; extra lines become rows; read-only columns skipped; no selection appends | 15 |
+| P23 | Fill handle copies the selection down/up over editable columns | 16 |
+| P24 | Column resize, reorder and hide/show; lasts until reload | 17 |
+| P25 | Every write path above reaches dirty count, validation, `normalizeRow`, `onUserEdit` and Save | 13–17 |
+
+Order: 13 → (14, 15, 16, 17).
