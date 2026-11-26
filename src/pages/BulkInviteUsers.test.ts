@@ -190,6 +190,54 @@ describe('BulkInviteUsers undo', () => {
     await flushPromises();
     expect(w.text()).toContain('Simulated — no invitations sent (2 valid)');
   });
+
+  it.fails('undoes an .xlsx import in one step and keeps the undo steps before it', async () => {
+    const { w } = await mountPage();
+    await paste(w, 'bo@acme.com\tBo\tKim\tViewer');
+    const data = await buildInviteWorkbook([
+      {
+        email: 'cy@acme.com',
+        firstName: 'Cy',
+        lastName: 'Ng',
+        role: 'Viewer',
+        groups: null,
+      },
+    ]);
+    const input = w.get('[data-testid="invite-import"]')
+      .element as HTMLInputElement;
+    Object.defineProperty(input, 'files', {
+      value: [new File([data], 'people.xlsx')],
+    });
+    input.dispatchEvent(new Event('change'));
+    await vi.waitFor(() =>
+      expect(emails(w)).toEqual(['bo@acme.com', 'cy@acme.com']),
+    );
+
+    await undo(w);
+    expect(emails(w)).toEqual(['bo@acme.com']);
+    await undo(w);
+    expect(emails(w)).toEqual([]);
+  });
+
+  it.fails('undoes an applied column mapping in one step and keeps the undo steps before it', async () => {
+    const { w } = await mountPage();
+    await paste(w, 'bo@acme.com\tBo\tKim\tViewer');
+    await paste(
+      w,
+      'Email\tGiven name\tSurname\tAccess\nzed@acme.com\tZed\tAo\tViewer',
+    );
+    await w
+      .get('select[aria-label="Template column for Access"]')
+      .setValue('role');
+    await button(w, 'Apply mapping')?.trigger('click');
+    await flushPromises();
+    expect(emails(w)).toEqual(['bo@acme.com', 'zed@acme.com']);
+
+    await undo(w);
+    expect(emails(w)).toEqual(['bo@acme.com']);
+    await undo(w);
+    expect(emails(w)).toEqual([]);
+  });
 });
 
 describe('BulkInviteUsers draft in localStorage', () => {
