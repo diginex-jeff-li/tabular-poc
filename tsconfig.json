@@ -31,7 +31,8 @@
       "pages/*": ["./src/pages/*"],
       "styles/*": ["./src/styles/*"],
       "utils/*": ["./src/utils/*"],
-      "src/*": ["./src/*"]
+      "src/*": ["./src/*"],
+      "contracts": ["./src/contracts/index.ts"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],

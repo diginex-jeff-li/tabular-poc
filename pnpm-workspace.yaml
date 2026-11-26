@@ -1,9 +1,5 @@
-packages:
-  - contracts
-
 allowBuilds:
   '@parcel/watcher': true
-  '@swc/core': true
   esbuild: true
   vue-demi: true
 minimumReleaseAgeExclude:

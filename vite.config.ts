@@ -21,7 +21,7 @@ export default defineConfig({
       pages: path.resolve(__dirname, 'src/pages'),
       styles: path.resolve(__dirname, 'src/styles'),
       utils: path.resolve(__dirname, 'src/utils'),
-      contracts: path.resolve(__dirname, 'contracts/src'),
+      contracts: path.resolve(__dirname, 'src/contracts'),
     },
     dedupe: ['@nuxt/ui', 'vue', 'vue-router'],
     extensions: ['.tsx', '.ts', '.jsx', '.js', '.vue', '.json'],
@@ -164,6 +164,33 @@ export default defineConfig({
           'typescript/no-misused-promises': [
             'error',
             { checksVoidReturn: { attributes: false } },
+          ],
+        },
+      },
+      {
+        // Contracts are the shared Zod schemas: the app imports them, never
+        // the other way round.
+        files: ['src/contracts/**'],
+        rules: {
+          'no-restricted-imports': [
+            'error',
+            {
+              patterns: [
+                {
+                  group: [
+                    'src/*',
+                    'components/*',
+                    'composables/*',
+                    'config/*',
+                    'pages/*',
+                    'styles/*',
+                    'utils/*',
+                    '../../*',
+                  ],
+                  message: 'Contracts must not import from the app.',
+                },
+              ],
+            },
           ],
         },
       },

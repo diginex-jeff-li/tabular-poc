@@ -28,8 +28,7 @@ export const INVITE_GROUPS = [
   'Electronics',
 ] as const;
 
-export const InviteRoleEnum = z.enum(INVITE_ROLES);
-export const InviteGroupEnum = z.enum(INVITE_GROUPS);
+const InviteRoleEnum = z.enum(INVITE_ROLES);
 
 /** Split a "; "-separated groups cell into trimmed, non-empty names. */
 export function parseInviteGroups(value: unknown): Array<string> {
@@ -57,8 +56,6 @@ export const InviteRowSchema = z.object({
   role: InviteRoleEnum,
   groups: z.string().nullable(),
 });
-
-export type InviteRowType = z.infer<typeof InviteRowSchema>;
 
 const { id: _id, ...INVITE_FIELD_SHAPE } = InviteRowSchema.shape;
 export type InviteField = keyof typeof INVITE_FIELD_SHAPE;

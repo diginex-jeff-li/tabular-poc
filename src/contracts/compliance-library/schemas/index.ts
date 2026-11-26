@@ -19,14 +19,12 @@ export const CategoryCodeEnum = z.enum([
   'P',
   'Q',
 ]);
-export type CategoryCodeType = z.infer<typeof CategoryCodeEnum>;
 
 export const ComplianceCategoryEnum = z.enum([
   'Governance',
   'Social',
   'Environment',
 ]);
-export type ComplianceCategoryType = z.infer<typeof ComplianceCategoryEnum>;
 
 export const TopicEnum = z.enum([
   'Key Compliance Requirements',
@@ -44,10 +42,8 @@ export const TopicEnum = z.enum([
   'Compliance Requirements',
   'Community & Environment',
 ]);
-export type TopicType = z.infer<typeof TopicEnum>;
 
 export const RiskLevelEnum = z.enum(['High', 'Medium', 'Low']);
-export type RiskLevelType = z.infer<typeof RiskLevelEnum>;
 
 export const ClosureTimingEnum = z.enum([
   '7',
@@ -56,7 +52,6 @@ export const ClosureTimingEnum = z.enum([
   '90',
   'Next assessment',
 ]);
-export type ClosureTimingType = z.infer<typeof ClosureTimingEnum>;
 
 export const ComplianceLibrarySchema = z.object({
   id: z.string().uuid(),
