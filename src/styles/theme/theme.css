@@ -14,4 +14,66 @@
   --color-risk-medium: #ffcf2e;
   --color-risk-high: #ff515a;
   --color-risk-extreme: #b72c4b;
+
+  /* Motion (emil-design-eng): ease-out-strong for UI enter and press
+     feedback, ease-drawer for panels that slide in. Utilities:
+     `ease-out-strong`, `ease-drawer`. */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Hover effects only for a precise pointer that can hover: a tap on a touch
+   screen must not leave a sticky hover state. Replaces Tailwind's `hover:`
+   (which checks `hover: hover` only) for the app and Nuxt UI alike. */
+@custom-variant hover {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
+/* Press feedback for every Nuxt UI button. The color list mirrors Nuxt UI's
+   `transition-colors` so hover colors still fade; this rule wins over it. */
+:is(button, a)[data-slot='base'] {
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease,
+    outline-color 150ms ease,
+    transform 160ms var(--ease-out-strong);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :is(button, a)[data-slot='base']:not(:disabled, [aria-disabled='true']):active {
+    transform: scale(0.97);
+  }
+}
+
+/* `<Transition name="rise">`: a short fade and 4px rise for panels that
+   appear after a pointer action; the exit is faster than the enter. Reduced
+   motion keeps the fade and drops the movement. */
+.rise-enter-active {
+  transition:
+    opacity 200ms var(--ease-out-strong),
+    transform 200ms var(--ease-out-strong);
+}
+
+.rise-leave-active {
+  transition:
+    opacity 140ms var(--ease-out-strong),
+    transform 140ms var(--ease-out-strong);
+}
+
+.rise-enter-from,
+.rise-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise-enter-from,
+  .rise-leave-to {
+    transform: none;
+  }
 }

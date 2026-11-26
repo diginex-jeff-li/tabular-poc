@@ -1,7 +1,18 @@
 import UApp from '@nuxt/ui/components/App.vue';
 import { defineComponent } from 'vue';
-import { RouterLink, RouterView } from 'vue-router';
+import { RouterView, useLink } from 'vue-router';
 import type { VNode } from 'vue';
+
+const NAV = [
+  { to: '/', label: 'Compliance Library' },
+  { to: '/invite-users', label: 'Invite Users' },
+] as const;
+
+const NAV_LINK =
+  'rounded-md px-2.5 py-1 text-sm transition-transform duration-160 ease-out-strong motion-safe:active:scale-97';
+const NAV_IDLE =
+  'font-medium text-muted hover:bg-elevated hover:text-highlighted';
+const NAV_CURRENT = 'bg-primary/10 font-semibold text-primary';
 
 /**
  * Application shell — wraps every route with a slim nav header and the router
@@ -14,36 +25,40 @@ import type { VNode } from 'vue';
  * edge. No `100vh` arithmetic — the flex chain carries the height.
  *
  * Nav links: "Compliance Library" → `/` and "Invite Users" → `/invite-users`.
- * The active route is visually indicated via `activeClass`.
+ * The current route's link is a tinted pill with `aria-current="page"`.
  *
  * PROTOTYPE — throwaway prototype code.
  */
 export default defineComponent({
   name: 'Application',
   setup() {
+    const links = NAV.map((item) => ({
+      ...item,
+      link: useLink({ to: item.to }),
+    }));
     return (): VNode => (
       <UApp>
         <div class="flex h-screen flex-col">
           {/* ── Nav header (fixed, does not scroll away) ── */}
-          <header class="flex shrink-0 items-center gap-4 border-b border-default bg-muted px-4 py-2">
-            <span class="text-sm font-semibold text-highlighted">
+          <header class="flex h-11 shrink-0 items-center gap-6 border-b border-default bg-default px-4">
+            <span class="text-sm font-semibold tracking-tight text-highlighted">
               Compliance Admin
             </span>
-            <nav class="flex items-center gap-3">
-              <RouterLink
-                to="/"
-                class="text-sm text-muted hover:text-default"
-                activeClass="font-semibold text-primary"
-              >
-                Compliance Library
-              </RouterLink>
-              <RouterLink
-                to="/invite-users"
-                class="text-sm text-muted hover:text-default"
-                activeClass="font-semibold text-primary"
-              >
-                Invite Users
-              </RouterLink>
+            <nav class="flex items-center gap-1">
+              {links.map(({ to, label, link }) => {
+                const current = link.isActive.value;
+                return (
+                  <a
+                    key={to}
+                    href={link.href.value}
+                    aria-current={current ? 'page' : undefined}
+                    class={[NAV_LINK, current ? NAV_CURRENT : NAV_IDLE]}
+                    onClick={(e: MouseEvent) => void link.navigate(e)}
+                  >
+                    {label}
+                  </a>
+                );
+              })}
             </nav>
           </header>
 

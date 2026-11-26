@@ -33,7 +33,14 @@ import { createInviteTools } from 'utils/inviteAgentTools';
 import { createInviteDraft, describeOutcome } from 'utils/inviteDraft';
 import { buildInviteWorkbook, readInviteWorkbook } from 'utils/inviteWorkbook';
 import { zodToColumnDefs } from 'utils/zodToColumnDefs';
-import { defineComponent, nextTick, onMounted, ref, shallowRef } from 'vue';
+import {
+  defineComponent,
+  nextTick,
+  onMounted,
+  ref,
+  shallowRef,
+  Transition,
+} from 'vue';
 import type { GridApi, GridColumn } from 'utils/gridApi';
 import type { InviteDraft } from 'utils/inviteDraft';
 import type { InviteRowStatus } from 'utils/readyRows';
@@ -58,6 +65,14 @@ const STATUS_WIDTH = 215;
 const XLSX_TYPE =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
+// Hoisted: a new object each render is a changed prop.
+const COMPACT_ALERT = {
+  root: 'gap-2 rounded-md px-3 py-2',
+  icon: 'mt-px size-4',
+  title: 'text-xs font-medium',
+  description: 'mt-0.5 text-xs text-muted',
+} as const;
+
 /** TanStack columns: Status first and pinned, then the contract's fields. */
 function gridColumns(draft: InviteDraft): Array<GridColumn> {
   return [
@@ -80,8 +95,8 @@ function gridColumns(draft: InviteDraft): Array<GridColumn> {
               <UButton
                 label="Confirm"
                 size="xs"
-                color="neutral"
-                variant="outline"
+                color="info"
+                variant="soft"
                 onClick={() => draft.confirm(row.id)}
               />
             )}
@@ -101,6 +116,9 @@ export default defineComponent({
     const webmcp = ref(false);
     const notice = ref<string | null>(null);
     const autoMatch = ref(true);
+    // Notices and the mapping panel fade in after a pointer action; after a
+    // paste (a keyboard shortcut) they appear without animation.
+    const animatePanels = ref(true);
 
     const draft = createInviteDraft(() => grid, {
       existingEmails: EXISTING_EMAILS,
@@ -122,12 +140,19 @@ export default defineComponent({
         { autoMatch: autoMatch.value },
         positional,
       );
+      animatePanels.value = false;
       notice.value = describeOutcome(outcome, 'paste');
       return rows;
     }
 
     function applyMapping() {
+      animatePanels.value = true;
       notice.value = describeOutcome(draft.applyMapping(), 'mapping');
+    }
+
+    function discardMapping() {
+      animatePanels.value = true;
+      draft.discardMapping();
     }
 
     // The hidden input below stays the dialog (and the test hook); `reset`
@@ -145,6 +170,7 @@ export default defineComponent({
         return;
       }
       const table = await readInviteWorkbook(await file.arrayBuffer());
+      animatePanels.value = true;
       notice.value = describeOutcome(
         draft.importTable(table, { autoMatch: autoMatch.value }),
         { file: file.name },
@@ -166,12 +192,13 @@ export default defineComponent({
     }
 
     const toolbarActions = (): Array<VNode> => [
-      <div key="separator" class="mx-1 h-5 w-px bg-default" />,
+      <div key="separator" class="mx-1 h-5 w-px shrink-0 bg-default" />,
       <UButton
         key="template"
         label="Download template"
+        icon="i-lucide-file-spreadsheet"
         color="neutral"
-        variant="outline"
+        variant="ghost"
         size="xs"
         onClick={async () =>
           downloadXlsx(
@@ -183,6 +210,7 @@ export default defineComponent({
       <UButton
         key="export"
         label="Download as Excel"
+        icon="i-lucide-download"
         color="neutral"
         variant="ghost"
         size="xs"
@@ -196,8 +224,9 @@ export default defineComponent({
       <UButton
         key="import"
         label="Import .xlsx"
+        icon="i-lucide-upload"
         color="neutral"
-        variant="outline"
+        variant="ghost"
         size="xs"
         onClick={() => importDialog.open()}
       />,
@@ -210,10 +239,11 @@ export default defineComponent({
       />,
       <label
         key="auto-match"
-        class="ml-2 flex items-center gap-1 text-xs text-muted"
+        class="ml-2 flex shrink-0 cursor-pointer items-center gap-1.5 text-xs whitespace-nowrap text-muted select-none"
       >
         <input
           type="checkbox"
+          class="accent-(--ui-primary)"
           checked={autoMatch.value}
           onChange={(e: Event) => {
             autoMatch.value = (e.target as HTMLInputElement).checked;
@@ -244,10 +274,12 @@ export default defineComponent({
 
     return (): VNode => (
       <div class="flex h-full flex-col">
-        <div class="shrink-0 space-y-2 border-b border-default p-3">
+        <div class="shrink-0 space-y-2 border-b border-default px-4 py-2.5">
           <UAlert
             color={webmcp.value ? 'success' : 'neutral'}
             variant="soft"
+            icon={webmcp.value ? 'i-lucide-plug-zap' : 'i-lucide-plug'}
+            ui={COMPACT_ALERT}
             title={
               webmcp.value
                 ? `WebMCP: ${tools.length} agent tools registered on this page`
@@ -255,25 +287,32 @@ export default defineComponent({
             }
             description="Agents can add, edit, delete and validate rows, split lines that need review, and propose how a pasted or imported table's columns map — a person confirms each of those. Only you can click Send invites. Existing users for testing: jane.doe@acme.com, tom.lee@acme.com, admin@acme.com."
           />
-          {notice.value && (
-            <UAlert
-              color="info"
-              variant="soft"
-              title={notice.value}
-              close
-              onUpdate:open={() => {
-                notice.value = null;
-              }}
-            />
-          )}
-          {draft.held.value && (
-            <ColumnMappingPanel
-              held={draft.held.value}
-              onChange={draft.setMappingColumn}
-              onApply={applyMapping}
-              onDiscard={draft.discardMapping}
-            />
-          )}
+          <Transition name="rise" css={animatePanels.value}>
+            {notice.value ? (
+              <UAlert
+                color="info"
+                variant="soft"
+                icon="i-lucide-info"
+                ui={COMPACT_ALERT}
+                title={notice.value}
+                close
+                onUpdate:open={() => {
+                  animatePanels.value = true;
+                  notice.value = null;
+                }}
+              />
+            ) : null}
+          </Transition>
+          <Transition name="rise" css={animatePanels.value}>
+            {draft.held.value ? (
+              <ColumnMappingPanel
+                held={draft.held.value}
+                onChange={draft.setMappingColumn}
+                onApply={applyMapping}
+                onDiscard={discardMapping}
+              />
+            ) : null}
+          </Transition>
         </div>
         <div class="min-h-0 flex-1">
           <DataGrid columns={columns} {...gridProps} />

@@ -66,3 +66,28 @@ describe('ColumnMappingPanel', () => {
     expect(onApply).toHaveBeenCalledOnce();
   });
 });
+
+describe('ColumnMappingPanel heading', () => {
+  it('counts columns and rows in the singular for one of each', () => {
+    const { w } = mountPanel({
+      table: { headers: ['Email'], rows: [['cy@acme.com']] },
+      mapping: ['email'],
+      problems: [],
+      agentColumns: [],
+    });
+    expect(w.get('p').text()).toBe('1 column × 1 row');
+  });
+
+  it('counts columns and rows in the plural otherwise', () => {
+    const { w } = mountPanel({
+      table: {
+        ...table,
+        rows: [...table.rows, ['bo@acme.com', 'Bo', 'Li', 'Admin']],
+      },
+      mapping: ['email', 'firstName', 'lastName', 'role'],
+      problems: [],
+      agentColumns: [],
+    });
+    expect(w.get('p').text()).toBe('4 columns × 2 rows');
+  });
+});

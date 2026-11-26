@@ -50,7 +50,7 @@ export default defineComponent({
           label="Columns"
           icon="i-lucide-columns-3"
           color="neutral"
-          variant="outline"
+          variant="ghost"
           size="xs"
         />
       </UDropdownMenu>

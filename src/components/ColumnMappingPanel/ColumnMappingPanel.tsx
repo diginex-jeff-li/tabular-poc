@@ -29,7 +29,7 @@ export default defineComponent({
   setup(props) {
     const select = (column: number): VNode => (
       <select
-        class="rounded border border-default bg-default px-1 py-0.5 text-xs"
+        class="h-7 rounded-md border border-default bg-default px-2 text-xs text-default focus-visible:outline-2 focus-visible:outline-primary"
         aria-label={`Template column for ${props.held.table.headers[column]}`}
         onChange={(e: Event) =>
           props.onChange(
@@ -56,32 +56,43 @@ export default defineComponent({
 
     return (): VNode => {
       const { table, agentColumns, problems } = props.held;
+      const columns = table.headers.length;
+      const rows = table.rows.length;
       return (
         <div
-          class="space-y-2 rounded border border-warning/50 bg-warning/5 p-3"
+          class="space-y-3 rounded-lg border border-warning/40 bg-warning/5 p-3"
           data-testid="column-mapping"
         >
-          <p class="text-sm font-semibold text-default">
-            {table.headers.length} columns × {table.rows.length} rows. Map them
-            to the template; nothing enters the draft until you apply.
-          </p>
+          <div>
+            <p class="text-sm font-semibold text-highlighted">
+              {`${columns} ${columns === 1 ? 'column' : 'columns'} × ${rows} ${rows === 1 ? 'row' : 'rows'}`}
+            </p>
+            <p class="mt-0.5 text-xs text-muted">
+              Map them to the template; nothing enters the draft until you
+              apply.
+            </p>
+          </div>
           <table class="text-xs">
             <thead>
               <tr class="text-left text-muted">
-                <th class="pr-4 font-medium">Your column</th>
-                <th class="pr-4 font-medium">Sample</th>
-                <th class="font-medium">Template column</th>
+                <th class="pr-6 pb-1 font-medium">Your column</th>
+                <th class="pr-6 pb-1 font-medium">Sample</th>
+                <th class="pb-1 font-medium">Template column</th>
               </tr>
             </thead>
             <tbody>
               {table.headers.map((header, i) => (
                 <tr key={i}>
-                  <td class="pr-4">{header}</td>
-                  <td class="pr-4 text-muted">{table.rows[0]?.[i] ?? ''}</td>
+                  <td class="pr-6 font-medium text-default">{header}</td>
+                  <td class="pr-6 text-muted">
+                    <span class="block max-w-48 truncate">
+                      {table.rows[0]?.[i] ?? ''}
+                    </span>
+                  </td>
                   <td class="py-0.5">
                     {select(i)}
                     {agentColumns.includes(i) && (
-                      <span class="ml-2 font-semibold text-info">
+                      <span class="ml-2 rounded-sm bg-info/10 px-1.5 py-0.5 font-medium text-info">
                         Agent proposed
                       </span>
                     )}
@@ -91,7 +102,7 @@ export default defineComponent({
             </tbody>
           </table>
           {problems.length > 0 && (
-            <ul class="text-xs text-error">
+            <ul class="space-y-0.5 text-xs text-error">
               {problems.map((p) => (
                 <li key={p}>{p}</li>
               ))}
