@@ -20,20 +20,31 @@ type Editing = { pos: CellPos; seed: string | null };
 type Fill = { source: Range; toRowId: string };
 
 /**
+ * Where a press on a cell landed: the cell itself, its fill handle, or a
+ * control inside it (a button), which selects the cell but starts no drag.
+ */
+export type PressTarget = 'cell' | 'fillHandle' | 'control';
+
+/**
  * Everything a person is doing in the grid, by row and column id. The active
  * cell is the range's anchor; one selected cell is a range whose anchor and
  * focus are the same cell. Editing and filling never overlap: starting an
  * edit ends a fill, and a fill only starts while nothing is edited.
  */
-type GridInteraction = {
+type SelectionState = {
   range: Range | null;
   editing: Editing | null;
   fill: Fill | null;
 };
 
 export interface GridSelection {
-  state: Readonly<ShallowRef<GridInteraction>>;
+  state: Readonly<ShallowRef<SelectionState>>;
   active: ComputedRef<CellPos | null>;
+  /**
+   * The button is held after a press on a cell and nothing is edited: the
+   * pointer drags the range's focus, or the fill's target row.
+   */
+  dragging: ComputedRef<boolean>;
   isActive: (rowId: string, colId: string) => boolean;
   isSelected: (rowId: string, colId: string) => boolean;
   isEditing: (rowId: string, colId: string) => boolean;
@@ -45,8 +56,19 @@ export interface GridSelection {
   cells: () => Array<Array<CellPos>>;
   /** A click: the cell becomes the range, or with `extend` the range's new focus. */
   select: (pos: CellPos, extend?: boolean) => void;
-  /** A drag over `pos` with the button held: moves the focus there, or the fill's target row. */
-  dragTo: (pos: CellPos) => void;
+  /**
+   * The primary button goes down on `pos`: selects it (with `extend`, as the
+   * range's new focus), or on the fill handle starts a fill from the range.
+   * Does nothing on the cell being edited.
+   */
+  press: (pos: CellPos, how: { extend: boolean; target: PressTarget }) => void;
+  /** The pointer enters `pos`: while `dragging`, the drag moves there. */
+  enter: (pos: CellPos) => void;
+  /**
+   * The button is released: the press ends, and a running fill ends and is
+   * returned once, with the range grown over the rows it filled.
+   */
+  release: () => Fill | null;
   /** A key move: the active cell moves (collapsing the range), or with `extend` the focus. */
   step: (dir: Dir, extend?: boolean) => boolean;
   selectRow: (rowId: string) => void;
@@ -55,13 +77,6 @@ export interface GridSelection {
   clear: () => void;
   startEdit: (pos: CellPos, seed: string | null) => void;
   stopEdit: () => void;
-  /** A press on the fill handle: the current range becomes the fill's source. */
-  startFill: () => void;
-  /**
-   * The button is released: ends the fill and returns it, and the range
-   * grows over the rows it filled. Null when no fill was running.
-   */
-  endFill: () => Fill | null;
 }
 
 const same = (a: CellPos, b: CellPos) =>
@@ -86,19 +101,23 @@ function filledRange(source: Range, toRowId: string, order: GridOrder): Range {
 }
 
 /**
- * Active cell, range and editing cell over the grid's visible `order`
- * (sorted and filtered row ids, visible column ids in screen order). When
- * the order changes, the range is fitted to it (`reconcile`) and an edit on
- * a row that left the view ends.
+ * Active cell, range, editing cell and the press gesture over the grid's
+ * visible `order` (sorted and filtered row ids, visible column ids in screen
+ * order). When the order changes, the range is fitted to it (`reconcile`)
+ * and an edit on a row that left the view ends.
  */
 export function useGridSelection(
   order: Readonly<Ref<GridOrder>>,
 ): GridSelection {
-  const state = shallowRef<GridInteraction>({
+  const state = shallowRef<SelectionState>({
     range: null,
     editing: null,
     fill: null,
   });
+  // The primary button is down after a press on a cell (not on a control).
+  // Kept out of `state`, so a press or release alone re-runs no cell computed.
+  const held = shallowRef(false);
+  const dragging = computed(() => held.value && state.value.editing === null);
   const active = computed(() => state.value.range?.anchor ?? null);
   // The rows and columns the range spans, for per-cell lookups.
   const covered = computed(() => {
@@ -138,6 +157,15 @@ export function useGridSelection(
     }
   }
 
+  function select(pos: CellPos, extendRange = false) {
+    const range = state.value.range;
+    setRange(
+      extendRange && range
+        ? { anchor: range.anchor, focus: pos }
+        : { anchor: pos, focus: pos },
+    );
+  }
+
   watch(order, (next, prev) => {
     const { range, editing } = state.value;
     const fitted = range && reconcile(range, prev, next);
@@ -151,6 +179,7 @@ export function useGridSelection(
   return {
     state,
     active,
+    dragging,
     isActive: (rowId, colId) => {
       const pos = active.value;
       return pos !== null && pos.rowId === rowId && pos.colId === colId;
@@ -173,15 +202,26 @@ export function useGridSelection(
       fillTarget.value.colIds.has(colId),
     cells: () =>
       state.value.range ? cellsIn(state.value.range, order.value) : [],
-    select(pos, extendRange = false) {
-      const range = state.value.range;
-      setRange(
-        extendRange && range
-          ? { anchor: range.anchor, focus: pos }
-          : { anchor: pos, focus: pos },
-      );
+    select,
+    press(pos, { extend: extendRange, target }) {
+      const { range, editing } = state.value;
+      if (editing && same(editing.pos, pos)) {
+        return;
+      }
+      if (target !== 'fillHandle') {
+        select(pos, extendRange);
+      } else if (range && !editing) {
+        state.value = {
+          ...state.value,
+          fill: { source: range, toRowId: range.focus.rowId },
+        };
+      }
+      held.value = target !== 'control';
     },
-    dragTo(pos) {
+    enter(pos) {
+      if (!dragging.value) {
+        return;
+      }
       const { range, fill } = state.value;
       if (fill) {
         if (fill.toRowId !== pos.rowId) {
@@ -193,6 +233,19 @@ export function useGridSelection(
       } else if (range && !same(range.focus, pos)) {
         setRange({ anchor: range.anchor, focus: pos });
       }
+    },
+    release() {
+      held.value = false;
+      const fill = state.value.fill;
+      if (!fill) {
+        return null;
+      }
+      state.value = {
+        ...state.value,
+        range: filledRange(fill.source, fill.toRowId, order.value),
+        fill: null,
+      };
+      return fill;
     },
     step(dir, extendRange = false) {
       const range = state.value.range;
@@ -229,27 +282,6 @@ export function useGridSelection(
       if (state.value.editing) {
         state.value = { ...state.value, editing: null };
       }
-    },
-    startFill() {
-      const { range, editing } = state.value;
-      if (range && !editing) {
-        state.value = {
-          ...state.value,
-          fill: { source: range, toRowId: range.focus.rowId },
-        };
-      }
-    },
-    endFill() {
-      const fill = state.value.fill;
-      if (!fill) {
-        return null;
-      }
-      state.value = {
-        ...state.value,
-        range: filledRange(fill.source, fill.toRowId, order.value),
-        fill: null,
-      };
-      return fill;
     },
   };
 }

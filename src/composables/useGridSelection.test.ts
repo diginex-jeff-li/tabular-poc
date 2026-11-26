@@ -51,12 +51,80 @@ describe('useGridSelection', () => {
 
   it('extends to a Shift-clicked or dragged-over cell, keeping the anchor', () => {
     const { sel } = setup();
-    sel.select({ rowId: 'r3', colId: 'c' });
-    sel.select({ rowId: 'r2', colId: 'b' }, true);
+    sel.press({ rowId: 'r3', colId: 'c' }, { extend: false, target: 'cell' });
+    sel.press({ rowId: 'r2', colId: 'b' }, { extend: true, target: 'cell' });
     expect(selected(sel)).toEqual(['r2:b', 'r2:c', 'r3:b', 'r3:c']);
-    sel.dragTo({ rowId: 'r1', colId: 'c' });
+    sel.enter({ rowId: 'r1', colId: 'c' });
     expect(selected(sel)).toEqual(['r1:c', 'r2:c', 'r3:c']);
     expect(sel.active.value).toEqual({ rowId: 'r3', colId: 'c' });
+  });
+
+  it('drags only while the button is held after a press on a cell', () => {
+    const { sel } = setup();
+    sel.select({ rowId: 'r1', colId: 'a' });
+    sel.enter({ rowId: 'r2', colId: 'b' });
+    expect(selected(sel)).toEqual(['r1:a']);
+
+    // A press on a button inside a cell selects it but starts no drag.
+    sel.press(
+      { rowId: 'r1', colId: 'b' },
+      { extend: false, target: 'control' },
+    );
+    sel.enter({ rowId: 'r2', colId: 'b' });
+    expect(selected(sel)).toEqual(['r1:b']);
+
+    sel.press({ rowId: 'r1', colId: 'a' }, { extend: false, target: 'cell' });
+    sel.release();
+    sel.enter({ rowId: 'r2', colId: 'b' });
+    expect(selected(sel)).toEqual(['r1:a']);
+    expect(sel.dragging.value).toBe(false);
+  });
+
+  it('never drags while a cell is edited, and a press on the edited cell does nothing', () => {
+    const { sel } = setup();
+    sel.startEdit({ rowId: 'r1', colId: 'a' }, null);
+    sel.press({ rowId: 'r1', colId: 'a' }, { extend: true, target: 'cell' });
+    expect(selected(sel)).toEqual(['r1:a']);
+
+    // A press elsewhere selects, but the drag waits for the edit to end.
+    sel.press({ rowId: 'r2', colId: 'a' }, { extend: false, target: 'cell' });
+    sel.enter({ rowId: 'r3', colId: 'b' });
+    expect(selected(sel)).toEqual(['r2:a']);
+    expect(sel.dragging.value).toBe(false);
+
+    sel.stopEdit();
+    sel.enter({ rowId: 'r3', colId: 'b' });
+    expect(selected(sel)).toEqual(['r2:a', 'r2:b', 'r3:a', 'r3:b']);
+  });
+
+  it('a fill-handle drag is returned once on release and grows the range over its rows', () => {
+    const { sel } = setup();
+    sel.select({ rowId: 'r1', colId: 'a' });
+    sel.select({ rowId: 'r1', colId: 'b' }, true);
+    sel.press(
+      { rowId: 'r1', colId: 'b' },
+      { extend: false, target: 'fillHandle' },
+    );
+    sel.enter({ rowId: 'r3', colId: 'c' });
+    expect(sel.isFillTarget('r3', 'b')).toBe(true);
+    expect(sel.isFillTarget('r3', 'c')).toBe(false);
+
+    expect(sel.release()).toEqual({
+      source: {
+        anchor: { rowId: 'r1', colId: 'a' },
+        focus: { rowId: 'r1', colId: 'b' },
+      },
+      toRowId: 'r3',
+    });
+    expect(selected(sel)).toEqual([
+      'r1:a',
+      'r1:b',
+      'r2:a',
+      'r2:b',
+      'r3:a',
+      'r3:b',
+    ]);
+    expect(sel.release()).toBeNull();
   });
 
   it('selects a whole row or a whole column of the visible grid', () => {
@@ -103,11 +171,11 @@ describe('useGridSelection', () => {
 
   it('keeps its state object when nothing changes, so cells do not re-render', () => {
     const { sel } = setup();
-    sel.select({ rowId: 'r1', colId: 'a' });
+    sel.press({ rowId: 'r1', colId: 'a' }, { extend: false, target: 'cell' });
     const before = sel.state.value;
     sel.step('up');
     sel.step('left', true);
-    sel.dragTo({ rowId: 'r1', colId: 'a' });
+    sel.enter({ rowId: 'r1', colId: 'a' });
     sel.stopEdit();
     expect(sel.state.value).toBe(before);
   });

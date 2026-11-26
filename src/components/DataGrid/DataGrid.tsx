@@ -26,10 +26,11 @@
  *   header edge, so filtering never reflows the columns.
  *
  * Keyboard and clipboard: `UTable`'s root takes focus (`tabindex=0`; a press
- * on a cell focuses it natively) and receives every key, `copy` and `paste`.
- * Each root handler first ignores events from a control inside the grid (a
- * header filter, a sort button, an open editor). Undo and redo listen on the
- * document, so they also work after a toolbar click.
+ * on a cell focuses it natively) and receives `copy` and `paste`, which
+ * first ignore events from a control inside the grid (a header filter, a
+ * sort button, an open editor). Keys listen on the window, so undo and redo
+ * also work after a toolbar click; `useGridInteraction` holds the key, edit
+ * and release rules, and this component applies the `GridEffect` they return.
  */
 import UCheckbox from '@nuxt/ui/components/Checkbox.vue';
 import UTable from '@nuxt/ui/components/Table.vue';
@@ -41,6 +42,7 @@ import {
   useRafFn,
 } from '@vueuse/core';
 import { ROW_HEIGHT, useDataGrid } from 'composables/useDataGrid';
+import { useGridInteraction } from 'composables/useGridInteraction';
 import { useGridSelection } from 'composables/useGridSelection';
 import { serializeTsv } from 'utils/gridClipboard';
 import { indexSaveErrors, validateRows } from 'utils/gridValidation';
@@ -51,6 +53,7 @@ import {
   onMounted,
   ref,
   shallowRef,
+  watch,
 } from 'vue';
 import DataGridToolbar from './DataGridToolbar';
 import EmptyState from './EmptyState';
@@ -58,10 +61,11 @@ import ErrorSidebar from './ErrorSidebar';
 import GridCell from './GridCell';
 import HeaderCell from './HeaderCell';
 import { SELECT_ID, useColumnLayout } from './useColumnLayout';
-import type { EditEnd, GridCellContext } from './GridCell';
+import type { GridCellContext } from './GridCell';
 import type { ColumnDrag } from './HeaderCell';
 import type { TableColumn } from '@nuxt/ui/components/Table.vue';
 import type { DataGridState, PasteParser } from 'composables/useDataGrid';
+import type { GridEffect, KeySource } from 'composables/useGridInteraction';
 import type { GridSelection } from 'composables/useGridSelection';
 import type {
   GridApi,
@@ -71,7 +75,7 @@ import type {
   Row,
 } from 'utils/gridApi';
 import type { SavePayload } from 'utils/gridDiff';
-import type { CellPos, Dir, GridOrder } from 'utils/gridRange';
+import type { CellPos, GridOrder } from 'utils/gridRange';
 import type { PropType, VNode } from 'vue';
 
 const DEFAULT_WIDTH = 160;
@@ -105,40 +109,9 @@ const CONTROLS =
 const fromControl = (e: Event): boolean =>
   (e.target as Element).closest(CONTROLS) !== null;
 
-/** Undo/redo keys typed here keep their native meaning. */
+/** Every key typed here keeps its native meaning, undo and redo included. */
 const TEXT_CONTROLS =
   'input,textarea,select,[contenteditable=true],[role=combobox],[data-grid-editor],[role=dialog]';
-
-/** ⌘/Ctrl+Z undoes; ⌘/Ctrl+Shift+Z and Ctrl+Y redo. */
-function historyKey(e: KeyboardEvent): 'undo' | 'redo' | null {
-  const key = e.key.toLowerCase();
-  if ((e.metaKey || e.ctrlKey) && !e.altKey && key === 'z') {
-    return e.shiftKey ? 'redo' : 'undo';
-  }
-  return e.ctrlKey && !e.metaKey && !e.shiftKey && key === 'y' ? 'redo' : null;
-}
-
-/**
- * Arrows step one cell, or with Ctrl/Cmd jump to the edge. Home/End go to the
- * row's ends, or with Ctrl/Cmd to the grid's first/last cell (as in Excel).
- */
-const MOVES: Partial<Record<string, readonly [Dir, Dir]>> = {
-  ArrowUp: ['up', 'top'],
-  ArrowDown: ['down', 'bottom'],
-  ArrowLeft: ['left', 'home'],
-  ArrowRight: ['right', 'end'],
-  Home: ['home', 'first'],
-  End: ['end', 'last'],
-};
-
-/** Where a key moves the active cell. Tab stops at the row's edge instead of wrapping to the next row. */
-function keyDir(e: KeyboardEvent): Dir | null {
-  const move = MOVES[e.key];
-  if (move) {
-    return move[e.ctrlKey || e.metaKey ? 1 : 0];
-  }
-  return e.key === 'Tab' ? (e.shiftKey ? 'left' : 'right') : null;
-}
 
 const clamp = (n: number, min: number, max: number): number =>
   Math.min(Math.max(n, min), max);
@@ -361,22 +334,14 @@ export default defineComponent({
     const selection = useGridSelection(order);
     const sorting = ref<Sorting>([]);
     const columnFilters = ref<ColumnFilters>([]);
-    // True while the primary button is held after a press on a body cell.
-    // A press on a header filter, checkbox or editor never starts a drag.
-    const pressed = ref(false);
     const { focused } = useFocus(gridEl);
-
-    /** Ends a fill-handle drag, writing it as one person write. */
-    function commitFill() {
-      const fill = selection.endFill();
-      if (fill) {
-        grid.fillDrag(order.value, fill);
-      }
-    }
-    useEventListener(window, 'pointerup', () => {
-      pressed.value = false;
-      commitFill();
+    const interaction = useGridInteraction({
+      selection,
+      grid,
+      columns: props.columns,
+      order,
     });
+    useEventListener(window, 'pointerup', interaction.release);
 
     /**
      * Scrolls the least distance that shows the whole cell, right of the
@@ -406,6 +371,20 @@ export default defineComponent({
         Math.max(el.scrollLeft, th.offsetLeft + th.offsetWidth - width),
         th.offsetLeft - pinnedWidth(),
       );
+    }
+
+    /** Does what an interaction asks of the DOM, for `event` when a key caused it. */
+    function apply(effect: GridEffect, event?: Event) {
+      if (effect.preventDefault) {
+        event?.preventDefault();
+      }
+      if (effect.reveal) {
+        reveal(effect.reveal);
+      }
+      if (effect.focusGrid) {
+        // The editor's input is gone after the next render.
+        void nextTick(() => gridEl.value?.focus({ preventScroll: true }));
+      }
     }
 
     /**
@@ -447,7 +426,7 @@ export default defineComponent({
     const pointer = { x: 0, y: 0 };
     useEventListener(
       window,
-      'pointermove',
+      ['pointerdown', 'pointermove'],
       (e: PointerEvent) => {
         pointer.x = e.clientX;
         pointer.y = e.clientY;
@@ -457,8 +436,7 @@ export default defineComponent({
     const dragScroll = useRafFn(
       () => {
         const el = gridEl.value;
-        if (!el || !pressed.value || selection.state.value.editing) {
-          dragScroll.pause();
+        if (!el) {
           return;
         }
         const box = el.getBoundingClientRect();
@@ -480,59 +458,26 @@ export default defineComponent({
         el.scrollLeft += dx;
         const pos = cellAt(el, pointer.x, pointer.y);
         if (pos) {
-          selection.dragTo(pos);
+          selection.enter(pos);
         }
       },
       { immediate: false },
     );
-    useEventListener(gridEl, 'pointerdown', (e: PointerEvent) => {
-      pointer.x = e.clientX;
-      pointer.y = e.clientY;
-      const target = e.target as Element;
-      if (
-        e.button === 0 &&
-        target.closest('[role=gridcell]') &&
-        !target.closest('input,button,[role=checkbox],[data-grid-editor]')
-      ) {
-        pressed.value = true;
+    watch(selection.dragging, (dragging) => {
+      if (dragging) {
         dragScroll.resume();
+      } else {
+        dragScroll.pause();
       }
     });
-
-    function startEdit(pos: CellPos, seed: string | null) {
-      if (columnsById.get(pos.colId)?.editor) {
-        selection.startEdit(pos, seed);
-      }
-    }
-
-    // Idempotent: blur after Enter/Tab/Escape, or a pick then the menu
-    // closing, finds the edit already ended and does nothing.
-    function endEdit(pos: CellPos, { value, dir, refocus }: EditEnd) {
-      const editing = selection.state.value.editing?.pos;
-      if (editing?.rowId !== pos.rowId || editing.colId !== pos.colId) {
-        return;
-      }
-      selection.stopEdit();
-      if (value !== null) {
-        grid.editCell(pos, value);
-      }
-      if (dir && selection.step(dir)) {
-        reveal(selection.active.value ?? pos);
-      }
-      if (refocus) {
-        // The editor's input is gone after the next render.
-        void nextTick(() => gridEl.value?.focus({ preventScroll: true }));
-      }
-    }
 
     const ctx: GridCellContext = {
       selection,
       invalid: computed(() => validateRows(grid.rows.value, props.columns)),
       saveErrors: computed(() => indexSaveErrors(grid.errorList.value)),
       outline: refAutoReset<CellPos | null>(null, 2000),
-      pressed,
-      startEdit,
-      endEdit,
+      startEdit: interaction.startEdit,
+      endEdit: (pos, end) => apply(interaction.endEdit(pos, end)),
       colIndex: (colId) => layout.thIndex(colId) + 1,
     };
     const tableColumns = [
@@ -541,87 +486,32 @@ export default defineComponent({
     ];
     props.onReady?.(grid.api);
 
-    function navigate(e: KeyboardEvent, dir: Dir) {
-      const tab = e.key === 'Tab';
-      if (!selection.active.value) {
-        const first = order.value.rowIds[0];
-        const firstCol = order.value.colIds[0];
-        if (!tab && first !== undefined && firstCol !== undefined) {
-          e.preventDefault();
-          selection.select({ rowId: first, colId: firstCol });
-        }
-        return;
+    /** Where a key was typed (`KeySource`). */
+    function keySource(target: EventTarget | null): KeySource {
+      // Keys typed with nothing focused target the window or document.
+      const el = target as Element | null;
+      if (typeof el?.closest !== 'function') {
+        return 'page';
       }
-      const moved = selection.step(dir, e.shiftKey && !tab);
-      // Tab at the row's edge leaves the grid instead of trapping focus.
-      if (moved || !tab) {
-        e.preventDefault();
+      if (el.closest(TEXT_CONTROLS)) {
+        return 'text';
       }
-      const focus = selection.state.value.range?.focus;
-      if (moved && focus) {
-        reveal(focus);
-      }
+      return gridEl.value?.contains(el) && !el.closest(CONTROLS)
+        ? 'grid'
+        : 'page';
     }
 
-    onKeyStroke(
-      true,
-      (e: KeyboardEvent) => {
-        if (fromControl(e)) {
-          return;
-        }
-        const dir = keyDir(e);
-        const pos = selection.active.value;
-        if (dir) {
-          navigate(e, dir);
-          return;
-        }
-        switch (e.key) {
-          case 'Delete':
-          case 'Backspace':
-            // Swallowed even with nothing to clear: some browsers go back.
-            e.preventDefault();
-            grid.clearCells(selection.cells());
-            return;
-          case 'Escape':
-            // Nothing selected: the next paste appends rows.
-            selection.clear();
-            return;
-          case 'Enter':
-            if (pos) {
-              e.preventDefault();
-              startEdit(pos, null);
-            }
-            return;
-          default:
-            if (
-              pos &&
-              e.key.length === 1 &&
-              !e.ctrlKey &&
-              !e.metaKey &&
-              !e.altKey
-            ) {
-              // Typing replaces the value, as in Excel.
-              e.preventDefault();
-              startEdit(pos, e.key);
-            }
-        }
-      },
-      { target: gridEl },
-    );
-
-    // On the document, so undo also works after a toolbar click. Inside a
-    // text field, an open editor or a dialog the keys stay native.
+    // On the window, so undo also works after a toolbar click.
     onKeyStroke(true, (e: KeyboardEvent) => {
-      const step = historyKey(e);
-      if (!step || (e.target as Element).closest?.(TEXT_CONTROLS)) {
-        return;
-      }
-      e.preventDefault();
-      if (step === 'undo') {
-        grid.undo();
-      } else {
-        grid.redo();
-      }
+      const key = {
+        key: e.key,
+        shiftKey: e.shiftKey,
+        ctrlKey: e.ctrlKey,
+        metaKey: e.metaKey,
+        altKey: e.altKey,
+        from: keySource(e.target),
+      };
+      apply(interaction.keydown(key), e);
     });
 
     useEventListener(gridEl, 'copy', (e: ClipboardEvent) => {

@@ -108,9 +108,10 @@ own `computed`, never in the column `cell` function. Rows have a fixed
 | --------------------------------------------------------- | ----------------------------------------------------- |
 | `src/pages/ComplianceGridEditor.tsx`                      | Compliance grid page                                  |
 | `src/utils/complianceLibrary.ts` | Compliance library: grid columns and the fake backend (`list`, `save` = `onSave`), tested through `save` |
-| `src/components/DataGrid/DataGrid.tsx` | Grid component: `UTable`, toolbar, keyboard, clipboard, error sidebar |
+| `src/components/DataGrid/DataGrid.tsx` | Grid component: `UTable`, toolbar, DOM wiring (keys, pointer, clipboard, scroll), error sidebar |
 | `src/composables/useDataGrid.ts` | DataGrid state: rows, every person write (edit, paste, fill, clear, `api.importRows`), undo/redo (`useManualRefHistory`), derived dirty diff, save loop, `GridApi` |
-| `src/composables/useGridSelection.ts` | Active cell, range and editing state (ids, not indexes) |
+| `src/composables/useGridSelection.ts` | Active cell, range, editing cell and the press gesture (press, enter, release; editing blocks a drag) — ids, not indexes |
+| `src/composables/useGridInteraction.ts` | What a key or an edit end means: selection change + write, returned as a `GridEffect` (preventDefault, reveal, focus) for `DataGrid` to apply; tested without mounting |
 | `src/utils/zodToColumnDefs.ts` | Derive `GridColumn`s from a Zod schema |
 | `src/utils/gridApi.ts` | The grid's seams: `Row` and `GridColumn` (pure grid modules import them from here, never from `useDataGrid`), the save result, and the `GridApi` implemented by `useDataGrid`'s `api`; draft and agent-tool tests run on it headless in an `effectScope` |
 | `src/utils/gridClipboard.ts` | Clipboard TSV codec: `serializeTsv` and `parseTsv`, the one reader for every paste path |

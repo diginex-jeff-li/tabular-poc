@@ -20,22 +20,12 @@ import {
   onMounted,
   ref,
 } from 'vue';
-import type { GridSelection } from 'composables/useGridSelection';
+import type { EditEnd } from 'composables/useGridInteraction';
+import type { GridSelection, PressTarget } from 'composables/useGridSelection';
 import type { GridColumn, Row } from 'utils/gridApi';
-import type { CellPos, Dir } from 'utils/gridRange';
+import type { CellPos } from 'utils/gridRange';
 import type { CellMessages } from 'utils/gridValidation';
 import type { ComputedRef, PropType, Ref, VNode } from 'vue';
-
-/**
- * How an edit ends: commit `value` (null cancels), then move `dir`.
- * `refocus` hands focus back to the grid; a blur doesn't, because the person
- * already moved focus somewhere.
- */
-export type EditEnd = {
-  value: string | null;
-  dir: Dir | null;
-  refocus: boolean;
-};
 
 /** Shared grid state and actions every cell reads. Built once per grid. */
 export interface GridCellContext {
@@ -46,8 +36,6 @@ export interface GridCellContext {
   saveErrors: ComputedRef<CellMessages>;
   /** The cell a sidebar error click points at, for 2 s. */
   outline: Ref<CellPos | null>;
-  /** The mouse button is held down over the grid (drag to select). */
-  pressed: Ref<boolean>;
   startEdit: (pos: CellPos, seed: string | null) => void;
   endEdit: (pos: CellPos, end: EditEnd) => void;
   /** A column's 1-based place on screen, the checkbox column included. */
@@ -199,7 +187,7 @@ export default defineComponent({
     ctx: { type: Object as PropType<GridCellContext>, required: true },
   },
   setup(props) {
-    const { selection, invalid, saveErrors, outline, pressed } = props.ctx;
+    const { selection, invalid, saveErrors, outline } = props.ctx;
     const colId = props.column.id;
     const pos = (): CellPos => ({ rowId: props.row.id, colId });
     const editing = computed(() => selection.isEditing(props.row.id, colId));
@@ -225,20 +213,16 @@ export default defineComponent({
     );
 
     function onPointerdown(e: PointerEvent) {
-      if (e.button !== 0 || editing.value) {
+      if (e.button !== 0) {
         return;
       }
-      if ((e.target as Element).closest('[data-fill-handle]')) {
-        selection.startFill();
-      } else {
-        selection.select(pos(), e.shiftKey);
-      }
-    }
-
-    function onPointerenter() {
-      if (pressed.value && !selection.state.value.editing) {
-        selection.dragTo(pos());
-      }
+      const target = e.target as Element;
+      const on: PressTarget = target.closest('[data-fill-handle]')
+        ? 'fillHandle'
+        : target.closest('input,button,[data-grid-editor]')
+          ? 'control'
+          : 'cell';
+      selection.press(pos(), { extend: e.shiftKey, target: on });
     }
 
     const renderEditor = (): VNode => {
@@ -302,7 +286,7 @@ export default defineComponent({
         })}
         style={{ height: `${ROW_HEIGHT}px` }}
         onPointerdown={onPointerdown}
-        onPointerenter={onPointerenter}
+        onPointerenter={() => selection.enter(pos())}
         onDblclick={() => props.ctx.startEdit(pos(), null)}
       >
         {editing.value ? renderEditor() : renderValue()}
