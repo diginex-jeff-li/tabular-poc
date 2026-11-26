@@ -1,10 +1,13 @@
 import { useEventListener, useManualRefHistory } from '@vueuse/core';
-import { clearCells as clearCellsIn } from 'utils/gridClear';
 import { parsePositionalPaste } from 'utils/gridClipboard';
 import { buildSavePayload, changedIds, diffRows } from 'utils/gridDiff';
-import { fillRange } from 'utils/gridFill';
-import { overwritePaste } from 'utils/gridPaste';
-import { appendRows, writeCells } from 'utils/gridWrite';
+import {
+  appendRows,
+  clearCells as clearCellsIn,
+  fillRange,
+  overwritePaste,
+  writeCells,
+} from 'utils/gridWrite';
 import { computed, readonly, ref, shallowRef, watch } from 'vue';
 import type {
   GridApi,
