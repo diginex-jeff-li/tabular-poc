@@ -5,8 +5,8 @@
  * VueUse useLocalStorage silently degrades to a non-persisting in-memory
  * fallback with no serializer support — tests pass while proving nothing.
  *
- * This polyfill is wired via `setupFiles` in frontend/vitest.config.ts so
- * that globalThis.localStorage is available before any test runs.
+ * This polyfill is wired via `test.setupFiles` in vite.config.ts so that
+ * globalThis.localStorage is available before any test runs.
  */
 
 class MemoryStorage implements Storage {

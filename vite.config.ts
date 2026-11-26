@@ -1,8 +1,71 @@
+/// <reference types="vite-plus/test" />
+import path from 'node:path';
 import cloudflare from '@cloudflare/oxlint-config/vite-plus';
-import { defineConfig } from 'vite-plus';
+import ui from '@nuxt/ui/vite';
+import vue from '@vitejs/plugin-vue';
+import vueJsx from '@vitejs/plugin-vue-jsx';
+import AutoImport from 'unplugin-auto-import/vite';
+import { defineConfig, lazyPlugins } from 'vite-plus';
 
 export default defineConfig({
-  // Pre-commit (`.vite-hooks/pre-commit` runs `vp staged`).
+  server: {
+    host: '0.0.0.0',
+    port: 3500,
+  },
+  resolve: {
+    alias: {
+      src: path.resolve(__dirname, 'src'),
+      components: path.resolve(__dirname, 'src/components'),
+      composables: path.resolve(__dirname, 'src/composables'),
+      config: path.resolve(__dirname, 'src/config'),
+      pages: path.resolve(__dirname, 'src/pages'),
+      styles: path.resolve(__dirname, 'src/styles'),
+      utils: path.resolve(__dirname, 'src/utils'),
+      contracts: path.resolve(__dirname, 'contracts/src'),
+    },
+    dedupe: ['@nuxt/ui', 'vue', 'vue-router'],
+    extensions: ['.tsx', '.ts', '.jsx', '.js', '.vue', '.json'],
+  },
+  plugins: lazyPlugins(() => [
+    vue(),
+    vueJsx(),
+    ui({ autoImport: false, components: false, colorMode: false }),
+    AutoImport({
+      imports: [
+        'vue',
+        {
+          'vue-router': [
+            'useRoute',
+            'useRouter',
+            'createRouter',
+            'createWebHistory',
+            'RouterLink',
+            'RouterView',
+          ],
+        },
+        {
+          from: 'vue',
+          imports: ['PropType', 'Ref', 'MaybeRef', 'MaybeRefOrGetter'],
+          type: true,
+        },
+      ],
+      dts: 'src/types/auto-imports.d.ts',
+    }),
+  ]),
+  build: {
+    target: 'esnext',
+  },
+  test: {
+    // Vitest v4 compatibility: preserve mock call history.
+    // Remove after tests no longer rely on calls from setup or earlier tests.
+    // https://viteplus.dev/guide/vitest-v5#remove-unneeded-compatibility-settings
+    // https://vitest.dev/guide/migration/#clearmocks-is-enabled-by-default
+    clearMocks: false,
+    globals: true,
+    environment: 'happy-dom',
+    include: ['src/**/*.test.ts'],
+    setupFiles: ['./setup-localstorage.ts'],
+  },
   staged: {
     '*.{ts,tsx}': ['vp lint', 'vp fmt --check'],
     '*.md': 'pnpm run agents:check',
@@ -74,7 +137,7 @@ export default defineConfig({
       // Only recognises React's `htmlFor`; Vue labels use `for` (the 3 `for`
       // labels it flagged were correct; the 2 unlinked ones are now linked).
       'jsx-a11y/label-has-associated-control': 'off',
-      // Needs strictNullChecks; frontend/apps/admin/tsconfig.json sets it false.
+      // Needs strictNullChecks; tsconfig.json sets it false.
       'typescript/no-useless-default-assignment': 'off',
       // Grid cell values, WebMCP registerTool and agent tool results are
       // dynamic by contract; `unknown` is the honest type.
@@ -107,10 +170,7 @@ export default defineConfig({
       {
         // Logging is the job here: a CLI's report, and warnings for WebMCP
         // tools that fail to register.
-        files: [
-          'scripts/**',
-          'frontend/apps/admin/src/composables/useAgentTools.ts',
-        ],
+        files: ['scripts/**', 'src/composables/useAgentTools.ts'],
         rules: { 'no-console': 'off' },
       },
       {

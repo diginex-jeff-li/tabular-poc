@@ -6,13 +6,10 @@
       "project": ["src/**/*.ts"],
       "ignore": ["dist/**"]
     },
-    "frontend/apps/admin": {
-      "entry": ["src/main.ts", "src/**/*.test.ts"],
-      "project": ["src/**/*.{ts,tsx}"],
-      "ignore": ["dist/**", "src/types/auto-imports.d.ts"]
-    },
     ".": {
-      "project": ["scripts/**/*.mjs"]
+      "entry": ["src/main.ts", "src/**/*.test.ts"],
+      "project": ["src/**/*.{ts,tsx}", "scripts/**/*.mjs"],
+      "ignore": ["src/types/auto-imports.d.ts"]
     }
   },
   "ignore": [".wayfinder/**"]

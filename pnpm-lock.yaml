@@ -214,6 +214,28 @@ overrides:
 importers:
 
   .:
+    dependencies:
+      '@nuxt/ui':
+        specifier: 4.13.1
+        version: 4.13.1(bf08f91b51437db8ed904d98209b373d)
+      '@vueuse/core':
+        specifier: 15.1.0
+        version: 15.1.0(vue@3.5.46(typescript@7.0.2))
+      contracts:
+        specifier: workspace:*
+        version: link:contracts
+      exceljs:
+        specifier: 4.4.0
+        version: 4.4.0
+      vue:
+        specifier: 3.5.46
+        version: 3.5.46(typescript@7.0.2)
+      vue-router:
+        specifier: 5.5.1
+        version: 5.5.1(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.6)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(@vue/compiler-sfc@3.5.46)(esbuild@0.27.7)(rolldown@1.2.19)(vue@3.5.46(typescript@7.0.2))
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
     devDependencies:
       '@cloudflare/oxlint-config':
         specifier: 0.2.0
@@ -221,12 +243,39 @@ importers:
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6
+      '@vitejs/plugin-vue':
+        specifier: 6.0.11
+        version: 6.0.11(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.6)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(vue@3.5.46(typescript@7.0.2))
+      '@vitejs/plugin-vue-jsx':
+        specifier: 5.1.6
+        version: 5.1.6(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.6)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(vue@3.5.46(typescript@7.0.2))
+      '@vue/test-utils':
+        specifier: 2.6.0
+        version: 2.6.0(@vue/compiler-dom@3.5.46)(@vue/server-renderer@3.5.46)(vue@3.5.46(typescript@7.0.2))
+      happy-dom:
+        specifier: 21.0.4
+        version: 21.0.4
       jscpd:
         specifier: 5.4.3
         version: 5.4.3
       knip:
         specifier: 6.48.0
         version: 6.48.0
+      sass:
+        specifier: 1.108.2
+        version: 1.108.2
+      tailwindcss:
+        specifier: 4.3.5
+        version: 4.3.5
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      unplugin-auto-import:
+        specifier: 21.1.0
+        version: 21.1.0(@nuxt/kit@4.7.0(@nuxt/schema@4.7.0)(confbox@0.3.2)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.156.0)(rolldown@1.2.19)(unplugin@3.7.0(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.6)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.27.7)(rolldown@1.2.19)))(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.6)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(@vueuse/core@15.1.0(vue@3.5.46(typescript@7.0.2)))(esbuild@0.27.7)(oxc-parser@0.156.0)(rolldown@1.2.19)
+      vite:
+        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8001
+        version: '@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.6)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1)'
       vite-plus:
         specifier: 1.8.0
         version: 1.8.0(@types/node@26.6.6)(@vitest/ui@5.1.1)(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1)
@@ -249,88 +298,6 @@ importers:
       typescript:
         specifier: 7.0.2
         version: 7.0.2
-      vite-plus:
-        specifier: 1.8.0
-        version: 1.8.0(@types/node@26.6.6)(@vitest/ui@5.1.1)(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1)
-
-  frontend:
-    devDependencies:
-      '@types/node':
-        specifier: 26.6.6
-        version: 26.6.6
-      '@vitejs/plugin-vue':
-        specifier: 6.0.11
-        version: 6.0.11(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.6)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(vue@3.5.46(typescript@7.0.2))
-      '@vitejs/plugin-vue-jsx':
-        specifier: 5.1.6
-        version: 5.1.6(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.6)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(vue@3.5.46(typescript@7.0.2))
-      happy-dom:
-        specifier: 21.0.4
-        version: 21.0.4
-      typescript:
-        specifier: 7.0.2
-        version: 7.0.2
-      unplugin-auto-import:
-        specifier: 21.1.0
-        version: 21.1.0(@nuxt/kit@4.7.0(@nuxt/schema@4.7.0)(confbox@0.3.2)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.156.0)(rolldown@1.2.19)(unplugin@3.7.0(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.6)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.27.7)(rolldown@1.2.19)))(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.6)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(@vueuse/core@15.1.0(vue@3.5.46(typescript@7.0.2)))(esbuild@0.27.7)(oxc-parser@0.156.0)(rolldown@1.2.19)
-      vite:
-        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8001
-        version: '@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.6)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1)'
-      vite-plus:
-        specifier: 1.8.0
-        version: 1.8.0(@types/node@26.6.6)(@vitest/ui@5.1.1)(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1)
-
-  frontend/apps/admin:
-    dependencies:
-      '@nuxt/ui':
-        specifier: 4.13.1
-        version: 4.13.1(bf08f91b51437db8ed904d98209b373d)
-      '@vueuse/core':
-        specifier: 15.1.0
-        version: 15.1.0(vue@3.5.46(typescript@7.0.2))
-      contracts:
-        specifier: workspace:*
-        version: link:../../../contracts
-      exceljs:
-        specifier: 4.4.0
-        version: 4.4.0
-      vue:
-        specifier: 3.5.46
-        version: 3.5.46(typescript@7.0.2)
-      vue-router:
-        specifier: 5.5.1
-        version: 5.5.1(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.6)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(@vue/compiler-sfc@3.5.46)(esbuild@0.27.7)(rolldown@1.2.19)(vue@3.5.46(typescript@7.0.2))
-      zod:
-        specifier: 4.6.7
-        version: 4.6.7
-    devDependencies:
-      '@types/node':
-        specifier: 26.6.6
-        version: 26.6.6
-      '@vitejs/plugin-vue':
-        specifier: 6.0.11
-        version: 6.0.11(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.6)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(vue@3.5.46(typescript@7.0.2))
-      '@vitejs/plugin-vue-jsx':
-        specifier: 5.1.6
-        version: 5.1.6(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.6)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(vue@3.5.46(typescript@7.0.2))
-      '@vue/test-utils':
-        specifier: 2.6.0
-        version: 2.6.0(@vue/compiler-dom@3.5.46)(@vue/server-renderer@3.5.46)(vue@3.5.46(typescript@7.0.2))
-      sass:
-        specifier: 1.108.2
-        version: 1.108.2
-      tailwindcss:
-        specifier: 4.3.5
-        version: 4.3.5
-      typescript:
-        specifier: 7.0.2
-        version: 7.0.2
-      unplugin-auto-import:
-        specifier: 21.1.0
-        version: 21.1.0(@nuxt/kit@4.7.0(@nuxt/schema@4.7.0)(confbox@0.3.2)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magic-string@1.4.5)(mlly@1.8.2)(oxc-parser@0.156.0)(rolldown@1.2.19)(unplugin@3.7.0(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.6)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(esbuild@0.27.7)(rolldown@1.2.19)))(@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.6)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1))(@vueuse/core@15.1.0(vue@3.5.46(typescript@7.0.2)))(esbuild@0.27.7)(oxc-parser@0.156.0)(rolldown@1.2.19)
-      vite:
-        specifier: npm:@voidzero-dev/vite-plus-core@8.3.8001
-        version: '@voidzero-dev/vite-plus-core@8.3.8001(@types/node@26.6.6)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1)'
       vite-plus:
         specifier: 1.8.0
         version: 1.8.0(@types/node@26.6.6)(@vitest/ui@5.1.1)(esbuild@0.27.7)(happy-dom@21.0.4)(jiti@2.7.0)(sass@1.108.2)(typescript@7.0.2)(yaml@2.9.1)

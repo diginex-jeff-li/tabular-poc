@@ -1,6 +1,4 @@
 packages:
-  - frontend
-  - frontend/apps/*
   - contracts
 
 allowBuilds:
