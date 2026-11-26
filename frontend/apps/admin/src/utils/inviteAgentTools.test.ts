@@ -23,6 +23,7 @@ function setup() {
   const grid = scope.run(() =>
     useDataGrid({
       data: [],
+      columns: [],
       onSave: vi.fn(),
       normalizeRow: normalizeInviteRow,
     }),

@@ -416,7 +416,7 @@ describe('DataGrid paste', () => {
       expect.any(Function),
     );
     expect(visibleTopics(w)).toHaveLength(3);
-    expect(onUserEdit).toHaveBeenLastCalledWith([]);
+    expect(onUserEdit).not.toHaveBeenCalled();
 
     await paste(root(w).element, 'Noise\tLow');
     const [added] = rowIds(w).slice(3);

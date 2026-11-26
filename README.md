@@ -176,9 +176,9 @@ Programmatic access (agent tools, file import) goes through the `GridApi` seam
 | `frontend/apps/admin/src/composables/useDataGrid.ts`      | DataGrid state — rows, derived dirty diff, save loop, `GridApi` |
 | `frontend/apps/admin/src/utils/zodToColumnDefs.ts`        | Derive grid columns from a Zod schema                 |
 | `frontend/apps/admin/src/pages/BulkInviteUsers.tsx`       | Bulk invite page (`/invite-users`) — Excel, paste, agent tools |
-| `frontend/apps/admin/src/utils/validateInvites.ts`        | Send checks for the invite draft (also behind the agent `validate` tool) |
+| `frontend/apps/admin/src/utils/readyRows.ts`              | Ready-row check: Send errors and each row's status (also behind the agent `validate` tool) |
 | `frontend/apps/admin/src/utils/inviteDraft.ts`            | Invite draft module — who may change which rows, statuses, unmapped tables, Send gate |
-| `frontend/apps/admin/src/utils/draftRow.ts`               | One draft row: cleanup, line parser, status |
+| `frontend/apps/admin/src/utils/draftRow.ts`               | One draft row: cleanup, line parser, needs-review detection |
 | `frontend/apps/admin/src/utils/columnMapping.ts`          | Pasted client tables: header/alias matching, hold vs insert |
 | `frontend/apps/admin/src/utils/inviteWorkbook.ts`         | Excel template (with data validation) + `.xlsx` import |
 | `frontend/apps/admin/src/utils/inviteAgentTools.ts`       | Agent tools — adapter over the invite draft module (no send/confirm/apply tool) |

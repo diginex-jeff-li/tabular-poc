@@ -1,12 +1,16 @@
-import { useEventListener } from '@vueuse/core';
+import { useEventListener, useManualRefHistory } from '@vueuse/core';
 import { clearCells as clearCellsIn } from 'utils/gridClear';
+import { parsePositionalPaste } from 'utils/gridClipboard';
 import { buildSavePayload, changedIds, diffRows } from 'utils/gridDiff';
+import { fillRange } from 'utils/gridFill';
+import { overwritePaste } from 'utils/gridPaste';
 import { appendRows, writeCells } from 'utils/gridWrite';
 import { computed, readonly, ref, shallowRef, watch } from 'vue';
 import type { GridApi, GridSaveError, GridSaveResponse } from 'utils/gridApi';
 import type { SavePayload } from 'utils/gridDiff';
-import type { CellPos } from 'utils/gridRange';
-import type { RowChange, WritableColumn } from 'utils/gridWrite';
+import type { CellPos, GridOrder, Range } from 'utils/gridRange';
+import type { RowChange } from 'utils/gridWrite';
+import type { GridColumn } from 'utils/zodToColumnDefs';
 import type { ComputedRef, Ref, ShallowRef } from 'vue';
 
 /** A grid row. Rows are never mutated; every change replaces the row and the array. */
@@ -25,7 +29,24 @@ const NETWORK_ERROR: GridSaveError = {
   message: 'Save failed',
 };
 
-/** State behind `DataGrid`. `rows` is the single source of truth; the table only renders it. */
+/**
+ * A page's parser for an append paste: the clipboard text in, partial rows
+ * out. `positional` gives the default parse (`parsePositionalPaste`).
+ */
+export type PasteParser = (
+  clipboard: string,
+  positional: () => Array<Record<string, unknown>>,
+) => Array<Record<string, unknown>>;
+
+/**
+ * State behind `DataGrid`. `rows` is the single source of truth; the table only renders it.
+ *
+ * Person writes (edit, paste, fill, clear, Add Row, Delete, Clear all): the
+ * touched rows still in the grid run through `normalizeRow`, the previous
+ * rows become one undo step (redo is dropped), and `onUserEdit(touchedIds)`
+ * is called once. A write that changes nothing records no undo step and
+ * calls nothing.
+ */
 export interface DataGridState {
   rows: ShallowRef<ReadonlyArray<Row>>;
   rowCount: ComputedRef<number>;
@@ -39,14 +60,6 @@ export interface DataGridState {
   /** Backend save errors for rows still in the grid. */
   errorList: Readonly<ShallowRef<ReadonlyArray<GridSaveError>>>;
   setRowSelected: (rowId: string, selected: boolean) => void;
-  /**
-   * Every person write goes through here (edit, paste, fill, clear, Add Row,
-   * Delete, Clear all): the touched rows still in the grid run through
-   * `normalizeRow`, the previous rows become one undo step (redo is
-   * dropped), and `onUserEdit(touchedIds)` is called once. A change whose
-   * `rows` is the current array records no undo step but is still reported.
-   */
-  commit: (change: RowChange) => void;
   /** Steps back one person write; false when there is none. Reported to `onUserEdit`. */
   undo: () => boolean;
   /** Re-applies the last undone write; false when there is none. Reported to `onUserEdit`. */
@@ -66,26 +79,38 @@ export interface DataGridState {
   /** Removes every row; saved ones are sent as deletes on the next save. */
   clearAll: () => void;
   /**
-   * A person's edit of one cell. Returns false, and does nothing, when the
-   * value is unchanged (blank equals blank).
+   * A person's edit of one cell. Returns false when the value is unchanged
+   * (blank equals blank).
    */
   editCell: (pos: CellPos, value: string) => boolean;
   /**
    * A person's Delete/Backspace over a block: empties its editable,
-   * non-blank cells. Nothing touched, nothing reported.
+   * non-blank cells.
    */
-  clearCells: (
-    cells: ReadonlyArray<ReadonlyArray<CellPos>>,
-    columns: ReadonlyArray<WritableColumn>,
+  clearCells: (cells: ReadonlyArray<ReadonlyArray<CellPos>>) => void;
+  /**
+   * A person's paste of clipboard text. With `origin` (the selection's
+   * top-left cell) it writes over the grid in screen `order`
+   * (`overwritePaste`); without one it appends rows, parsed by the
+   * `pasteParser` option or positionally.
+   */
+  paste: (text: string, order: GridOrder, origin?: CellPos) => void;
+  /** A person's fill-handle drag, in screen `order` (`fillRange`). */
+  fillDrag: (
+    order: GridOrder,
+    fill: { source: Range; toRowId: string },
   ) => void;
   save: () => Promise<void>;
 }
 
 export function useDataGrid(opts: {
   data: ReadonlyArray<Record<string, unknown>>;
+  columns: ReadonlyArray<GridColumn>;
   onSave: (payload: SavePayload) => Promise<GridSaveResponse>;
   normalizeRow?: (row: Record<string, unknown>) => Record<string, unknown>;
   onUserEdit?: (rowIds: Array<string>) => void;
+  /** Replaces the positional parse of an append paste. */
+  pasteParser?: PasteParser;
 }): DataGridState {
   const rows = shallowRef<ReadonlyArray<Row>>(
     opts.data.map((row) =>
@@ -99,12 +124,12 @@ export function useDataGrid(opts: {
   const isSaving = ref(false);
   const saveResult = shallowRef<GridSaveResponse | null>(null);
   const errorList = shallowRef<Array<GridSaveError>>([]);
-  // Earlier states of `rows`, newest last. Rows are immutable, so a state is
-  // an array reference: a step costs one array of pointers, never a clone.
-  const history = {
-    undo: [] as Array<ReadonlyArray<Row>>,
-    redo: [] as Array<ReadonlyArray<Row>>,
-  };
+  // Undo/redo over states of `rows`. Rows are immutable, so a snapshot is the
+  // array reference (no clone). A step goes through `replace`, so ticks and
+  // save errors of rows that left go with them.
+  const history = useManualRefHistory(rows, {
+    setSource: (_, next) => replace(next),
+  });
 
   // Baseline at load and after each successful save. Rows are immutable, so
   // the array reference is the snapshot; no clone needed.
@@ -161,38 +186,36 @@ export function useDataGrid(opts: {
     rowSelection.value = selected ? { ...rest, [rowId]: true } : rest;
   }
 
-  function commit({ rows: next, touchedIds }: RowChange) {
-    if (next !== rows.value) {
-      const touched = new Set(touchedIds);
-      history.undo.push(rows.value);
-      history.redo = [];
-      replace(next.map((row) => (touched.has(row.id) ? normalized(row) : row)));
-    }
-    opts.onUserEdit?.(touchedIds);
-  }
-
-  /** Moves one state from `from` to the current rows, keeping the current one in `to`. */
-  function travel(
-    from: Array<ReadonlyArray<Row>>,
-    to: Array<ReadonlyArray<Row>>,
-  ): boolean {
-    const target = from.pop();
-    if (!target) {
+  /** A person's write; false, and nothing recorded or reported, when it changes nothing. */
+  function commit({ rows: next, touchedIds }: RowChange): boolean {
+    if (next === rows.value) {
       return false;
     }
-    to.push(rows.value);
-    const ids = changedIds(rows.value, target);
-    replace(target);
-    opts.onUserEdit?.(ids);
+    const touched = new Set(touchedIds);
+    replace(next.map((row) => (touched.has(row.id) ? normalized(row) : row)));
+    history.commit();
+    opts.onUserEdit?.(touchedIds);
+    return true;
+  }
+
+  /** One undo or redo `step`, when `can` allows it; reports the rows it changed. */
+  function travel(can: ComputedRef<boolean>, step: () => void): boolean {
+    if (!can.value) {
+      return false;
+    }
+    const before = rows.value;
+    step();
+    opts.onUserEdit?.(changedIds(before, rows.value));
     return true;
   }
 
   /** An agent's write: not undoable, and the history before it no longer applies. */
   function agentWrite(next: ReadonlyArray<Row>) {
     if (next !== rows.value) {
-      history.undo = [];
-      history.redo = [];
       replace(next);
+      // Commit makes `next` the state undo would leave; clear drops every step.
+      history.commit();
+      history.clear();
     }
   }
 
@@ -287,25 +310,34 @@ export function useDataGrid(opts: {
   }
 
   function editCell(pos: CellPos, value: string): boolean {
-    const change = writeCells(
-      rows.value,
-      new Map([[pos.rowId, { [pos.colId]: value }]]),
+    return commit(
+      writeCells(rows.value, new Map([[pos.rowId, { [pos.colId]: value }]])),
     );
-    if (change.touchedIds.length === 0) {
-      return false;
-    }
-    commit(change);
-    return true;
   }
 
-  function clearCells(
-    cells: ReadonlyArray<ReadonlyArray<CellPos>>,
-    columns: ReadonlyArray<WritableColumn>,
-  ) {
-    const change = clearCellsIn(rows.value, cells, columns);
-    if (change.touchedIds.length > 0) {
-      commit(change);
+  function clearCells(cells: ReadonlyArray<ReadonlyArray<CellPos>>) {
+    commit(clearCellsIn(rows.value, cells, opts.columns));
+  }
+
+  function paste(text: string, order: GridOrder, origin?: CellPos) {
+    if (origin) {
+      commit(overwritePaste(rows.value, order, origin, text, opts.columns));
+      return;
     }
+    const positional = () => parsePositionalPaste(text, opts.columns);
+    commit(
+      appendRows(
+        rows.value,
+        opts.pasteParser?.(text, positional) ?? positional(),
+      ),
+    );
+  }
+
+  function fillDrag(
+    order: GridOrder,
+    { source, toRowId }: { source: Range; toRowId: string },
+  ) {
+    commit(fillRange(rows.value, order, source, toRowId, opts.columns));
   }
 
   async function save() {
@@ -347,15 +379,16 @@ export function useDataGrid(opts: {
     saveResult,
     errorList,
     setRowSelected,
-    commit,
-    undo: () => travel(history.undo, history.redo),
-    redo: () => travel(history.redo, history.undo),
+    undo: () => travel(history.canUndo, history.undo),
+    redo: () => travel(history.canRedo, history.redo),
     addRow,
     api,
     deleteSelected,
     clearAll,
     editCell,
     clearCells,
+    paste,
+    fillDrag,
     save,
   };
 }

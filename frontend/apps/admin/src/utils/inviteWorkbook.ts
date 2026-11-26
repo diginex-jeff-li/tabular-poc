@@ -147,7 +147,7 @@ export interface ParsedInviteWorkbook {
  * Read the first worksheet: row 1 is the header, matched to invite columns by
  * header text (case-insensitive), so column order does not matter. Blank
  * rows are skipped; blank cells become null. Values are NOT validated here —
- * the grid and `validateInvites` do that, so imported rows show their errors
+ * the grid and `checkReadyRows` do that, so imported rows show their errors
  * in place.
  */
 export async function parseInviteWorkbook(

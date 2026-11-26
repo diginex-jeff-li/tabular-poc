@@ -1,7 +1,7 @@
-import { appendRows } from 'utils/gridWrite';
 import { afterEach, describe, it, expect, vi } from 'vite-plus/test';
 import { effectScope, nextTick } from 'vue';
 import { useDataGrid } from './useDataGrid';
+import type { PasteParser } from './useDataGrid';
 import type { GridSaveResponse } from 'utils/gridApi';
 import type { SavePayload } from 'utils/gridDiff';
 import type { GridColumn } from 'utils/zodToColumnDefs';
@@ -22,11 +22,20 @@ function setup(
     async (payload: SavePayload) =>
       ok(payload.upserts.length + payload.deletes.length),
   ),
+  options: Partial<Parameters<typeof useDataGrid>[0]> = {},
 ) {
   const onUserEdit = vi.fn();
   const scope = effectScope();
   scopes.push(scope);
-  const grid = scope.run(() => useDataGrid({ data, onSave, onUserEdit }));
+  const grid = scope.run(() =>
+    useDataGrid({
+      data,
+      columns: [NAME],
+      onSave,
+      onUserEdit,
+      ...options,
+    }),
+  );
   return { grid, onSave, onUserEdit };
 }
 
@@ -193,6 +202,7 @@ describe('useDataGrid', () => {
           { id: 'a', name: 'Ann', role: 'admin' },
           { id: 'b', name: 'Bo', role: 'viewer' },
         ],
+        columns: [],
         onSave: vi.fn(),
         normalizeRow: (row) => ({ ...row, name: String(row.name).trim() }),
         onUserEdit,
@@ -221,22 +231,13 @@ describe('useDataGrid', () => {
     expect(onUserEdit).not.toHaveBeenCalled();
   });
 
-  it('commits appended rows with fresh ids through normalizeRow and reports them once', () => {
-    const onUserEdit = vi.fn();
-    const scope = effectScope();
-    scopes.push(scope);
-    const grid = scope.run(() =>
-      useDataGrid({
-        data: [{ id: 'a', name: 'Ann' }],
-        onSave: vi.fn(),
-        normalizeRow: (row) => ({ ...row, name: String(row.name).trim() }),
-        onUserEdit,
-      }),
-    );
+  it('appends pasted lines as rows with fresh ids through normalizeRow and reports them once', () => {
+    const { grid, onUserEdit } = setup([{ id: 'a', name: 'Ann' }], undefined, {
+      normalizeRow: (row) => ({ ...row, name: String(row.name).trim() }),
+    });
 
-    grid.commit(
-      appendRows(grid.rows.value, [{ id: 'a', name: ' Bo ' }, { name: 'Cy' }]),
-    );
+    // No origin: nothing selected. The blank line adds no row.
+    grid.paste(' Bo \n\nCy\n', { rowIds: ['a'], colIds: ['name'] });
 
     const ids = grid.rows.value.slice(1).map((row) => row.id);
     expect(new Set([...ids, 'a']).size).toBe(3);
@@ -249,37 +250,117 @@ describe('useDataGrid', () => {
     expect(onUserEdit).toHaveBeenCalledExactlyOnceWith(ids);
   });
 
+  it('appends what the pasteParser returns, each row with a fresh id', () => {
+    const pasteParser = vi.fn<PasteParser>((_text, positional) => [
+      ...positional(),
+      { id: 'a', name: 'Di' },
+    ]);
+    const { grid, onUserEdit } = setup([{ id: 'a', name: 'Ann' }], undefined, {
+      pasteParser,
+    });
+
+    grid.paste('Bo', { rowIds: ['a'], colIds: ['name'] });
+
+    expect(pasteParser).toHaveBeenCalledWith('Bo', expect.any(Function));
+    const ids = grid.rows.value.slice(1).map((row) => row.id);
+    expect(new Set([...ids, 'a']).size).toBe(3);
+    expect(grid.rows.value).toEqual([
+      { id: 'a', name: 'Ann' },
+      { id: ids[0], name: 'Bo' },
+      { id: ids[1], name: 'Di' },
+    ]);
+    expect(onUserEdit).toHaveBeenCalledExactlyOnceWith(ids);
+  });
+
+  it('pastes over the grid from the origin in screen order, skipping read-only columns, as one undo step', () => {
+    const { grid, onUserEdit } = setup(
+      [
+        { id: 'a', name: 'Ann', status: 'Ready', role: 'Viewer' },
+        { id: 'b', name: 'Bo', status: 'Ready', role: 'Viewer' },
+        { id: 'c', name: 'Cy', status: 'Ready', role: 'Viewer' },
+      ],
+      undefined,
+      { columns: [NAME, STATUS, { ...TEXT, id: 'role' }] },
+    );
+    const before = grid.rows.value;
+    // Sorted c before a; b is filtered out.
+    const order = { rowIds: ['c', 'a'], colIds: ['name', 'status', 'role'] };
+
+    grid.paste('Cyd\tOwner\nAnna\tAdmin\nEd\tViewer\n', order, {
+      rowId: 'c',
+      colId: 'name',
+    });
+
+    const added = grid.rows.value[3]?.id;
+    expect(grid.rows.value).toEqual([
+      { id: 'a', name: 'Anna', status: 'Ready', role: 'Admin' },
+      { id: 'b', name: 'Bo', status: 'Ready', role: 'Viewer' },
+      { id: 'c', name: 'Cyd', status: 'Ready', role: 'Owner' },
+      { id: added, name: 'Ed', role: 'Viewer' },
+    ]);
+    expect(grid.rows.value[1]).toBe(before[1]);
+    expect(onUserEdit).toHaveBeenCalledExactlyOnceWith(['a', 'c', added]);
+
+    expect(grid.undo()).toBe(true);
+    expect(grid.rows.value).toBe(before);
+  });
+
+  it('fills the visible rows below a range with its editable cells, as one undo step', () => {
+    const { grid, onUserEdit } = setup(
+      [
+        { id: 'a', name: 'Ann', status: 'Ready' },
+        { id: 'b', name: 'Bo', status: 'Ready' },
+        { id: 'c', name: 'Cy', status: 'Error' },
+        { id: 'd', name: 'Di', status: 'Ready' },
+      ],
+      undefined,
+      { columns: [NAME, STATUS] },
+    );
+    const before = grid.rows.value;
+    // b is filtered out.
+    const order = { rowIds: ['a', 'c', 'd'], colIds: ['name', 'status'] };
+    const source = {
+      anchor: { rowId: 'a', colId: 'name' },
+      focus: { rowId: 'a', colId: 'status' },
+    };
+
+    grid.fillDrag(order, { source, toRowId: 'd' });
+
+    expect(grid.rows.value).toEqual([
+      { id: 'a', name: 'Ann', status: 'Ready' },
+      { id: 'b', name: 'Bo', status: 'Ready' },
+      { id: 'c', name: 'Ann', status: 'Error' },
+      { id: 'd', name: 'Ann', status: 'Ready' },
+    ]);
+    expect(onUserEdit).toHaveBeenCalledExactlyOnceWith(['c', 'd']);
+
+    expect(grid.undo()).toBe(true);
+    expect(grid.rows.value).toBe(before);
+  });
+
   it('clears the editable cells of a block through normalizeRow and reports the touched rows once', () => {
-    const onUserEdit = vi.fn();
-    const scope = effectScope();
-    scopes.push(scope);
     const normalizeRow = vi.fn((row: Record<string, unknown>) => ({
       ...row,
       full: [row.first, row.last].filter(Boolean).join(' '),
     }));
-    const grid = scope.run(() =>
-      useDataGrid({
-        data: [
-          { id: 'a', status: 'Ready', first: 'Ann', last: 'Lee' },
-          { id: 'b', status: 'Ready', first: '', last: 'Ng' },
-          { id: 'c', status: 'Ready', first: 'Cy', last: 'Oh' },
-        ],
-        onSave: vi.fn(),
+    const { grid, onUserEdit } = setup(
+      [
+        { id: 'a', status: 'Ready', first: 'Ann', last: 'Lee' },
+        { id: 'b', status: 'Ready', first: '', last: 'Ng' },
+        { id: 'c', status: 'Ready', first: 'Cy', last: 'Oh' },
+      ],
+      undefined,
+      {
         normalizeRow,
-        onUserEdit,
-      }),
+        columns: [STATUS, { ...TEXT, id: 'first' }, { ...TEXT, id: 'last' }],
+      },
     );
-    const columns: Array<GridColumn> = [
-      { ...TEXT, id: 'status', editor: null, filter: null },
-      { ...TEXT, id: 'first' },
-      { ...TEXT, id: 'last' },
-    ];
     const untouched = grid.rows.value[2];
     const block = ['a', 'b'].map((rowId) =>
       ['__select', 'status', 'first'].map((colId) => ({ rowId, colId })),
     );
 
-    grid.clearCells(block, columns);
+    grid.clearCells(block);
 
     expect(grid.rows.value).toEqual([
       { id: 'a', status: 'Ready', first: null, last: 'Lee', full: 'Lee' },
@@ -297,7 +378,7 @@ describe('useDataGrid', () => {
     expect(onUserEdit).toHaveBeenCalledWith(['a']);
 
     const before = grid.rows.value;
-    grid.clearCells(block, columns);
+    grid.clearCells(block);
     expect(grid.rows.value).toBe(before);
     expect(onUserEdit).toHaveBeenCalledTimes(1);
   });
@@ -314,6 +395,7 @@ describe('useDataGrid', () => {
             { id: 'b', name: 'Bo', role: 'viewer' },
           ],
           onSave: vi.fn(),
+          columns: [],
           normalizeRow: (row) => ({ ...row, name: String(row.name).trim() }),
           onUserEdit,
         }),
@@ -411,9 +493,7 @@ describe('useDataGrid', () => {
 
     it('undoes a paste by removing its rows, and redo brings the same rows back', () => {
       const { grid, onUserEdit } = setup();
-      grid.commit(
-        appendRows(grid.rows.value, [{ name: 'Di' }, { name: 'Ed' }]),
-      );
+      grid.paste('Di\nEd', { rowIds: ['a', 'b', 'c'], colIds: ['name'] });
       const pasted = grid.rows.value.slice(3);
 
       grid.undo();
@@ -443,11 +523,27 @@ describe('useDataGrid', () => {
       expect(grid.undo()).toBe(false);
     });
 
-    it('records nothing for a write that changes nothing', () => {
-      const { grid } = setup();
+    it('records and reports nothing for a write that changes nothing', () => {
+      const { grid, onUserEdit } = setup();
+      const order = { rowIds: ['a', 'b', 'c'], colIds: ['name'] };
       grid.editCell({ rowId: 'a', colId: 'name' }, 'Ann');
       grid.deleteSelected();
+      grid.paste('', order);
+      grid.paste('Ann\nBo', order, { rowId: 'a', colId: 'name' });
+      grid.fillDrag(order, {
+        source: {
+          anchor: { rowId: 'a', colId: 'name' },
+          focus: { rowId: 'b', colId: 'name' },
+        },
+        toRowId: 'b',
+      });
       expect(grid.undo()).toBe(false);
+      expect(onUserEdit).not.toHaveBeenCalled();
+
+      const empty = setup([]);
+      empty.grid.clearAll();
+      expect(empty.grid.undo()).toBe(false);
+      expect(empty.onUserEdit).not.toHaveBeenCalled();
     });
 
     it('an agent write empties both stacks and is never undone', () => {
@@ -482,4 +578,11 @@ const TEXT: GridColumn = {
   validate: () => null,
   paste: true,
   export: true,
+};
+const NAME: GridColumn = { ...TEXT, id: 'name' };
+const STATUS: GridColumn = {
+  ...TEXT,
+  id: 'status',
+  editor: null,
+  filter: null,
 };

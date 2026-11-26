@@ -7,7 +7,7 @@ import {
   InviteDraftRowSchema,
 } from 'contracts';
 import { mappingProblems } from 'utils/columnMapping';
-import { INVITE_ROW_STATUSES } from 'utils/draftRow';
+import { INVITE_ROW_STATUSES } from 'utils/readyRows';
 import { z } from 'zod';
 import type { InviteDraft } from 'utils/inviteDraft';
 

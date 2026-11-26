@@ -3,10 +3,12 @@
  *
  * Columns are `GridColumn`s (`zodToColumnDefs` derives them from a Zod
  * schema). Row state lives in `useDataGrid`; `rows` is the single source of
- * truth, and every person write reaches it through `grid.commit` (one undo
- * step each). Sorting and filtering are views over it: they never change row
- * ids or the order of `rows`. Active cell, range, the editing cell and a fill
- * drag live in `useGridSelection`, by row and column id. Column order,
+ * truth, and every person write (edit, paste, fill, clear, Add Row, Delete,
+ * Clear all) reaches it through one of its verbs (one undo step each); this
+ * component only turns DOM events into those calls. Sorting and filtering
+ * are views over it: they never change row ids or the order of `rows`.
+ * Active cell, range, the editing cell and a fill drag live in
+ * `useGridSelection`, by row and column id. Column order,
  * visibility and widths live in `useColumnLayout`.
  *
  * Layout contract (mandatory): the root is `flex flex-col h-full`; the grid
@@ -40,11 +42,8 @@ import {
 } from '@vueuse/core';
 import { ROW_HEIGHT, useDataGrid } from 'composables/useDataGrid';
 import { useGridSelection } from 'composables/useGridSelection';
-import { parsePositionalPaste, serializeTsv } from 'utils/gridClipboard';
-import { fillRange } from 'utils/gridFill';
-import { overwritePaste } from 'utils/gridPaste';
+import { serializeTsv } from 'utils/gridClipboard';
 import { indexSaveErrors, validateRows } from 'utils/gridValidation';
-import { appendRows } from 'utils/gridWrite';
 import {
   computed,
   defineComponent,
@@ -62,7 +61,7 @@ import { SELECT_ID, useColumnLayout } from './useColumnLayout';
 import type { EditEnd, GridCellContext } from './GridCell';
 import type { ColumnDrag } from './HeaderCell';
 import type { TableColumn } from '@nuxt/ui/components/Table.vue';
-import type { DataGridState, Row } from 'composables/useDataGrid';
+import type { DataGridState, PasteParser, Row } from 'composables/useDataGrid';
 import type { GridSelection } from 'composables/useGridSelection';
 import type { GridApi, GridSaveError, GridSaveResponse } from 'utils/gridApi';
 import type { CellPos, Dir, GridOrder } from 'utils/gridRange';
@@ -333,20 +332,17 @@ export default defineComponent({
     },
     /** Replaces the positional paste parser. */
     pasteParser: {
-      type: Function as PropType<
-        (
-          clipboard: string,
-          positional: () => Array<Record<string, unknown>>,
-        ) => Array<Record<string, unknown>>
-      >,
+      type: Function as PropType<PasteParser>,
     },
   },
   setup(props) {
     const grid = useDataGrid({
       data: props.data,
+      columns: props.columns,
       onSave: props.onSave,
       normalizeRow: props.normalizeRow,
       onUserEdit: props.onUserEdit,
+      pasteParser: props.pasteParser,
     });
     const columnsById = new Map(props.columns.map((c) => [c.id, c]));
     const layout = useColumnLayout(props.columns);
@@ -371,15 +367,7 @@ export default defineComponent({
     function commitFill() {
       const fill = selection.endFill();
       if (fill) {
-        grid.commit(
-          fillRange(
-            grid.rows.value,
-            order.value,
-            fill.source,
-            fill.toRowId,
-            props.columns,
-          ),
-        );
+        grid.fillDrag(order.value, fill);
       }
     }
     useEventListener(window, 'pointerup', () => {
@@ -589,7 +577,7 @@ export default defineComponent({
           case 'Backspace':
             // Swallowed even with nothing to clear: some browsers go back.
             e.preventDefault();
-            grid.clearCells(selection.cells(), props.columns);
+            grid.clearCells(selection.cells());
             return;
           case 'Escape':
             // Nothing selected: the next paste appends rows.
@@ -652,26 +640,10 @@ export default defineComponent({
         return;
       }
       e.preventDefault();
-      const text = e.clipboardData?.getData('text/plain') ?? '';
-      const origin = selection.cells()[0]?.[0];
-      if (origin) {
-        grid.commit(
-          overwritePaste(
-            grid.rows.value,
-            order.value,
-            origin,
-            text,
-            props.columns,
-          ),
-        );
-        return;
-      }
-      const positional = () => parsePositionalPaste(text, props.columns);
-      grid.commit(
-        appendRows(
-          grid.rows.value,
-          props.pasteParser?.(text, positional) ?? positional(),
-        ),
+      grid.paste(
+        e.clipboardData?.getData('text/plain') ?? '',
+        order.value,
+        selection.cells()[0]?.[0],
       );
     });
 

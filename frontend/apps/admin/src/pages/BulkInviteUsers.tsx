@@ -34,9 +34,9 @@ import { createInviteDraft } from 'utils/inviteDraft';
 import { buildInviteWorkbook, parseInviteWorkbook } from 'utils/inviteWorkbook';
 import { zodToColumnDefs } from 'utils/zodToColumnDefs';
 import { defineComponent, nextTick, onMounted, ref, shallowRef } from 'vue';
-import type { InviteRowStatus } from 'utils/draftRow';
 import type { GridApi } from 'utils/gridApi';
 import type { InviteDraft } from 'utils/inviteDraft';
+import type { InviteRowStatus } from 'utils/readyRows';
 import type { GridColumn } from 'utils/zodToColumnDefs';
 import type { VNode } from 'vue';
 

@@ -4,13 +4,13 @@ import {
   mappingProblems,
   planPaste,
 } from 'utils/columnMapping';
-import { draftFields, inviteRowStatus, needsReview } from 'utils/draftRow';
-import { validateInvites } from 'utils/validateInvites';
+import { draftFields, needsReview } from 'utils/draftRow';
+import { checkReadyRows } from 'utils/readyRows';
 import { shallowRef } from 'vue';
 import type { InviteField } from 'contracts';
 import type { ColumnMapping, UnmappedTable } from 'utils/columnMapping';
-import type { InviteRowStatus } from 'utils/draftRow';
 import type { GridApi, GridSaveError, GridSaveResponse } from 'utils/gridApi';
+import type { InviteRowStatus } from 'utils/readyRows';
 import type { ShallowRef } from 'vue';
 
 /**
@@ -50,7 +50,7 @@ export function createInviteDraft(
   { existingEmails }: { existingEmails: ReadonlySet<string> },
 ) {
   const agentProposed = new Set<string>();
-  let errors: Array<GridSaveError> = [];
+  let checked = checkReadyRows([], existingEmails, agentProposed);
   const held: ShallowRef<HeldPaste | null> = shallowRef(null);
 
   const api = (): GridApi => {
@@ -68,15 +68,15 @@ export function createInviteDraft(
   function check(): Array<GridSaveError> {
     const g = grid();
     if (!g) {
-      return errors;
+      return checked.errors;
     }
-    errors = validateInvites(g.getRows(), existingEmails, agentProposed);
-    g.showErrors(errors);
-    return errors;
+    checked = checkReadyRows(g.getRows(), existingEmails, agentProposed);
+    g.showErrors(checked.errors);
+    return checked.errors;
   }
 
   function status(row: Row): InviteRowStatus {
-    return inviteRowStatus(row, errors, agentProposed);
+    return checked.statusOf(String(row.id));
   }
 
   function rows(): Array<DraftRowView> {
@@ -268,7 +268,7 @@ export function createInviteDraft(
 
   return {
     held,
-    errors: () => errors,
+    errors: () => checked.errors,
     /** Ids of rows still waiting for a person to confirm the agent's change. */
     agentProposedIds: () => [...agentProposed],
     status,

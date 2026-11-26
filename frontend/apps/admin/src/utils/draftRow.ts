@@ -10,9 +10,10 @@ import {
  * (see CONTEXT.md and docs/adr/0001-draft-rows-vs-ready-rows.md).
  *
  * Runs on every way in (paste, Excel import, agent writes, cell edits) and is
- * idempotent. It never decides validity — that is `validateInvites` — and it
- * never guesses: a whole line in one cell is split only when every column is
- * clear; otherwise the text stays as typed and the row needs review.
+ * idempotent. It never decides validity or status — that is
+ * `checkReadyRows` — and it never guesses: a whole line in one cell is split
+ * only when every column is clear; otherwise the text stays as typed and the
+ * row needs review.
  */
 const DRAFT_FIELDS = INVITE_FIELDS;
 
@@ -170,28 +171,4 @@ export function normalizeInviteRow(
 export function needsReview(row: Record<string, unknown>): boolean {
   const line = lineText(draftFields(row));
   return line !== null && parseLine(line) === null;
-}
-
-export const INVITE_ROW_STATUSES = [
-  'Ready',
-  'Not ready',
-  'Needs review',
-  'Agent proposed',
-] as const;
-export type InviteRowStatus = (typeof INVITE_ROW_STATUSES)[number];
-
-/** Status shown in the grid and to the agent; `errors` from `validateInvites`. */
-export function inviteRowStatus(
-  row: Record<string, unknown>,
-  errors: ReadonlyArray<{ rowId: string }>,
-  agentProposed: ReadonlySet<string>,
-): InviteRowStatus {
-  const id = String(row.id);
-  if (needsReview(row)) {
-    return 'Needs review';
-  }
-  if (agentProposed.has(id)) {
-    return 'Agent proposed';
-  }
-  return errors.some((e) => e.rowId === id) ? 'Not ready' : 'Ready';
 }
