@@ -52,3 +52,15 @@ Parity notes:
 Evidence:
 - `useGridEditor.test.ts`: menu items (Status locked, `__select` and the hidden `id` left out); `setColumnVisible` hides/shows and updates the item; a column moved to the front puts `__select` back first; with frozen Status the order stays `status, __select`; a paste skips a hidden column. `GridEditor.test.ts`: the menu gets `columnItems` and its toggle reaches `setColumnVisible('issue', false)`.
 - Browser, real CDP mouse. `/tabulator`: Topic right edge dragged +80px → 239 → 320px. Risk Level dragged onto the checkbox header → `__select, riskLevel, categoryCode, …`; click the first data cell, ArrowRight → `categoryCode` (visible order). Columns → Topic → hidden (`display: none`, menu item unchecked); paste over the gap skips it; Topic shown again; reload → default order and 239px. `/tabulator/invite-users`: Last Name dragged onto Email → `status, __select, lastName, email, …`; dragging onto Status does nothing; the menu lists `Status (locked), Email, First Name, Last Name, Role, Groups`; reload → default order.
+
+## Lead follow-up (parity gaps closed)
+
+- Tabulator: ticking a row checkbox no longer turns into a whole-row range. The mousedown never reaches Tabulator's range module, and focus goes back to the grid after the tick. Checked in the browser on `/tabulator`:
+  - with row 3's Issue cell selected, ticking row 1 and pasting overwrote row 3's Issue, as on TanStack;
+  - with nothing selected, ticking row 1 and pasting appended row 11, as on TanStack.
+- Tabulator: with nothing selected, an arrow/Home/End key selects the first data cell (Category Code), as on TanStack. Checked in the browser on both engines.
+- Tabulator: the checkbox column is no longer resizable, as on TanStack.
+- Still different, all cosmetic:
+  - undo of a reload-type write (Add Row, Delete, Clear, appended paste) shrinks Tabulator's selection to one cell;
+  - Tabulator's fill handle doesn't auto-scroll at the edge (read in the source, not tested);
+  - Tabulator moves a column live while dragging, TanStack on drop.

@@ -212,6 +212,34 @@ function clearRanges(tab: Tabulator) {
   }
 }
 
+const NAV_KEYS: Record<string, true> = {
+  ArrowUp: true,
+  ArrowDown: true,
+  ArrowLeft: true,
+  ArrowRight: true,
+  Home: true,
+  End: true,
+};
+
+/** A row or select-all checkbox drawn by the `rowSelection` formatter. */
+function isRowCheckbox(target: EventTarget | null): boolean {
+  return Boolean(
+    (target as HTMLElement | null)?.closest?.('input[type="checkbox"]'),
+  );
+}
+
+/**
+ * Ticking a row's checkbox must not move the cell selection (DataGrid keeps
+ * it). Tabulator's range module turns the press into a whole-row range,
+ * after which a paste would overwrite the ticked row, so the press never
+ * reaches it. The tick itself happens on `click`, which still runs.
+ */
+function keepRangeOnTick(e: MouseEvent) {
+  if (isRowCheckbox(e.target)) {
+    e.stopPropagation();
+  }
+}
+
 /** Runs each listed row's validators, for the in-cell highlight. */
 function validateRows(tab: Tabulator, ids: ReadonlyArray<string>) {
   const wanted = new Set(ids);
@@ -675,6 +703,28 @@ export function useGridEditor(opts: UseGridEditorOptions) {
     } else if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
       personWrite(() => clearRangeCells(tab));
+    } else if (NAV_KEYS[e.key] && tab.getRanges().length === 0) {
+      // As DataGrid: with nothing selected, a navigation key selects the
+      // first cell instead of doing nothing.
+      const row = tab.getRows('active')[0];
+      const column = tab
+        .getColumns()
+        .find((c) => c.isVisible() && c.getField() !== '__select');
+      if (row && column) {
+        e.preventDefault();
+        const cell = row.getCell(column);
+        tab.addRange(cell, cell);
+      }
+    }
+  }
+
+  // Ticking a row's checkbox keeps the cell selection (see
+  // `keepRangeOnTick`); afterwards keys and paste go to the grid again, not
+  // to the checkbox input.
+  function onClickAfterTick(e: MouseEvent) {
+    if (isRowCheckbox(e.target)) {
+      // After the formatter's own click handler has run.
+      setTimeout(() => tableEl.value?.focus({ preventScroll: true }));
     }
   }
 
@@ -706,6 +756,9 @@ export function useGridEditor(opts: UseGridEditorOptions) {
       tab.on('columnMoved', onColumnMoved);
       tab.on('renderComplete', onRenderComplete);
       el.addEventListener('keydown', onKeyDown);
+      el.addEventListener('mousedown', keepRangeOnTick, true);
+      // Capture: the rowSelection checkbox stops its click from bubbling.
+      el.addEventListener('click', onClickAfterTick, true);
       el.addEventListener('paste', onPaste);
 
       onCleanup(() => {
@@ -716,6 +769,8 @@ export function useGridEditor(opts: UseGridEditorOptions) {
         tab.off('columnMoved', onColumnMoved);
         tab.off('renderComplete', onRenderComplete);
         el.removeEventListener('keydown', onKeyDown);
+        el.removeEventListener('mousedown', keepRangeOnTick, true);
+        el.removeEventListener('click', onClickAfterTick, true);
         el.removeEventListener('paste', onPaste);
       });
     },

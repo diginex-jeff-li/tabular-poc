@@ -22,6 +22,7 @@ export function buildComplianceColumns(): Array<Record<string, unknown>> {
     headerFilter: false,
     clipboard: false, // exclude from paste parsing — prevents column shift
     download: false,
+    resizable: false,
     formatter: 'rowSelection',
     titleFormatter: 'rowSelection',
   };

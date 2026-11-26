@@ -54,6 +54,7 @@ function tabulatorColumns(
       headerSort: false,
       clipboard: false,
       download: false,
+      resizable: false,
       formatter: 'rowSelection',
       titleFormatter: 'rowSelection',
     },
