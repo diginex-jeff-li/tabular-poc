@@ -81,13 +81,15 @@ design decisions: `.scratch/invite-draft-rows/spec.md` and
   cleaned up; a whole line stuck in one cell is split only when no guess is
   needed. Rows show a status: Ready, Not ready, Needs review, Agent proposed.
   An agent-resolved row blocks Send until a person confirms or edits it.
-- **Pasted client tables** (`utils/columnMapping.ts`): pastes are matched to the
-  template by header name or alias (Surname, Given name, E-mail…); unmatched
-  tables are held in a mapping panel. The agent may propose a mapping; only a
-  person applies it. An "Auto-match headers" switch holds every paste (agent demo).
+- **Client tables** (`utils/columnMapping.ts`): a pasted table or an imported
+  `.xlsx` goes through one plan. It is matched to the template by header name or
+  alias (Surname, Given name, E-mail…); a table with a missing or doubled
+  template column is held in a mapping panel. The agent may propose a mapping;
+  only a person applies it. The "Auto-match headers" switch off holds every
+  paste and import (agent demo).
 - **Excel**: `utils/inviteWorkbook.ts` generates `.xlsx` with data validation
-  (first-pass only; typed entries) and imports by header name or alias. Import
-  re-checks every row with the real rules.
+  (first-pass only; typed entries) and reads the first sheet as a plain table.
+  Import re-checks every row with the real rules.
 - **Send invites is simulated** — nothing is sent. Bulk atomicity, oversight
   approval and partial failure are undefined by the ticket.
 - **Agent tools** (`utils/inviteAgentTools.ts`, an adapter over the invite draft
@@ -157,8 +159,8 @@ Programmatic access (agent tools, file import) goes through the `GridApi` seam
 | `src/utils/readyRows.ts`                                  | Ready-row check: Send errors and each row's status (also behind the agent `validate` tool) |
 | `src/utils/inviteDraft.ts`                                | Invite draft module — who may change which rows, statuses, unmapped tables, Send gate |
 | `src/utils/draftRow.ts`                                   | One draft row: cleanup, line parser, needs-review detection |
-| `src/utils/columnMapping.ts`                              | Pasted client tables: header/alias matching, hold vs insert |
-| `src/utils/inviteWorkbook.ts`                             | Excel template (with data validation) + `.xlsx` import |
+| `src/utils/columnMapping.ts`                              | Client tables (pasted or imported): header/alias matching, hold vs insert |
+| `src/utils/inviteWorkbook.ts`                             | Excel template (with data validation) + `.xlsx` read as a plain table |
 | `src/utils/inviteAgentTools.ts`                           | Agent tools — adapter over the invite draft module (no send/confirm/apply tool) |
 | `src/composables/useAgentTools.ts`                        | Register tools on WebMCP + `window` bridge            |
 | `src/composables/useInviteDraftStorage.ts` | Keeps the `/invite-users` draft in localStorage across reloads |

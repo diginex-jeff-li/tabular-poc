@@ -3,14 +3,16 @@ import { parseTsv } from './gridClipboard';
 import type { InviteField } from 'contracts';
 
 /**
- * PROTOTYPE — column mapping for pasted client tables (see CONTEXT.md).
+ * PROTOTYPE — column mapping for client tables, pasted or imported from Excel
+ * (see CONTEXT.md).
  *
- * A paste whose first line names columns is mapped by header name, using the
- * template's header and alias list; columns the template doesn't have are
- * ignored. When a required column has no match (or auto-match is off, or a
- * header-less paste is wider than the template) the paste is held as an
- * unmapped table: nothing enters the invite draft until a person applies a
- * column mapping — their own, or one the agent proposed.
+ * A table with a header row is mapped by header name, using the template's
+ * header and alias list; columns the template doesn't have are ignored. When
+ * a required column has no match, a template column is matched twice, or
+ * auto-match is off, the table is held as an unmapped table: nothing enters
+ * the invite draft until a person applies a column mapping — their own, or
+ * one the agent proposed. A header-less paste goes in by position, or is held
+ * with numbered columns when it is wider than the template.
  */
 export interface UnmappedTable {
   headers: Array<string>;
@@ -22,10 +24,42 @@ export type ColumnMapping = Array<InviteField | null>;
 
 type DraftRow = Partial<Record<InviteField, string | null>>;
 
-export type PastePlan =
+/** A table and its column mapping, with why that mapping cannot be applied yet (empty when it can). */
+export interface TableMapping {
+  table: UnmappedTable;
+  mapping: ColumnMapping;
+  problems: Array<string>;
+}
+
+export function tableMapping(
+  table: UnmappedTable,
+  mapping: ColumnMapping,
+): TableMapping {
+  return { table, mapping, problems: mappingProblems(mapping) };
+}
+
+type TablePlan =
   | { kind: 'insert'; rows: Array<DraftRow>; ignored: Array<string> }
-  | { kind: 'hold'; table: UnmappedTable; mapping: ColumnMapping }
-  | { kind: 'positional' };
+  | ({ kind: 'hold' } & TableMapping);
+
+export type PastePlan = TablePlan | { kind: 'positional' };
+
+/** A table whose first row names its columns: insert it, or hold it. */
+export function planTable(
+  table: UnmappedTable,
+  { autoMatch }: { autoMatch: boolean },
+): TablePlan {
+  const mapped = tableMapping(
+    table,
+    autoMatch
+      ? table.headers.map(matchInviteHeader)
+      : table.headers.map((): null => null),
+  );
+  if (autoMatch && mapped.problems.length === 0) {
+    return { kind: 'insert', ...applyColumnMapping(table, mapped.mapping) };
+  }
+  return { kind: 'hold', ...mapped };
+}
 
 /** Pasted text as trimmed cells, blank lines left out. */
 function readTable(text: string): Array<Array<string>> {
@@ -34,34 +68,25 @@ function readTable(text: string): Array<Array<string>> {
     .filter((cells) => cells.some(Boolean));
 }
 
+/** Pasted text: a header line goes through `planTable`; a header-less body by position. */
 export function planPaste(
   text: string,
   { autoMatch }: { autoMatch: boolean },
 ): PastePlan {
   const lines = readTable(text);
   const first = lines[0] ?? [];
-  const matched = first.map(matchInviteHeader);
-  const hasHeader = matched.some((f) => f !== null);
-
-  if (!hasHeader) {
-    if (first.length <= INVITE_COLUMNS.length) {
-      return { kind: 'positional' };
-    }
-    return {
-      kind: 'hold',
-      table: { headers: first.map((_, i) => `Column ${i + 1}`), rows: lines },
-      mapping: first.map((): null => null),
-    };
+  if (first.some((cell) => matchInviteHeader(cell) !== null)) {
+    return planTable({ headers: first, rows: lines.slice(1) }, { autoMatch });
   }
-
-  const table = { headers: first, rows: lines.slice(1) };
-  if (autoMatch && mappingProblems(matched).length === 0) {
-    return { kind: 'insert', ...applyColumnMapping(table, matched) };
+  if (first.length <= INVITE_COLUMNS.length) {
+    return { kind: 'positional' };
   }
   return {
     kind: 'hold',
-    table,
-    mapping: autoMatch ? matched : first.map((): null => null),
+    ...tableMapping(
+      { headers: first.map((_, i) => `Column ${i + 1}`), rows: lines },
+      first.map((): null => null),
+    ),
   };
 }
 
@@ -78,7 +103,10 @@ export function applyColumnMapping(
     });
     return row;
   });
-  const ignored = table.headers.filter((_, i) => mapping[i] === null);
+  // A column without a header carries nothing worth naming.
+  const ignored = table.headers.filter(
+    (header, i) => mapping[i] === null && header !== '',
+  );
   return { rows, ignored };
 }
 

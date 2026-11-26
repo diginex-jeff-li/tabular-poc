@@ -1,4 +1,7 @@
+import { parseTsv } from './gridClipboard';
+import { cellsIn } from './gridRange';
 import type { GridColumn, Row } from './gridApi';
+import type { CellPos, GridOrder, Range } from './gridRange';
 
 /**
  * A person's write as data: the rows after it, and the ids of the rows it
@@ -14,7 +17,7 @@ export type RowChange = {
 export type WritableColumn = Pick<GridColumn, 'id' | 'editor'>;
 
 /** The ids of the columns a person can type into. */
-export function editableIds(
+function editableIds(
   columns: ReadonlyArray<WritableColumn>,
 ): ReadonlySet<string> {
   return new Set(columns.flatMap((c) => (c.editor === null ? [] : [c.id])));
@@ -59,4 +62,117 @@ export function appendRows(
   }
   const fresh = added.map((row) => ({ ...row, id: crypto.randomUUID() }));
   return { rows: [...rows, ...fresh], touchedIds: fresh.map((row) => row.id) };
+}
+
+/**
+ * Delete/Backspace over a block of cells: sets to null every cell a person
+ * could type into (its column has an editor). Read-only columns (Status, the
+ * checkbox column, any column without an editor or not in `columns`) are
+ * never written. Cells that are already blank are skipped, so `touchedIds`
+ * lists, in row order, only rows that lost a value. Untouched rows keep their
+ * identity, and when nothing is cleared `rows` comes back as is.
+ */
+export function clearCells(
+  rows: ReadonlyArray<Row>,
+  cells: ReadonlyArray<ReadonlyArray<CellPos>>,
+  columns: ReadonlyArray<WritableColumn>,
+): RowChange {
+  const editable = editableIds(columns);
+  const writes = new Map<string, Record<string, null>>();
+  for (const { rowId, colId } of cells.flat()) {
+    if (editable.has(colId)) {
+      writes.set(rowId, { ...writes.get(rowId), [colId]: null });
+    }
+  }
+  return writeCells(rows, writes);
+}
+
+/**
+ * The fill handle: copies the `source` range's rows into the visible rows
+ * between it and `toRowId` (below or above it), repeating the pattern: the
+ * row `k` rows from the source's top gets source row `k mod height`, so the
+ * pattern runs on unbroken in either direction. No numeric series. Only the
+ * source's editable columns are written. `toRowId` inside the source, or not
+ * visible, writes nothing.
+ */
+export function fillRange(
+  rows: ReadonlyArray<Row>,
+  order: GridOrder,
+  source: Range,
+  toRowId: string,
+  columns: ReadonlyArray<WritableColumn>,
+): RowChange {
+  const editable = editableIds(columns);
+  const block = cellsIn(source, order).map((line) =>
+    line.filter((cell) => editable.has(cell.colId)),
+  );
+  const top = order.rowIds.indexOf(block[0]?.[0]?.rowId ?? '');
+  const to = order.rowIds.indexOf(toRowId);
+  const bottom = top + block.length - 1;
+  if (top === -1 || to === -1 || (to >= top && to <= bottom)) {
+    return { rows, touchedIds: [] };
+  }
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const [from, end] = to > bottom ? [bottom + 1, to] : [to, top - 1];
+  const writes = new Map<string, Record<string, unknown>>();
+  for (let at = from; at <= end; at++) {
+    const offset = (at - top) % block.length;
+    const line = block[(offset + block.length) % block.length];
+    writes.set(
+      order.rowIds[at],
+      Object.fromEntries(
+        line.map((cell) => [
+          cell.colId,
+          byId.get(cell.rowId)?.[cell.colId] ?? null,
+        ]),
+      ),
+    );
+  }
+  return writeCells(rows, writes);
+}
+
+/**
+ * Paste over the grid, as in Excel: the block is written at its own size
+ * from `origin` (the range's top-left cell), rightward over the visible
+ * editable columns and downward over the visible rows, in screen order.
+ * Read-only and hidden columns are skipped, not consumed; cells past the
+ * last editable column are dropped. A blank line writes blank cells. Lines
+ * past the last visible row become new rows at the bottom (fresh ids), unless
+ * every cell in them is blank. Values are written as pasted (no
+ * `pasteParser`); a cell that keeps its value doesn't touch its row.
+ */
+export function overwritePaste(
+  rows: ReadonlyArray<Row>,
+  order: GridOrder,
+  origin: CellPos,
+  text: string,
+  columns: ReadonlyArray<WritableColumn>,
+): RowChange {
+  const editable = editableIds(columns);
+  const startRow = order.rowIds.indexOf(origin.rowId);
+  const startCol = order.colIds.indexOf(origin.colId);
+  if (startRow === -1 || startCol === -1) {
+    return { rows, touchedIds: [] };
+  }
+  const colIds = order.colIds.slice(startCol).filter((id) => editable.has(id));
+  const fields = parseTsv(text).map((line) =>
+    Object.fromEntries(
+      line.slice(0, colIds.length).map((value, i) => [colIds[i], value]),
+    ),
+  );
+  const rowIds = order.rowIds.slice(startRow, startRow + fields.length);
+  const written = writeCells(
+    rows,
+    new Map(rowIds.map((rowId, i) => [rowId, fields[i]])),
+  );
+  const added = appendRows(
+    written.rows,
+    fields
+      .slice(rowIds.length)
+      .filter((line) => Object.values(line).some((value) => value !== '')),
+  );
+  return {
+    rows: added.rows,
+    touchedIds: [...written.touchedIds, ...added.touchedIds],
+  };
 }

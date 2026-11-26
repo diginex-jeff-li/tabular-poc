@@ -6,7 +6,8 @@ import type { InviteDraftStore } from 'utils/inviteDraft';
  * The invite draft's store in localStorage, kept between visits: the grid's
  * rows (with their ids) and which of them are agent proposed.
  *
- * A held (unmapped) paste is not kept; it is a moment's decision, not data.
+ * An unmapped table (pasted or imported) is not kept; it is a moment's
+ * decision, not data.
  */
 const StoredDraftSchema = z.object({
   version: z.literal(1),
