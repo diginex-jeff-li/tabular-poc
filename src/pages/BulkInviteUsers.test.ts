@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { useGridLayout } from 'components/DataGrid/testLayout';
+import ExcelJS from 'exceljs';
 import { buildInviteWorkbook } from 'utils/inviteWorkbook';
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 import BulkInviteUsers from './BulkInviteUsers';
@@ -128,6 +129,24 @@ describe('BulkInviteUsers', () => {
     // ExcelJS reads the file over several macrotasks.
     await vi.waitFor(() => expect(emails(w)).toEqual(['cy@acme.com']));
     expect(w.text()).toContain('Imported 1 row(s) from people.xlsx');
+  });
+
+  it.fails('holds an .xlsx whose columns don’t match the template for a column mapping, like a paste', async () => {
+    const { w } = await mountPage();
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('People');
+    sheet.addRow(['Email', 'Given name', 'Surname', 'Access']);
+    sheet.addRow(['cy@acme.com', 'Cy', 'Ng', 'Viewer']);
+    const data = await workbook.xlsx.writeBuffer();
+    const input = w.get('[data-testid="invite-import"]')
+      .element as HTMLInputElement;
+    Object.defineProperty(input, 'files', {
+      value: [new File([data], 'people.xlsx')],
+    });
+    input.dispatchEvent(new Event('change'));
+
+    await vi.waitFor(() => expect(button(w, 'Apply mapping')).toBeDefined());
+    expect(emails(w)).toEqual([]);
   });
 });
 
