@@ -6,7 +6,6 @@ import {
   INVITE_ROLES,
   InviteDraftRowSchema,
 } from 'contracts';
-import { mappingProblems } from 'utils/columnMapping';
 import { INVITE_ROW_STATUSES } from 'utils/readyRows';
 import { z } from 'zod';
 import type { InviteDraft } from 'utils/inviteDraft';
@@ -245,7 +244,7 @@ export function createInviteTools(draft: InviteDraft): Array<AgentTool> {
     {
       name: 'read_pasted_table',
       description:
-        'When the user pasted a table whose columns did not match the template, return its headers, up to 5 sample rows, the current column mapping and what is still missing. Nothing is in the draft until the user applies a mapping.',
+        'When the user pasted or imported a table whose columns did not match the template, return its headers, up to 5 sample rows, the current column mapping and what is still missing. Nothing is in the draft until the user applies a mapping.',
       inputSchema: jsonSchema(NoInputSchema),
       annotations: { readOnlyHint: true },
       execute: async () => {
@@ -259,7 +258,7 @@ export function createInviteTools(draft: InviteDraft): Array<AgentTool> {
           sampleRows: held.table.rows.slice(0, SAMPLE_ROWS),
           rowCount: held.table.rows.length,
           mapping: held.mapping,
-          problems: mappingProblems(held.mapping),
+          problems: held.problems,
           templateColumns: INVITE_COLUMNS,
         };
       },
@@ -267,7 +266,7 @@ export function createInviteTools(draft: InviteDraft): Array<AgentTool> {
     {
       name: 'propose_column_mapping',
       description:
-        'Propose which template column each pasted column fills: one entry per pasted column, in order, a template field or null to ignore the column. The user reviews and applies it; this tool does not add rows.',
+        'Propose which template column each column of the pasted or imported table fills: one entry per column, in order, a template field or null to ignore the column. The user reviews and applies it; this tool does not add rows.',
       inputSchema: jsonSchema(
         z
           .object({

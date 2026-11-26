@@ -348,7 +348,11 @@ describe('invite draft', () => {
         'people.xlsx needs a column mapping before it enters the draft.',
       );
 
+      expect(draft.held.value?.problems).toEqual(['No column for Role']);
+      expect(() => draft.applyMapping()).toThrow('No column for Role');
+
       draft.setMappingColumn(3, 'role');
+      expect(draft.held.value?.problems).toEqual([]);
       expect(draft.applyMapping()).toMatchObject({ kind: 'added', added: 1 });
       expect(draft.rows().map((r) => r.email)).toEqual(['cy@acme.com']);
     });

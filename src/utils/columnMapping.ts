@@ -24,9 +24,23 @@ export type ColumnMapping = Array<InviteField | null>;
 
 type DraftRow = Partial<Record<InviteField, string | null>>;
 
+/** A table and its column mapping, with why that mapping cannot be applied yet (empty when it can). */
+export interface TableMapping {
+  table: UnmappedTable;
+  mapping: ColumnMapping;
+  problems: Array<string>;
+}
+
+export function tableMapping(
+  table: UnmappedTable,
+  mapping: ColumnMapping,
+): TableMapping {
+  return { table, mapping, problems: mappingProblems(mapping) };
+}
+
 type TablePlan =
   | { kind: 'insert'; rows: Array<DraftRow>; ignored: Array<string> }
-  | { kind: 'hold'; table: UnmappedTable; mapping: ColumnMapping };
+  | ({ kind: 'hold' } & TableMapping);
 
 export type PastePlan = TablePlan | { kind: 'positional' };
 
@@ -35,15 +49,16 @@ export function planTable(
   table: UnmappedTable,
   { autoMatch }: { autoMatch: boolean },
 ): TablePlan {
-  const matched = table.headers.map(matchInviteHeader);
-  if (autoMatch && mappingProblems(matched).length === 0) {
-    return { kind: 'insert', ...applyColumnMapping(table, matched) };
-  }
-  return {
-    kind: 'hold',
+  const mapped = tableMapping(
     table,
-    mapping: autoMatch ? matched : table.headers.map((): null => null),
-  };
+    autoMatch
+      ? table.headers.map(matchInviteHeader)
+      : table.headers.map((): null => null),
+  );
+  if (autoMatch && mapped.problems.length === 0) {
+    return { kind: 'insert', ...applyColumnMapping(table, mapped.mapping) };
+  }
+  return { kind: 'hold', ...mapped };
 }
 
 /** Pasted text as trimmed cells, blank lines left out. */
@@ -68,8 +83,10 @@ export function planPaste(
   }
   return {
     kind: 'hold',
-    table: { headers: first.map((_, i) => `Column ${i + 1}`), rows: lines },
-    mapping: first.map((): null => null),
+    ...tableMapping(
+      { headers: first.map((_, i) => `Column ${i + 1}`), rows: lines },
+      first.map((): null => null),
+    ),
   };
 }
 

@@ -1,15 +1,19 @@
 import { INVITE_FIELDS } from 'contracts';
 import {
   applyColumnMapping,
-  mappingProblems,
   planPaste,
   planTable,
+  tableMapping,
 } from 'utils/columnMapping';
 import { draftFields, needsReview } from 'utils/draftRow';
 import { checkReadyRows } from 'utils/readyRows';
 import { shallowRef } from 'vue';
 import type { InviteField } from 'contracts';
-import type { ColumnMapping, UnmappedTable } from 'utils/columnMapping';
+import type {
+  ColumnMapping,
+  TableMapping,
+  UnmappedTable,
+} from 'utils/columnMapping';
 import type { GridApi, GridSaveError, GridSaveResponse } from 'utils/gridApi';
 import type { InviteRowStatus } from 'utils/readyRows';
 import type { ShallowRef } from 'vue';
@@ -49,9 +53,8 @@ export type DraftRowView = { id: string } & Record<
   string | null
 > & { status: InviteRowStatus };
 
-export interface HeldTable {
-  table: UnmappedTable;
-  mapping: ColumnMapping;
+/** An unmapped table waiting for a person to apply its column mapping. */
+export interface HeldTable extends TableMapping {
   /** Columns whose mapping the agent proposed and no person has changed. */
   agentColumns: Array<number>;
 }
@@ -257,8 +260,8 @@ export function createInviteDraft(
     check();
   }
 
-  function hold(table: UnmappedTable, mapping: ColumnMapping): TableOutcome {
-    held.value = { table, mapping, agentColumns: [] };
+  function hold({ table, mapping, problems }: TableMapping): TableOutcome {
+    held.value = { table, mapping, problems, agentColumns: [] };
     return { kind: 'held' };
   }
 
@@ -285,7 +288,7 @@ export function createInviteDraft(
   ): { rows: Array<Row>; outcome: TableOutcome } {
     const plan = planPaste(text, { autoMatch });
     if (plan.kind === 'hold') {
-      return { rows: [], outcome: hold(plan.table, plan.mapping) };
+      return { rows: [], outcome: hold(plan) };
     }
     const {
       rows: pasted,
@@ -305,9 +308,7 @@ export function createInviteDraft(
     { autoMatch }: { autoMatch: boolean },
   ): TableOutcome {
     const plan = planTable(table, { autoMatch });
-    return plan.kind === 'hold'
-      ? hold(plan.table, plan.mapping)
-      : insert(plan.rows, plan.ignored);
+    return plan.kind === 'hold' ? hold(plan) : insert(plan.rows, plan.ignored);
   }
 
   function heldOrThrow(): HeldTable {
@@ -332,12 +333,12 @@ export function createInviteDraft(
       throw new Error(`Unknown template column "${String(unknown)}".`);
     }
     const proposed = mapping as ColumnMapping;
-    held.value = {
-      table,
-      mapping: proposed,
+    const next: HeldTable = {
+      ...tableMapping(table, proposed),
       agentColumns: proposed.map((_, i) => i),
     };
-    return mappingProblems(proposed);
+    held.value = next;
+    return next.problems;
   }
 
   /** A person picks the template column for one column of the held table. */
@@ -346,16 +347,14 @@ export function createInviteDraft(
     const mapping = [...current.mapping];
     mapping[column] = field;
     held.value = {
-      ...current,
-      mapping,
+      ...tableMapping(current.table, mapping),
       agentColumns: current.agentColumns.filter((c) => c !== column),
     };
   }
 
   /** A person applies the mapping: the held table's rows enter the draft. */
   function applyMapping(): TableOutcome {
-    const { table, mapping } = heldOrThrow();
-    const problems = mappingProblems(mapping);
+    const { table, mapping, problems } = heldOrThrow();
     if (problems.length > 0) {
       throw new Error(problems.join('; '));
     }

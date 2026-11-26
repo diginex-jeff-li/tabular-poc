@@ -88,6 +88,7 @@ describe('planTable', () => {
       kind: 'hold',
       table,
       mapping: ['email', null, null, 'role'],
+      problems: ['No column for First Name', 'No column for Last Name'],
     });
   });
 

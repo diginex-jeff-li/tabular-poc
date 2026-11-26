@@ -163,7 +163,7 @@ describe('invite agent tools', () => {
     ).rejects.toThrow('"mapping" must be an array');
   });
 
-  it('read_pasted_table and propose_column_mapping expose the held paste and fill its mapping', async () => {
+  it('read_pasted_table and propose_column_mapping expose the held table and fill its mapping', async () => {
     const { draft, call } = setup();
     expect(await call('read_pasted_table')).toEqual({ pending: false });
 
@@ -184,6 +184,7 @@ describe('invite agent tools', () => {
     const read = await call('read_pasted_table');
     expect(read).toMatchObject({ pending: true, headers: header, rowCount: 8 });
     expect(read.sampleRows).toHaveLength(5);
+    expect(read.problems).toContain('No column for Role');
 
     const mapping = [null, 'email', 'firstName', 'lastName', 'role'];
     expect(await call('propose_column_mapping', { mapping })).toEqual({
@@ -192,5 +193,6 @@ describe('invite agent tools', () => {
       applied: false,
     });
     expect(draft.held.value?.mapping).toEqual(mapping);
+    expect(await call('read_pasted_table')).toMatchObject({ problems: [] });
   });
 });
