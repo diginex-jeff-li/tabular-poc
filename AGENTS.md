@@ -141,7 +141,7 @@ prop set by the route. Both engines take the props in
 | `/tabulator/invite-users` | Tabulator (`GridEditor`), bulk invite |
 
 New grid work goes to `DataGrid` only. The Tabulator side (`GridEditor`,
-`useGridEditor`, `useDirtyTracking`, `zodToTabulatorColumns`,
+`useGridEditor`, `zodToTabulatorColumns`,
 `buildComplianceColumns`, `components/TabulatorGrids/*`, `tabulator-tables`)
 is **comparison-only**: keep it working, don't extend it. Pages reach it only
 through `defineAsyncComponent(() => import('components/TabulatorGrids/…'))`,
@@ -167,8 +167,7 @@ own `computed`, never in the column `cell` function. Rows have a fixed
 | `frontend/apps/admin/src/utils/zodToColumnDefs.ts` | Derive engine-neutral `GridColumn`s from a Zod schema |
 | `frontend/apps/admin/src/utils/gridApi.ts` | `GridApi` seam shared by both engines and `memoryGridApi` |
 | `frontend/apps/admin/src/utils/zodToTabulatorColumns.ts`  | Tabulator (comparison-only): column defs from Zod schema |
-| `frontend/apps/admin/src/composables/useDirtyTracking.ts` | Tabulator (comparison-only): dirty tracking |
-| `frontend/apps/admin/src/composables/useGridEditor.ts`   | Tabulator (comparison-only): lifecycle, paste, save, errors |
+| `frontend/apps/admin/src/composables/useGridEditor.ts`   | Tabulator (comparison-only): lifecycle, paste, derived dirty diff, undo, save, errors |
 | `frontend/apps/admin/src/components/GridEditor/GridEditor.tsx` | Tabulator (comparison-only): grid editor component |
 | `frontend/apps/admin/src/pages/BulkInviteUsers.tsx` | SC15-706 bulk invite prototype — Excel template/import, paste, simulated send |
 | `frontend/apps/admin/src/utils/inviteDraft.ts` | Invite draft module — every rule on who may change which rows (agent proposed, confirm, refused deletes, unmapped tables, Send gate) |

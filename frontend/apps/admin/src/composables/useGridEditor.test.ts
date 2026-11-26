@@ -8,217 +8,333 @@ import {
 
 // ── Mock Tabulator module ──
 // vi.mock replaces 'tabulator-tables' entirely — the real Tabulator is never
-// loaded in unit tests, per the mission's testing rules. The mock constructor
-// returns whatever instance the test has placed in mockState.instance.
+// loaded in unit tests. The mock constructor builds an in-memory table over
+// the `data` option it is given, so the composable's writes land on plain
+// row objects the tests can read back.
 
 const mockState = vi.hoisted(() => ({
-  instance: null as Record<string, any> | null,
-  ctorCalls: [] as Array<{ el: any; opts: any }>,
+  instance: null as MockTab | null,
+  ctorCalls: [] as Array<{ el: unknown; opts: Record<string, unknown> }>,
 }));
 
 vi.mock('tabulator-tables', () => ({
-  TabulatorFull: function TabulatorMock(el: any, opts: any) {
+  TabulatorFull: function TabulatorMock(
+    el: unknown,
+    opts: { data: Array<Data>; columns: Array<Data> },
+  ) {
     mockState.ctorCalls.push({ el, opts });
+    mockState.instance = createMockTabulator(opts.data, opts.columns);
     return mockState.instance;
   },
 }));
 
-// ── Mock Tabulator instance factory ──
-// Extends the hand-rolled mock pattern from useDirtyTracking.test.ts with the
-// methods useGridEditor needs: getRows, getSelectedRows, getCell, getElement,
-// replaceData, clearData, download, getDataCount, element.querySelectorAll.
+type Data = Record<string, unknown>;
+type Handler = (...args: Array<never>) => void;
 
-interface MockCellElement {
-  classList: {
-    add: ReturnType<typeof vi.fn>;
-    remove: ReturnType<typeof vi.fn>;
-    contains: ReturnType<typeof vi.fn>;
+interface MockColumn {
+  getField(): string;
+  getDefinition(): Data;
+  isVisible(): boolean;
+  show: ReturnType<typeof vi.fn>;
+  hide: ReturnType<typeof vi.fn>;
+}
+
+interface MockCell {
+  element: {
+    classList: {
+      add: ReturnType<typeof vi.fn>;
+      remove: ReturnType<typeof vi.fn>;
+    };
+    style: Record<string, string>;
   };
-  style: Record<string, string>;
+  getElement(): MockCell['element'];
+  getField(): string;
+  getValue(): unknown;
+  getRow(): MockRow;
+  getColumn(): Pick<MockColumn, 'getDefinition'>;
+  setValue(value: unknown): void;
 }
 
 interface MockRow {
-  getData: () => Record<string, unknown>;
-  getIndex: () => number;
+  getData(): Data;
+  getPosition(): number;
+  update: ReturnType<typeof vi.fn>;
   delete: ReturnType<typeof vi.fn>;
-  getCell: (field: string) => { getElement: () => MockCellElement };
+  getCell: ReturnType<typeof vi.fn<(field: string) => MockCell>>;
   scrollTo: ReturnType<typeof vi.fn>;
   validate: ReturnType<typeof vi.fn>;
-  _cellElements: Record<string, MockCellElement>;
+  reformat: ReturnType<typeof vi.fn>;
+  getElement(): HTMLElement | null;
 }
 
-function createMockCellElement(): MockCellElement {
-  return {
-    classList: {
-      add: vi.fn(),
-      remove: vi.fn(),
-      contains: vi.fn(() => false),
-    },
-    style: {},
-  };
+interface MockRange {
+  getStructuredCells(): Array<Array<MockCell>>;
+  getCells(): Array<Array<MockCell>>;
+  remove(): void;
 }
 
-function createMockRow(d: Record<string, unknown>, index: number): MockRow {
-  const cellElements: Record<string, MockCellElement> = {};
-  return {
-    getData: () => ({ ...d }),
-    getIndex: () => index,
-    delete: vi.fn(),
-    getCell: vi.fn((field: string) => {
-      if (!cellElements[field]) {
-        cellElements[field] = createMockCellElement();
-      }
-      return { getElement: () => cellElements[field] };
-    }),
-    scrollTo: vi.fn(),
-    validate: vi.fn(() => true),
-    _cellElements: cellElements,
-  };
-}
-
+// A small Tabulator: rows are the data objects themselves (Tabulator edits
+// them in place), cells and their elements are cached per row and field so a
+// test can inspect what the composable did to them.
 function createMockTabulator(
-  initialData: Array<Record<string, unknown>> = [],
-  _columns: Array<Record<string, unknown>> = [],
+  initialData: Array<Data>,
+  columnDefs: Array<Data>,
 ) {
-  const handlers: Record<string, Array<(...args: Array<unknown>) => void>> = {};
-  let data = [...initialData];
-  let mockRows: Array<MockRow> = [];
-  let selectedRows: Array<MockRow> = [];
+  const handlers: Record<string, Array<Handler>> = {};
+  let data: Array<Data> = [...initialData];
+  let selectedIds: Array<string> = [];
+  let ranges: Array<MockRange> = [];
+  const rows = new WeakMap<Data, MockRow>();
+  const hidden = new Set<string>();
+  let columns: Array<MockColumn> = columnDefs.map((def) => ({
+    getField: () => String(def.field),
+    getDefinition: () => def,
+    isVisible: () => def.visible !== false && !hidden.has(String(def.field)),
+    show: vi.fn(() => hidden.delete(String(def.field))),
+    hide: vi.fn(() => hidden.add(String(def.field))),
+  }));
 
-  function rebuildRows() {
-    mockRows = data.map((d, i) => {
-      const row = createMockRow(d, i);
-      const rowRef = row;
-      row.delete = vi.fn(() => {
-        const rowId = rowRef.getData().id as string;
-        data = data.filter((r) => r.id !== rowId);
-        rebuildRows();
-      });
-      return row;
-    });
-  }
-  rebuildRows();
-
-  const mockElement = {
-    querySelectorAll: vi.fn((_sel: string) => [] as Array<Element>),
+  const emit = (event: string, ...args: Array<unknown>) => {
+    for (const handler of handlers[event] ?? []) {
+      (handler as (...a: Array<unknown>) => void)(...args);
+    }
   };
 
-  const tabulator = {
-    on: vi.fn((event: string, handler: (...args: Array<unknown>) => void) => {
-      if (!handlers[event]) {
-        handlers[event] = [];
-      }
-      handlers[event].push(handler);
+  function rowFor(d: Data): MockRow {
+    const cached = rows.get(d);
+    if (cached) {
+      return cached;
+    }
+    const cells = new Map<string, MockCell>();
+    const row: MockRow = {
+      getData: () => d,
+      getPosition: () => data.indexOf(d) + 1,
+      update: vi.fn(async (fields: Data) => {
+        Object.assign(d, fields);
+      }),
+      delete: vi.fn(async () => {
+        data = data.filter((r) => r !== d);
+      }),
+      getCell: vi.fn((field: string) => {
+        const known = cells.get(field);
+        if (known) {
+          return known;
+        }
+        const cell: MockCell = {
+          element: {
+            classList: { add: vi.fn(), remove: vi.fn() },
+            style: {},
+          },
+          getElement: () => cell.element,
+          getField: () => field,
+          getValue: () => d[field],
+          getRow: () => row,
+          getColumn: () =>
+            columns.find((c) => c.getField() === field) ?? {
+              getDefinition: () => ({ field }),
+            },
+          setValue: (value: unknown) => {
+            d[field] = value;
+            emit('cellEdited', cell);
+          },
+        };
+        cells.set(field, cell);
+        return cell;
+      }),
+      scrollTo: vi.fn(),
+      validate: vi.fn(() => true),
+      reformat: vi.fn(),
+      getElement: () => null,
+    };
+    rows.set(d, row);
+    return row;
+  }
+
+  function byId(id: string): Data {
+    const found = data.find((d) => d.id === id);
+    if (!found) {
+      throw new Error(`no row ${id}`);
+    }
+    return found;
+  }
+  const isSelected = (d: Data) => selectedIds.includes(String(d.id));
+
+  return {
+    on: vi.fn((event: string, handler: Handler) => {
+      (handlers[event] ??= []).push(handler);
     }),
-    off: vi.fn((event: string, handler: (...args: Array<unknown>) => void) => {
-      if (handlers[event]) {
-        handlers[event] = handlers[event].filter((h) => h !== handler);
-      }
+    off: vi.fn((event: string, handler: Handler) => {
+      handlers[event] = (handlers[event] ?? []).filter((h) => h !== handler);
     }),
-    getData: vi.fn(() => data),
-    getRows: vi.fn(() => mockRows),
-    getSelectedRows: vi.fn(() => selectedRows),
-    addRow: vi.fn((rowData: Record<string, unknown>, atTop: boolean) => {
-      const newRow = { ...rowData };
-      data = atTop ? [newRow, ...data] : [...data, newRow];
-      rebuildRows();
-      return mockRows[0];
+    getData: vi.fn((): Array<Data> => [...data]),
+    getRows: vi.fn((): Array<MockRow> => data.map(rowFor)),
+    getRow: vi.fn((id: string): MockRow | false => {
+      const d = data.find((r) => r.id === id);
+      return d ? rowFor(d) : false;
     }),
-    replaceData: vi.fn((newData: Array<Record<string, unknown>>) => {
-      data = [...newData];
-      rebuildRows();
+    getSelectedRows: vi.fn((): Array<MockRow> =>
+      data.filter(isSelected).map(rowFor),
+    ),
+    getSelectedData: vi.fn((): Array<Data> => data.filter(isSelected)),
+    selectRow: vi.fn((ids: Array<string>) => {
+      selectedIds = ids;
+    }),
+    addRow: vi.fn((rowData: Data, top: boolean) => {
+      data = top ? [rowData, ...data] : [...data, rowData];
+      return Promise.resolve(rowFor(rowData));
+    }),
+    addData: vi.fn((list: Array<Data>, top?: boolean) => {
+      data = top ? [...list, ...data] : [...data, ...list];
+      return Promise.resolve(list.map(rowFor));
+    }),
+    replaceData: vi.fn((list: Array<Data>) => {
+      data = [...list];
+      return Promise.resolve();
     }),
     clearData: vi.fn(() => {
       data = [];
-      mockRows = [];
     }),
     getDataCount: vi.fn(() => data.length),
-    download: vi.fn(),
-    element: mockElement,
-    _emit: (event: string, ...args: Array<unknown>) => {
-      handlers[event]?.forEach((h) => h(...args));
-    },
-    _getData: () => data,
-    _getRows: () => mockRows,
-    _setSelectedRows: (rows: Array<MockRow>) => {
-      selectedRows = rows;
-    },
-    _setSelectedByRowIds: (rowIds: Array<string>) => {
-      selectedRows = mockRows.filter((r) =>
-        rowIds.includes(r.getData().id as string),
-      );
-    },
-    _setMockRows: (rows: Array<MockRow>) => {
-      mockRows = rows;
-    },
-    _setElementCells: (cells: Array<Element>) => {
-      mockElement.querySelectorAll.mockReturnValue(cells);
-    },
-  };
-
-  return tabulator;
-}
-
-// ── Helper to create a mock cell for cellEdited event ──
-function createMockCell(rowData: Record<string, unknown>, rowIndex: number) {
-  return {
-    getRow: () => ({
-      getData: () => ({ ...rowData }),
-      getIndex: () => rowIndex,
+    getColumns: vi.fn((): Array<MockColumn> => columns),
+    getColumn: vi.fn((field: string): MockColumn | undefined =>
+      columns.find((c) => c.getField() === field),
+    ),
+    moveColumn: vi.fn((from: MockColumn, to: MockColumn, after: boolean) => {
+      const rest = columns.filter((c) => c !== from);
+      const at = rest.indexOf(to) + (after ? 1 : 0);
+      columns = [...rest.slice(0, at), from, ...rest.slice(at)];
     }),
-    getField: () => 'issue',
-    getValue: () => rowData.issue,
-    getInitialValue: () => 'old value',
+    getRanges: vi.fn((): Array<MockRange> => ranges),
+    addRange: vi.fn((start: MockCell) => {
+      ranges = [
+        {
+          getStructuredCells: () => [[start]],
+          getCells: () => [[start]],
+          remove: () => {
+            ranges = [];
+          },
+        },
+      ];
+    }),
+    download: vi.fn(),
+    element: {
+      querySelectorAll: vi.fn((_sel: string): Array<Element> => []),
+    },
+    _emit: emit,
+    _getData: (): Array<Data> => data,
+    _row: (id: string): MockRow => rowFor(byId(id)),
+    _select: (ids: Array<string>) => {
+      selectedIds = ids;
+    },
+    /** One range over `cells` (rows of [rowId, field]), like a drag. */
+    _setRange: (cells: Array<Array<[string, string]>>) => {
+      const structured = cells.map((line) =>
+        line.map(([id, field]) => rowFor(byId(id)).getCell(field)),
+      );
+      ranges = [
+        {
+          getStructuredCells: () => structured,
+          getCells: () => structured,
+          remove: () => {
+            ranges = [];
+          },
+        },
+      ];
+    },
+    _moveColumnToFront: (field: string) => {
+      columns = [
+        ...columns.filter((c) => c.getField() === field),
+        ...columns.filter((c) => c.getField() !== field),
+      ];
+    },
+    _fieldOrder: () => columns.map((c) => c.getField()),
   };
 }
 
-function createMockRowForEvent(
-  rowData: Record<string, unknown>,
-  rowIndex: number,
+type MockTab = ReturnType<typeof createMockTabulator>;
+
+/** A person typing `value` into a cell: Tabulator sets it, then fires cellEdited. */
+function typeInto(tab: MockTab, id: string, field: string, value: unknown) {
+  tab._row(id).getCell(field).setValue(value);
+}
+
+/** A paste event on the grid element, as Tabulator's host receives it. */
+function paste(el: HTMLElement, text: string, target: HTMLElement = el) {
+  const event = new Event('paste', { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'clipboardData', {
+    value: { getData: () => text },
+  });
+  target.dispatchEvent(event);
+  return event;
+}
+
+function key(init: KeyboardEventInit, target: EventTarget = document) {
+  target.dispatchEvent(
+    new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }),
+  );
+}
+
+/** Lets an undo started by a key event (async) finish. */
+function flush(): Promise<void> {
+  const { promise, resolve } = Promise.withResolvers<void>();
+  setTimeout(resolve);
+  return promise;
+}
+
+// ── Helper: set up the composable over a mock Tabulator ──
+async function setupGridEditor(
+  options: {
+    initialData?: Array<Data>;
+    columns?: Array<Data>;
+    onSave?: ReturnType<typeof vi.fn>;
+    normalizeRow?: (row: Data) => Data;
+    pasteParser?: (text: string, positional: () => Array<Data>) => Array<Data>;
+  } = {},
 ) {
-  return {
-    getData: () => ({ ...rowData }),
-    getIndex: () => rowIndex,
-  };
-}
-
-// ── Helper: set up the composable with a mock Tabulator ──
-function setupGridEditor(options: {
-  initialData?: Array<Record<string, unknown>>;
-  columns?: Array<Record<string, unknown>>;
-  onSave?: ReturnType<typeof vi.fn>;
-}) {
   const {
     initialData = [],
-    columns = [{ field: 'issue', editor: 'input' }],
+    columns = [{ field: 'issue', title: 'Issue', editor: 'input' }],
     onSave = vi.fn().mockResolvedValue({ errors: [], saved: 0 }),
   } = options;
-
-  const mockTab = createMockTabulator(initialData, columns);
-  mockState.instance = mockTab;
+  mockState.instance = null;
   mockState.ctorCalls = [];
-
+  const onUserEdit = vi.fn();
   const tableEl = ref<HTMLElement | null>(null);
-  const cols = ref(columns);
-  const data = ref(initialData);
-
   const result = useGridEditor({
     tableEl,
-    columns: cols,
-    data,
+    columns: ref(columns),
+    data: ref(initialData),
     onSave: onSave as any,
     exportFilename: 'test-export.csv',
+    normalizeRow: options.normalizeRow,
+    onUserEdit,
+    pasteParser: options.pasteParser,
   });
-
-  return { result, mockTab, tableEl, cols, data, onSave };
+  const el = document.createElement('div');
+  document.body.append(el);
+  tableEl.value = el;
+  await nextTick();
+  const mockTab = mockState.instance;
+  if (!mockTab) {
+    throw new Error('the composable did not create a Tabulator');
+  }
+  return { result, mockTab, el, onSave, onUserEdit };
 }
 
-// ── Test columns matching the compliance shape ──
-const TEST_COLUMNS: Array<Record<string, unknown>> = [
-  { field: '__select', clipboard: false, visible: true, headerSort: false },
-  { field: 'categoryCode', editor: 'list', clipboard: true, visible: true },
-  { field: 'issue', editor: 'input', clipboard: true, visible: true },
-  { field: 'riskLevel', editor: 'list', clipboard: true, visible: true },
+// ── Test columns matching the compliance and invite shapes ──
+const TEST_COLUMNS: Array<Data> = [
+  { field: '__select', clipboard: false, headerSort: false },
+  { field: 'categoryCode', title: 'Category Code', editor: 'list' },
+  { field: 'issue', title: 'Issue', editor: 'input' },
+  { field: 'riskLevel', title: 'Risk Level', editor: 'list' },
+];
+
+const INVITE_COLUMNS: Array<Data> = [
+  { field: 'status', title: 'Status', frozen: true, clipboard: false },
+  { field: '__select', clipboard: false },
+  { field: 'email', title: 'Email', editor: 'input' },
+  { field: 'firstName', title: 'First Name', editor: 'input' },
+  { field: 'id', editor: 'input', editable: false, visible: false },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -315,10 +431,6 @@ describe('parseClipboardPaste', () => {
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// useGridEditor — composable tests with mock Tabulator
-// ═══════════════════════════════════════════════════════════════════════════
-
 describe('clearRangeCells', () => {
   // The row hands out a fresh cell on every lookup, as Tabulator does after a
   // row re-render; clears land on `row.cleared` by field.
@@ -355,10 +467,13 @@ describe('clearRangeCells', () => {
   });
 });
 
+// ═══════════════════════════════════════════════════════════════════════════
+// useGridEditor — composable tests over the mock Tabulator
+// ═══════════════════════════════════════════════════════════════════════════
+
 describe('useGridEditor', () => {
   beforeEach(() => {
-    mockState.instance = null;
-    mockState.ctorCalls = [];
+    document.body.innerHTML = '';
   });
 
   it('initializes the Tabulator when tableEl is set, rowCount reflects data', async () => {
@@ -367,10 +482,7 @@ describe('useGridEditor', () => {
       { id: 'r2', issue: 'Row 2' },
       { id: 'r3', issue: 'Row 3' },
     ];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
+    const { result, mockTab } = await setupGridEditor({ initialData });
 
     expect(mockState.ctorCalls).toHaveLength(1);
     expect(mockState.ctorCalls[0].opts.data).toEqual(initialData);
@@ -378,170 +490,420 @@ describe('useGridEditor', () => {
     expect(result.rowCount.value).toBe(3);
   });
 
-  it('exposes dirtyCount from useDirtyTracking', async () => {
-    const initialData = [{ id: 'r1', issue: 'old' }];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData });
+  it('gives a row loaded without an id a fresh one', async () => {
+    const { mockTab } = await setupGridEditor({
+      initialData: [{ issue: 'no id' }],
+    });
+    expect(mockTab._getData()[0].id).toHaveLength(36);
+  });
 
-    tableEl.value = document.createElement('div');
-    await nextTick();
+  it('Tabulator is initialized with the expected options', async () => {
+    await setupGridEditor({ columns: TEST_COLUMNS });
+    const opts = mockState.ctorCalls[0].opts;
+    // Paste is the composable's own listener; Tabulator only copies.
+    expect(opts.clipboard).toBe('copy');
+    expect(opts.clipboardCopyRowRange).toBe('range');
+    expect(opts.validationMode).toBe('highlight');
+    expect(opts.layout).toBe('fitDataFill');
+    expect(opts.headerSortClickElement).toBe('icon');
+    expect(opts).toHaveProperty('selectableRows', undefined);
+    expect(opts.selectableRange).toBe(true);
+    expect(opts.selectableRangeInitializeDefault).toBe(false);
+    expect(opts.selectableRangeFill).toBe(true);
+    expect(opts.movableColumns).toBe(true);
+    expect(opts.editTriggerEvent).toBe('dblclick');
+    expect(opts.reactiveData).toBe(true);
+    expect(opts.height).toBe('100%');
+    expect(opts).not.toHaveProperty('history');
+  });
 
+  // ── Derived dirty state ──
+
+  it('counts an edited row once and reports it to onUserEdit', async () => {
+    const { result, mockTab, onUserEdit } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'old' }],
+    });
     expect(result.dirtyCount.value).toBe(0);
 
-    const cell = createMockCell({ id: 'r1', issue: 'new' }, 0);
-    mockTab._emit('cellEdited', cell);
-    await nextTick();
+    typeInto(mockTab, 'r1', 'issue', 'new');
+    typeInto(mockTab, 'r1', 'issue', 'newer');
 
     expect(result.dirtyCount.value).toBe(1);
+    expect(onUserEdit.mock.calls).toEqual([[['r1']], [['r1']]]);
+  });
+
+  it('an edit reverted by hand is not a change', async () => {
+    const { result, mockTab } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'old' }],
+    });
+    typeInto(mockTab, 'r1', 'issue', 'new');
+    expect(result.dirtyCount.value).toBe(1);
+
+    typeInto(mockTab, 'r1', 'issue', 'old');
+    expect(result.dirtyCount.value).toBe(0);
+  });
+
+  it('runs normalizeRow on a typed edit', async () => {
+    const { mockTab } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'old' }],
+      normalizeRow: (row) => ({ ...row, issue: String(row.issue).trim() }),
+    });
+    typeInto(mockTab, 'r1', 'issue', '  padded  ');
+    expect(mockTab._getData()[0].issue).toBe('padded');
   });
 
   // ── Add Row ──
 
-  it('handleAddRow adds a row with a UUID at the top and marks it dirty', async () => {
-    const initialData = [{ id: 'r1', issue: 'existing' }];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
+  it('handleAddRow adds a row with a UUID at the top, dirty and reported', async () => {
+    const { result, mockTab, onUserEdit } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'existing' }],
+    });
 
     result.handleAddRow();
-    await nextTick();
 
     expect(result.rowCount.value).toBe(2);
     expect(result.dirtyCount.value).toBe(1);
-
-    const data = mockTab._getData();
-    expect(data[0].id).toEqual(expect.any(String));
-    expect(data[0].id).toHaveLength(36); // UUID v4 format
+    const id = mockTab._getData()[0].id;
+    expect(id).toHaveLength(36);
+    expect(onUserEdit).toHaveBeenCalledWith([id]);
   });
 
-  // ── Clipboard paste ──
+  // ── Paste ──
 
-  it('clipboardPasted handler assigns UUIDs to rows without id and marks them added', async () => {
-    // Simulate paste: tabulator data has rows without ids (freshly pasted)
-    const initialData: Array<Record<string, unknown>> = [
-      { categoryCode: 'A', issue: 'pasted 1' },
-      { categoryCode: 'B', issue: 'pasted 2' },
-    ];
-    const { result, mockTab, tableEl } = setupGridEditor({
-      initialData,
+  it('a paste with no cell selected appends positional rows with fresh ids', async () => {
+    const { result, mockTab, el, onUserEdit } = await setupGridEditor({
+      initialData: [{ id: 'r1', categoryCode: 'A', issue: 'kept' }],
       columns: TEST_COLUMNS,
+      normalizeRow: (row) => ({ ...row, normalized: true }),
     });
 
-    tableEl.value = document.createElement('div');
-    await nextTick();
+    const event = paste(el, 'B\tIssue B\tHigh\nC\tIssue C\tLow\n');
 
-    mockTab._emit('clipboardPasted');
-    await nextTick();
-
+    expect(event.defaultPrevented).toBe(true);
     const data = mockTab._getData();
-    expect(data[0].id).toEqual(expect.any(String));
-    expect(data[1].id).toEqual(expect.any(String));
-    expect(data[0].id).not.toBe(data[1].id);
+    expect(data).toHaveLength(3);
+    expect(data[1]).toMatchObject({
+      categoryCode: 'B',
+      issue: 'Issue B',
+      riskLevel: 'High',
+      normalized: true,
+    });
+    expect(data[1].__select).toBeUndefined();
+    expect(data[1].id).not.toBe(data[2].id);
     expect(result.dirtyCount.value).toBe(2);
+    expect(onUserEdit).toHaveBeenCalledTimes(1);
+    expect(onUserEdit).toHaveBeenCalledWith([data[1].id, data[2].id]);
+    expect(mockTab._row(String(data[1].id)).validate).toHaveBeenCalled();
   });
 
-  it('clipboardPasted handler does not assign new UUIDs to rows that already have one', async () => {
-    const initialData: Array<Record<string, unknown>> = [
-      { id: 'existing-1', categoryCode: 'A', issue: 'existing row' },
-      { categoryCode: 'B', issue: 'pasted row' },
-    ];
-    const { result, mockTab, tableEl } = setupGridEditor({
-      initialData,
+  it('the append path goes through pasteParser; [] adds nothing', async () => {
+    const pasteParser = vi.fn(() => []);
+    const { mockTab, el, onUserEdit } = await setupGridEditor({
       columns: TEST_COLUMNS,
+      pasteParser,
     });
 
-    tableEl.value = document.createElement('div');
-    await nextTick();
+    paste(el, 'Email\tName\nann@acme.com\tAnn');
 
-    mockTab._emit('clipboardPasted');
-    await nextTick();
+    expect(pasteParser).toHaveBeenCalledWith(
+      'Email\tName\nann@acme.com\tAnn',
+      expect.any(Function),
+    );
+    expect(mockTab._getData()).toEqual([]);
+    expect(onUserEdit).toHaveBeenCalledWith([]);
+  });
+
+  it('a paste with a cell selected writes over it, skipping read-only columns, and adds overflow rows', async () => {
+    const pasteParser = vi.fn(() => []);
+    const { result, mockTab, el, onUserEdit } = await setupGridEditor({
+      initialData: [
+        { id: 'a', email: 'a@acme.com', firstName: 'Ann' },
+        { id: 'b', email: 'b@acme.com', firstName: 'Bo' },
+      ],
+      columns: INVITE_COLUMNS,
+      pasteParser,
+    });
+    mockTab._setRange([[['b', 'status']]]);
+
+    paste(el, 'x@acme.com\tXavier\ny@acme.com\tYan\n');
 
     const data = mockTab._getData();
-    expect(data[0].id).toBe('existing-1'); // unchanged
-    expect(data[1].id).toEqual(expect.any(String)); // new UUID assigned
-    // Only the pasted row (without id) should be marked dirty
+    expect(pasteParser).not.toHaveBeenCalled();
+    expect(data[0]).toEqual({ id: 'a', email: 'a@acme.com', firstName: 'Ann' });
+    expect(data[1]).toEqual({
+      id: 'b',
+      email: 'x@acme.com',
+      firstName: 'Xavier',
+    });
+    expect(data).toHaveLength(3);
+    expect(data[2]).toMatchObject({ email: 'y@acme.com', firstName: 'Yan' });
+    expect(data[2]).not.toHaveProperty('status');
+    expect(result.dirtyCount.value).toBe(2);
+    expect(onUserEdit).toHaveBeenCalledTimes(1);
+    expect(onUserEdit).toHaveBeenCalledWith(['b', data[2].id]);
+  });
+
+  it('a paste over a hidden column skips it', async () => {
+    const { result, mockTab, el } = await setupGridEditor({
+      initialData: [
+        { id: 'r1', categoryCode: 'A', issue: 'i', riskLevel: 'High' },
+      ],
+      columns: TEST_COLUMNS,
+    });
+    result.setColumnVisible('issue', false);
+    mockTab._setRange([[['r1', 'categoryCode']]]);
+
+    paste(el, 'B\tLow');
+
+    expect(mockTab._getData()[0]).toMatchObject({
+      categoryCode: 'B',
+      issue: 'i',
+      riskLevel: 'Low',
+    });
+  });
+
+  it('deleting the active cell’s row moves it to the row now in its place', async () => {
+    const { result, mockTab, el } = await setupGridEditor({
+      initialData: [
+        { id: 'r1', issue: 'one' },
+        { id: 'r2', issue: 'two' },
+        { id: 'r3', issue: 'three' },
+      ],
+    });
+    mockTab._setRange([[['r2', 'issue']]]);
+    mockTab._select(['r2']);
+    result.handleDeleteSelected();
+
+    paste(el, 'pasted');
+
+    expect(mockTab._getData().map((r) => r.issue)).toEqual(['one', 'pasted']);
+  });
+
+  it('Escape drops the selection, so the next paste appends', async () => {
+    const { mockTab, el } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'kept' }],
+    });
+    mockTab._setRange([[['r1', 'issue']]]);
+
+    key({ key: 'Escape' }, el);
+    paste(el, 'new');
+
+    expect(mockTab._getData().map((r) => r.issue)).toEqual(['kept', 'new']);
+  });
+
+  it('a paste into a header filter or editor is left alone', async () => {
+    const { mockTab, el } = await setupGridEditor();
+    const input = document.createElement('input');
+    el.append(input);
+
+    const event = paste(el, 'x', input);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(mockTab._getData()).toEqual([]);
+  });
+
+  // ── Range clear ──
+
+  it('Delete clears the range as one change reported once', async () => {
+    const { result, mockTab, el, onUserEdit } = await setupGridEditor({
+      initialData: [
+        { id: 'r1', issue: 'one', riskLevel: 'High' },
+        { id: 'r2', issue: 'two', riskLevel: 'Low' },
+      ],
+      columns: TEST_COLUMNS,
+    });
+    mockTab._setRange([
+      [
+        ['r1', 'issue'],
+        ['r1', 'riskLevel'],
+      ],
+      [
+        ['r2', 'issue'],
+        ['r2', 'riskLevel'],
+      ],
+    ]);
+
+    key({ key: 'Delete' }, el);
+
+    expect(mockTab._getData()).toEqual([
+      { id: 'r1', issue: null, riskLevel: null },
+      { id: 'r2', issue: null, riskLevel: null },
+    ]);
+    expect(result.dirtyCount.value).toBe(2);
+    expect(onUserEdit).toHaveBeenCalledTimes(1);
+    expect(onUserEdit).toHaveBeenCalledWith(['r1', 'r2']);
+
+    await result.undo();
+    expect(mockTab._getData()[1]).toEqual({
+      id: 'r2',
+      issue: 'two',
+      riskLevel: 'Low',
+    });
+  });
+
+  // ── Fill handle ──
+
+  it('a fill is one change: normalized, reported once, undone in one step', async () => {
+    const { result, mockTab, onUserEdit } = await setupGridEditor({
+      initialData: [
+        { id: 'r1', issue: 'src' },
+        { id: 'r2', issue: 'a' },
+        { id: 'r3', issue: 'b' },
+      ],
+      normalizeRow: (row) => ({
+        ...row,
+        issue: String(row.issue).toUpperCase(),
+      }),
+    });
+    // Tabulator's Range.setData writes the cells, then fires rangeEdited.
+    const modified = ['r2', 'r3'].map((id) => {
+      mockTab._row(id).getData().issue = 'src';
+      return mockTab._row(id).getCell('issue');
+    });
+    mockTab._emit('rangeEdited', { getModifiedCells: () => modified });
+
+    expect(mockTab._getData().map((r) => r.issue)).toEqual([
+      'src',
+      'SRC',
+      'SRC',
+    ]);
+    expect(result.dirtyCount.value).toBe(2);
+    expect(onUserEdit).toHaveBeenCalledTimes(1);
+    expect(onUserEdit).toHaveBeenCalledWith(['r2', 'r3']);
+
+    await result.undo();
+    expect(mockTab._getData().map((r) => r.issue)).toEqual(['src', 'a', 'b']);
+    expect(result.dirtyCount.value).toBe(0);
+  });
+
+  // ── Undo / redo ──
+
+  it('undo and redo an edit, reporting the row each time', async () => {
+    const { result, mockTab, onUserEdit } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'old' }],
+    });
+    typeInto(mockTab, 'r1', 'issue', 'new');
+    onUserEdit.mockClear();
+
+    await result.undo();
+    expect(mockTab._getData()[0].issue).toBe('old');
+    expect(result.dirtyCount.value).toBe(0);
+    expect(onUserEdit).toHaveBeenCalledWith(['r1']);
+
+    await result.redo();
+    expect(mockTab._getData()[0].issue).toBe('new');
     expect(result.dirtyCount.value).toBe(1);
+    expect(onUserEdit).toHaveBeenCalledTimes(2);
   });
 
-  it('clipboardPasteParser in Tabulator options uses parseClipboardPaste', async () => {
-    const { tableEl } = setupGridEditor({ columns: TEST_COLUMNS });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    const opts = mockState.ctorCalls[0].opts;
-    expect(typeof opts.clipboardPasteParser).toBe('function');
-    const parsed = opts.clipboardPasteParser('A\tIssue text\tHigh');
-    expect(parsed).toHaveLength(1);
-    // Positional mapping: A → categoryCode, Issue text → issue, High → riskLevel
-    expect(parsed[0].categoryCode).toBe('A');
-    expect(parsed[0].issue).toBe('Issue text');
-    expect(parsed[0].riskLevel).toBe('High');
-    // Checkbox column skipped
-    expect(parsed[0].__select).toBeUndefined();
-  });
-
-  // ── VAL-CUSTOM-005: pasting a value outside a dropdown column's choices ──
-  // triggers the .tabulator-validation-fail highlight on the offending cell.
-  // Tabulator only runs column validators on cell edit events, not on data
-  // load or paste. The clipboardPasted handler must therefore explicitly
-  // call row.validate() (or equivalent) on each pasted row so that cells
-  // carrying a value the column's 'in' validator rejects get the visual
-  // highlight. This is required by the custom-table contract; the compliance
-  // grid's enum validator is programmatic-only (GRID-007), but custom tables
-  // require the in-cell highlight on paste.
-
-  it('clipboardPasted calls row.validate() on each row so invalid cells get highlighted', async () => {
-    const initialData: Array<Record<string, unknown>> = [
-      { status: 'Critical' }, // outside the choices ['Open', 'Closed']
-    ];
-    const { mockTab, tableEl } = setupGridEditor({
-      initialData,
-      columns: TEST_COLUMNS,
+  it('a new write after an undo empties the redo stack', async () => {
+    const { result, mockTab } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'old' }],
     });
+    typeInto(mockTab, 'r1', 'issue', 'one');
+    await result.undo();
+    typeInto(mockTab, 'r1', 'issue', 'two');
 
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    mockTab._emit('clipboardPasted');
-    await nextTick();
-
-    // Every row should have had validate() called on it
-    const rows = mockTab._getRows();
-    for (const row of rows) {
-      expect(row.validate).toHaveBeenCalled();
-    }
+    await result.redo();
+    expect(mockTab._getData()[0].issue).toBe('two');
   });
 
-  it('clipboardPasted does not call validate when there are no rows', async () => {
-    const initialData: Array<Record<string, unknown>> = [];
-    const { mockTab, tableEl } = setupGridEditor({
-      initialData,
-      columns: TEST_COLUMNS,
+  it('undo of Add Row and Delete restores the rows and keeps other ticks', async () => {
+    const { result, mockTab } = await setupGridEditor({
+      initialData: [
+        { id: 'r1', issue: 'one' },
+        { id: 'r2', issue: 'two' },
+        { id: 'r3', issue: 'three' },
+      ],
     });
+    mockTab._select(['r1', 'r3']);
+    result.handleDeleteSelected();
+    mockTab._select([]);
+    result.handleAddRow();
+    expect(result.rowCount.value).toBe(2);
 
-    tableEl.value = document.createElement('div');
-    await nextTick();
+    await result.undo();
+    expect(mockTab._getData().map((r) => r.id)).toEqual(['r2']);
+    await result.undo();
+    expect(mockTab._getData().map((r) => r.id)).toEqual(['r1', 'r2', 'r3']);
+    expect(result.dirtyCount.value).toBe(0);
+  });
 
-    mockTab._emit('clipboardPasted');
-    await nextTick();
+  it('undo of Clear brings every row back', async () => {
+    const { result, mockTab } = await setupGridEditor({
+      initialData: [
+        { id: 'r1', issue: 'one' },
+        { id: 'r2', issue: 'two' },
+      ],
+    });
+    result.clearGrid();
+    expect(result.rowCount.value).toBe(0);
 
-    // No rows → no validate calls (and no crash)
-    const rows = mockTab._getRows();
-    expect(rows).toHaveLength(0);
+    await result.undo();
+    expect(mockTab._getData()).toEqual([
+      { id: 'r1', issue: 'one' },
+      { id: 'r2', issue: 'two' },
+    ]);
+    expect(result.dirtyCount.value).toBe(0);
+  });
+
+  it('an agent write empties both stacks', async () => {
+    const { result, mockTab, onUserEdit } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'old' }],
+    });
+    typeInto(mockTab, 'r1', 'issue', 'person');
+    await result.undo();
+    typeInto(mockTab, 'r1', 'issue', 'person again');
+    await result.updateRows([{ id: 'r1', issue: 'agent' }]);
+    onUserEdit.mockClear();
+
+    await result.undo();
+    await result.redo();
+
+    expect(mockTab._getData()[0].issue).toBe('agent');
+    expect(onUserEdit).not.toHaveBeenCalled();
+  });
+
+  it('⌘Z, ⌘⇧Z and Ctrl+Y work from anywhere but a control or a dialog', async () => {
+    const { mockTab } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'old' }],
+    });
+    typeInto(mockTab, 'r1', 'issue', 'new');
+
+    const input = document.createElement('input');
+    document.body.append(input);
+    key({ key: 'z', metaKey: true }, input);
+    await flush();
+    expect(mockTab._getData()[0].issue).toBe('new');
+
+    key({ key: 'z', metaKey: true });
+    await flush();
+    expect(mockTab._getData()[0].issue).toBe('old');
+
+    key({ key: 'Z', metaKey: true, shiftKey: true });
+    await flush();
+    expect(mockTab._getData()[0].issue).toBe('new');
+
+    key({ key: 'z', ctrlKey: true });
+    await flush();
+    key({ key: 'y', ctrlKey: true });
+    await flush();
+    expect(mockTab._getData()[0].issue).toBe('new');
+
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    document.body.append(dialog);
+    key({ key: 'z', metaKey: true });
+    await flush();
+    expect(mockTab._getData()[0].issue).toBe('new');
   });
 
   // ── Save loop ──
 
   it('handleSave short-circuits with no dirty rows', async () => {
-    const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 0 });
-    const { result, tableEl } = setupGridEditor({
+    const { result, onSave } = await setupGridEditor({
       initialData: [{ id: 'r1', issue: 'clean' }],
-      onSave,
     });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
 
     await result.handleSave();
     expect(onSave).not.toHaveBeenCalled();
@@ -549,52 +911,46 @@ describe('useGridEditor', () => {
     expect(result.isSaving.value).toBe(false);
   });
 
-  it('handleSave sends payload to onSave and sets saveResult on success', async () => {
-    const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 1 });
-    const initialData = [{ id: 'r1', issue: 'old' }];
-    const { result, mockTab, tableEl } = setupGridEditor({
-      initialData,
+  it('handleSave sends the diff as {upserts, deletes} and re-baselines on success', async () => {
+    const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 3 });
+    const { result, mockTab } = await setupGridEditor({
+      initialData: [
+        { id: 'r1', issue: 'old' },
+        { id: 'r2', issue: 'gone' },
+      ],
       onSave,
     });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    // Make the row dirty
-    const cell = createMockCell({ id: 'r1', issue: 'updated' }, 0);
-    mockTab._emit('cellEdited', cell);
-    await nextTick();
+    typeInto(mockTab, 'r1', 'issue', 'updated');
+    mockTab._select(['r2']);
+    result.handleDeleteSelected();
+    result.handleAddRow();
+    const added = mockTab._getData()[0];
 
     await result.handleSave();
 
-    expect(onSave).toHaveBeenCalledTimes(1);
-    const payload = onSave.mock.calls[0][0];
-    expect(payload.upserts).toHaveLength(1);
-    expect(payload.upserts[0].id).toBe('r1');
-    expect(payload.deletes).toEqual([]);
-    expect(result.saveResult.value).toEqual({ errors: [], saved: 1 });
+    expect(onSave).toHaveBeenCalledWith({
+      upserts: [added, { id: 'r1', issue: 'updated' }],
+      deletes: ['r2'],
+    });
+    expect(result.saveResult.value).toEqual({ errors: [], saved: 3 });
+    expect(result.dirtyCount.value).toBe(0);
     expect(result.isSaving.value).toBe(false);
   });
 
-  it('handleSave clears dirty tracking and highlights on success', async () => {
-    const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 1 });
-    const initialData = [{ id: 'r1', issue: 'old' }];
-    const { result, mockTab, tableEl } = setupGridEditor({
-      initialData,
+  it('an edit made while the save is in flight stays dirty', async () => {
+    const pending = Promise.withResolvers<unknown>();
+    const onSave = vi.fn(() => pending.promise);
+    const { result, mockTab } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'old' }],
       onSave,
     });
+    typeInto(mockTab, 'r1', 'issue', 'sent');
+    const saving = result.handleSave();
+    typeInto(mockTab, 'r1', 'issue', 'later');
+    pending.resolve({ errors: [], saved: 1 });
+    await saving;
 
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    const cell = createMockCell({ id: 'r1', issue: 'updated' }, 0);
-    mockTab._emit('cellEdited', cell);
-    await nextTick();
     expect(result.dirtyCount.value).toBe(1);
-
-    await result.handleSave();
-
-    expect(result.dirtyCount.value).toBe(0);
   });
 
   it('handleSave populates errorList and highlights cells on errors', async () => {
@@ -602,48 +958,29 @@ describe('useGridEditor', () => {
       { row: 0, rowId: 'r1', field: 'issue', message: 'issue is required' },
     ];
     const onSave = vi.fn().mockResolvedValue({ errors, saved: 0 });
-    const initialData = [{ id: 'r1', issue: '' }];
-    const { result, mockTab, tableEl } = setupGridEditor({
-      initialData,
+    const { result, mockTab } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'x' }],
       onSave,
     });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    // Make the row dirty
-    const cell = createMockCell({ id: 'r1', issue: '' }, 0);
-    mockTab._emit('cellEdited', cell);
-    await nextTick();
+    typeInto(mockTab, 'r1', 'issue', '');
 
     await result.handleSave();
 
     expect(result.errorList.value).toEqual(errors);
     expect(result.saveResult.value).toEqual({ errors, saved: 0 });
-
-    // The correct cell should have .backend-validation-error added
-    const rows = mockTab._getRows();
-    const targetRow = rows.find((r) => r.getData().id === 'r1');
-    expect(targetRow).toBeDefined();
-    expect(targetRow._cellElements['issue'].classList.add).toHaveBeenCalledWith(
-      'backend-validation-error',
-    );
+    expect(
+      mockTab._row('r1').getCell('issue').element.classList.add,
+    ).toHaveBeenCalledWith('backend-validation-error');
+    expect(result.dirtyCount.value).toBe(1);
   });
 
   it('handleSave rejection produces a synthetic error entry', async () => {
     const onSave = vi.fn().mockRejectedValue(new Error('Network failure'));
-    const initialData = [{ id: 'r1', issue: 'old' }];
-    const { result, mockTab, tableEl } = setupGridEditor({
-      initialData,
+    const { result, mockTab } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'old' }],
       onSave,
     });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    const cell = createMockCell({ id: 'r1', issue: 'updated' }, 0);
-    mockTab._emit('cellEdited', cell);
-    await nextTick();
+    typeInto(mockTab, 'r1', 'issue', 'updated');
 
     await result.handleSave();
 
@@ -655,64 +992,37 @@ describe('useGridEditor', () => {
   });
 
   it('handleSave is guarded against double-click (isSaving guard)', async () => {
-    let resolveSave: (value: any) => void;
-    const onSave = vi.fn(
-      () =>
-        new Promise((resolve) => {
-          resolveSave = resolve;
-        }),
-    );
-    const initialData = [{ id: 'r1', issue: 'old' }];
-    const { result, mockTab, tableEl } = setupGridEditor({
-      initialData,
+    const pending = Promise.withResolvers<unknown>();
+    const onSave = vi.fn(() => pending.promise);
+    const { result, mockTab } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'old' }],
       onSave,
     });
+    typeInto(mockTab, 'r1', 'issue', 'updated');
 
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    const cell = createMockCell({ id: 'r1', issue: 'updated' }, 0);
-    mockTab._emit('cellEdited', cell);
-    await nextTick();
-
-    // First save — should proceed
     const savePromise1 = result.handleSave();
     expect(result.isSaving.value).toBe(true);
-
-    // Second save — should be blocked
     await result.handleSave();
     expect(onSave).toHaveBeenCalledTimes(1);
 
-    resolveSave({ errors: [], saved: 1 });
+    pending.resolve({ errors: [], saved: 1 });
     await savePromise1;
-
     expect(result.isSaving.value).toBe(false);
   });
 
   // ── VAL-GRID-029: "Saved N" badge clears when a new change occurs ──
 
-  it('clears saveResult when dirtyCount becomes > 0 after a successful save (cell edit)', async () => {
+  it('clears saveResult when a new edit follows a successful save', async () => {
     const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 1 });
-    const initialData = [{ id: 'r1', issue: 'old' }];
-    const { result, mockTab, tableEl } = setupGridEditor({
-      initialData,
+    const { result, mockTab } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'old' }],
       onSave,
     });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    // First edit + save → saveResult set to the success response
-    const cell1 = createMockCell({ id: 'r1', issue: 'first' }, 0);
-    mockTab._emit('cellEdited', cell1);
-    await nextTick();
+    typeInto(mockTab, 'r1', 'issue', 'first');
     await result.handleSave();
     expect(result.saveResult.value).toEqual({ errors: [], saved: 1 });
-    expect(result.dirtyCount.value).toBe(0);
 
-    // A new edit after the save → dirtyCount becomes 1, saveResult must clear
-    const cell2 = createMockCell({ id: 'r1', issue: 'second' }, 0);
-    mockTab._emit('cellEdited', cell2);
+    typeInto(mockTab, 'r1', 'issue', 'second');
     await nextTick();
 
     expect(result.dirtyCount.value).toBe(1);
@@ -721,23 +1031,13 @@ describe('useGridEditor', () => {
 
   it('clears saveResult when a new row is added after a successful save', async () => {
     const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 1 });
-    const initialData = [{ id: 'r1', issue: 'old' }];
-    const { result, mockTab, tableEl } = setupGridEditor({
-      initialData,
+    const { result, mockTab } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'old' }],
       onSave,
     });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    // Edit + save → success badge
-    const cell = createMockCell({ id: 'r1', issue: 'updated' }, 0);
-    mockTab._emit('cellEdited', cell);
-    await nextTick();
+    typeInto(mockTab, 'r1', 'issue', 'updated');
     await result.handleSave();
-    expect(result.saveResult.value).toEqual({ errors: [], saved: 1 });
 
-    // Add a row → dirtyCount increments, saveResult clears
     result.handleAddRow();
     await nextTick();
 
@@ -745,45 +1045,30 @@ describe('useGridEditor', () => {
     expect(result.saveResult.value).toBeNull();
   });
 
-  it('does not clear saveResult when dirtyCount stays at 0 (no spurious clear)', async () => {
+  it('does not clear saveResult when nothing changes after the save', async () => {
     const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 1 });
-    const initialData = [{ id: 'r1', issue: 'old' }];
-    const { result, mockTab, tableEl } = setupGridEditor({
-      initialData,
+    const { result, mockTab } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'old' }],
       onSave,
     });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    const cell = createMockCell({ id: 'r1', issue: 'updated' }, 0);
-    mockTab._emit('cellEdited', cell);
-    await nextTick();
+    typeInto(mockTab, 'r1', 'issue', 'updated');
     await result.handleSave();
-    expect(result.saveResult.value).toEqual({ errors: [], saved: 1 });
-
-    // No further edits — the badge must persist
     await nextTick();
+
     expect(result.saveResult.value).toEqual({ errors: [], saved: 1 });
   });
 
   // ── Error highlighting by rowId (regression guard for f7bd853) ──
 
   it('error highlighting locates rows by rowId, not by upserts-array index', async () => {
-    // Scenario from VAL-GRID-015:
-    // - Three rows: one seeded, two newly added with invalid data
-    // - Delete the first added row
-    // - Save returns an error for the remaining added row
-    // - The error's `row` field (upserts array index) is 0, but the rowId
-    //   points to the remaining added row — NOT the seeded row at index 0.
-    // If the code used `err.row` (array index) it would highlight the wrong row.
-    const initialData = [
-      { id: 'seed-1', issue: 'valid seeded row' },
-      { id: 'added-1', issue: '' },
-      { id: 'added-2', issue: '' },
-    ];
-    const { result, mockTab, tableEl } = setupGridEditor({
-      initialData,
+    // The error's `row` (index in the request's upserts) is 0, but its rowId
+    // points to added-2. Using `err.row` would highlight seed-1.
+    const { result, mockTab } = await setupGridEditor({
+      initialData: [
+        { id: 'seed-1', issue: 'valid seeded row' },
+        { id: 'added-1', issue: 'x' },
+        { id: 'added-2', issue: 'x' },
+      ],
       onSave: vi.fn().mockResolvedValue({
         errors: [
           { row: 0, rowId: 'added-2', field: 'issue', message: 'Required' },
@@ -791,292 +1076,133 @@ describe('useGridEditor', () => {
         saved: 0,
       }),
     });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    // Mark both added rows as dirty (simulate they were added)
-    const row1 = createMockRowForEvent({ id: 'added-1', issue: '' }, 1);
-    const row2 = createMockRowForEvent({ id: 'added-2', issue: '' }, 2);
-    mockTab._emit('rowAdded', row1);
-    mockTab._emit('rowAdded', row2);
-    await nextTick();
-
-    // Delete 'added-1': select it and call handleDeleteSelected
-    mockTab._setSelectedByRowIds(['added-1']);
+    typeInto(mockTab, 'added-2', 'issue', '');
+    mockTab._select(['added-1']);
     result.handleDeleteSelected();
-    await nextTick();
-
-    // Now the mock data has [seed-1, added-2], getRows() returns those
-    const rowsAfterDelete = mockTab._getRows();
-    expect(rowsAfterDelete).toHaveLength(2);
-    expect(rowsAfterDelete[0].getData().id).toBe('seed-1');
-    expect(rowsAfterDelete[1].getData().id).toBe('added-2');
-
-    // Save — returns error for added-2 (row: 0 = upserts array index)
-    await result.handleSave();
-
-    // The error should highlight added-2 (rowId lookup), NOT seed-1 (array index 0)
-    const seedRow = mockTab._getRows().find((r) => r.getData().id === 'seed-1');
-    const added2Row = mockTab
-      ._getRows()
-      .find((r) => r.getData().id === 'added-2');
-
-    expect(added2Row.getCell).toHaveBeenCalledWith('issue');
-    expect(added2Row._cellElements['issue'].classList.add).toHaveBeenCalledWith(
-      'backend-validation-error',
-    );
-    // seed-1's cell should NOT have been touched — the bug from f7bd853 would
-    // have looked it up via err.row (array index 0) and called getCell on it.
-    expect(seedRow.getCell).not.toHaveBeenCalledWith('issue');
-  });
-
-  it('clearErrorHighlights removes the class from all highlighted cells', async () => {
-    const errors = [{ row: 0, rowId: 'r1', field: 'issue', message: 'err' }];
-    const onSave = vi.fn().mockResolvedValue({ errors, saved: 0 });
-    const initialData = [{ id: 'r1', issue: '' }];
-    const { result, mockTab, tableEl } = setupGridEditor({
-      initialData,
-      onSave,
-    });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    const cell = createMockCell({ id: 'r1', issue: '' }, 0);
-    mockTab._emit('cellEdited', cell);
-    await nextTick();
 
     await result.handleSave();
 
-    // Now fix the error and save again successfully — but we cannot swap onSave,
-    // so test clearErrorHighlights via clearGrid instead:
-    result.clearGrid();
-    expect(result.errorList.value).toEqual([]);
-    expect(result.rowCount.value).toBe(0);
-    expect(result.saveResult.value).toBeNull();
+    expect(
+      mockTab._row('added-2').getCell('issue').element.classList.add,
+    ).toHaveBeenCalledWith('backend-validation-error');
+    expect(mockTab._row('seed-1').getCell).not.toHaveBeenCalledWith('issue');
   });
 
   // ── scrollToError ──
 
   it('scrollToError scrolls to the row matching rowId and flashes the cell', async () => {
-    const initialData = [
-      { id: 'r1', issue: 'first' },
-      { id: 'r2', issue: 'second' },
-      { id: 'r3', issue: 'third' },
-    ];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData });
+    const { result, mockTab } = await setupGridEditor({
+      initialData: [
+        { id: 'r1', issue: 'first' },
+        { id: 'r2', issue: 'second' },
+      ],
+    });
 
-    tableEl.value = document.createElement('div');
-    await nextTick();
+    result.scrollToError({
+      row: 0,
+      rowId: 'r2',
+      field: 'issue',
+      message: 'bad',
+    });
 
-    const err = { row: 1, rowId: 'r2', field: 'issue', message: 'bad' };
-    result.scrollToError(err);
-
-    const targetRow = mockTab._getRows().find((r) => r.getData().id === 'r2');
-    expect(targetRow).toBeDefined();
-    expect(targetRow.scrollTo).toHaveBeenCalled();
-    expect(targetRow._cellElements['issue'].style.outline).toBe(
+    expect(mockTab._row('r2').scrollTo).toHaveBeenCalled();
+    expect(mockTab._row('r2').getCell('issue').element.style.outline).toBe(
       '3px solid #ef4444',
     );
   });
 
   it('scrollToError does nothing if the rowId is not found (deleted row)', async () => {
-    const initialData = [{ id: 'r1', issue: 'first' }];
-    const { result, tableEl } = setupGridEditor({ initialData });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    const err = {
-      row: 0,
-      rowId: 'nonexistent',
-      field: 'issue',
-      message: 'bad',
-    };
-    // Should not throw
-    expect(() => result.scrollToError(err)).not.toThrow();
+    const { result } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'first' }],
+    });
+    expect(() =>
+      result.scrollToError({
+        row: 0,
+        rowId: 'nonexistent',
+        field: 'issue',
+        message: 'bad',
+      }),
+    ).not.toThrow();
   });
 
   // ── Delete selected ──
 
-  it('handleDeleteSelected removes selected rows and marks them deleted', async () => {
-    const initialData = [
-      { id: 'r1', issue: 'first' },
-      { id: 'r2', issue: 'second' },
-      { id: 'r3', issue: 'third' },
-    ];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData });
+  it('handleDeleteSelected removes ticked rows, counts saved ones and reports them', async () => {
+    const { result, mockTab, onUserEdit } = await setupGridEditor({
+      initialData: [
+        { id: 'r1', issue: 'first' },
+        { id: 'r2', issue: 'second' },
+        { id: 'r3', issue: 'third' },
+      ],
+    });
+    mockTab._select(['r1', 'r3']);
 
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    mockTab._setSelectedByRowIds(['r1', 'r3']);
     result.handleDeleteSelected();
-    await nextTick();
 
-    const remaining = mockTab._getData();
-    expect(remaining).toHaveLength(1);
-    expect(remaining[0].id).toBe('r2');
+    expect(mockTab._getData().map((r) => r.id)).toEqual(['r2']);
     expect(result.rowCount.value).toBe(1);
-    // Both deleted rows should be tracked (they were seeded, so 'deleted')
     expect(result.dirtyCount.value).toBe(2);
+    expect(onUserEdit).toHaveBeenCalledWith(['r1', 'r3']);
   });
 
   it('handleDeleteSelected does nothing when no rows are selected', async () => {
-    const initialData = [{ id: 'r1', issue: 'first' }];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData });
+    const { result, mockTab } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'first' }],
+    });
 
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    mockTab._setSelectedRows([]);
     result.handleDeleteSelected();
 
     expect(mockTab._getData()).toHaveLength(1);
-    expect(result.rowCount.value).toBe(1);
     expect(result.dirtyCount.value).toBe(0);
   });
 
-  // ── VAL-CUSTOM-018: deleting a row with an active error removes ──
-  // its sidebar entry and decrements the error count.
-  // handleDeleteSelected must filter errorList.value to remove entries
-  // whose rowId matches any of the deleted row ids, so the sidebar and
-  // the toolbar error chip stay consistent with the visible grid.
+  // ── VAL-CUSTOM-018: deleting a row with an error drops its sidebar entry ──
 
-  it('handleDeleteSelected removes error sidebar entries for deleted rows', async () => {
-    const errors = [
-      { row: 0, rowId: 'r1', field: 'issue', message: 'issue is required' },
-      { row: 1, rowId: 'r2', field: 'issue', message: 'issue is required' },
-    ];
-    const onSave = vi.fn().mockResolvedValue({ errors, saved: 0 });
-    const initialData = [
-      { id: 'r1', issue: '' },
-      { id: 'r2', issue: '' },
-      { id: 'r3', issue: 'ok' },
-    ];
-    const { result, mockTab, tableEl } = setupGridEditor({
-      initialData,
-      onSave,
-    });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    // Make rows dirty so save proceeds and populates errorList
-    const cell1 = createMockCell({ id: 'r1', issue: '' }, 0);
-    const cell2 = createMockCell({ id: 'r2', issue: '' }, 1);
-    mockTab._emit('cellEdited', cell1);
-    mockTab._emit('cellEdited', cell2);
-    await nextTick();
-
-    await result.handleSave();
-    expect(result.errorList.value).toHaveLength(2);
-
-    // Delete r1 — its error sidebar entry must be removed
-    mockTab._setSelectedByRowIds(['r1']);
-    result.handleDeleteSelected();
-    await nextTick();
-
-    expect(result.errorList.value).toHaveLength(1);
-    expect(result.errorList.value[0].rowId).toBe('r2');
-  });
-
-  it('handleDeleteSelected removes all matching error entries when multiple errored rows are deleted', async () => {
+  async function withTwoErrors() {
     const errors = [
       { row: 0, rowId: 'r1', field: 'issue', message: 'required' },
       { row: 1, rowId: 'r2', field: 'issue', message: 'required' },
     ];
-    const onSave = vi.fn().mockResolvedValue({ errors, saved: 0 });
-    const initialData = [
-      { id: 'r1', issue: '' },
-      { id: 'r2', issue: '' },
-    ];
-    const { result, mockTab, tableEl } = setupGridEditor({
-      initialData,
-      onSave,
+    const setup = await setupGridEditor({
+      initialData: [
+        { id: 'r1', issue: 'x' },
+        { id: 'r2', issue: 'x' },
+        { id: 'r3', issue: 'ok' },
+      ],
+      onSave: vi.fn().mockResolvedValue({ errors, saved: 0 }),
     });
+    typeInto(setup.mockTab, 'r1', 'issue', '');
+    typeInto(setup.mockTab, 'r2', 'issue', '');
+    await setup.result.handleSave();
+    expect(setup.result.errorList.value).toHaveLength(2);
+    return setup;
+  }
 
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    const cell1 = createMockCell({ id: 'r1', issue: '' }, 0);
-    const cell2 = createMockCell({ id: 'r2', issue: '' }, 1);
-    mockTab._emit('cellEdited', cell1);
-    mockTab._emit('cellEdited', cell2);
-    await nextTick();
-
-    await result.handleSave();
-    expect(result.errorList.value).toHaveLength(2);
-
-    // Delete both errored rows — errorList should be empty, sidebar gone
-    mockTab._setSelectedByRowIds(['r1', 'r2']);
+  it('handleDeleteSelected removes error sidebar entries for deleted rows', async () => {
+    const { result, mockTab } = await withTwoErrors();
+    mockTab._select(['r1']);
     result.handleDeleteSelected();
-    await nextTick();
+    expect(result.errorList.value.map((e) => e.rowId)).toEqual(['r2']);
+  });
 
+  it('handleDeleteSelected removes all matching error entries', async () => {
+    const { result, mockTab } = await withTwoErrors();
+    mockTab._select(['r1', 'r2']);
+    result.handleDeleteSelected();
     expect(result.errorList.value).toEqual([]);
   });
 
-  it('handleDeleteSelected leaves non-deleted rows error entries intact', async () => {
-    const errors = [
-      { row: 0, rowId: 'r1', field: 'issue', message: 'required' },
-      { row: 1, rowId: 'r2', field: 'issue', message: 'required' },
-    ];
-    const onSave = vi.fn().mockResolvedValue({ errors, saved: 0 });
-    const initialData = [
-      { id: 'r1', issue: '' },
-      { id: 'r2', issue: '' },
-    ];
-    const { result, mockTab, tableEl } = setupGridEditor({
-      initialData,
-      onSave,
-    });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    const cell1 = createMockCell({ id: 'r1', issue: '' }, 0);
-    const cell2 = createMockCell({ id: 'r2', issue: '' }, 1);
-    mockTab._emit('cellEdited', cell1);
-    mockTab._emit('cellEdited', cell2);
-    await nextTick();
-
-    await result.handleSave();
-    expect(result.errorList.value).toHaveLength(2);
-
-    // Delete a row with NO error (r3) — error entries for r1 and r2 must remain
-    const initialDataWithR3 = [
-      { id: 'r1', issue: '' },
-      { id: 'r2', issue: '' },
-      { id: 'r3', issue: 'ok' },
-    ];
-    // Rebuild with r3 present
-    mockTab._setSelectedByRowIds(['r3']);
-    // Manually add r3 to the mock data since setupGridEditor already ran
-    mockTab.replaceData(initialDataWithR3);
+  it('handleDeleteSelected leaves other rows’ error entries intact', async () => {
+    const { result, mockTab } = await withTwoErrors();
+    mockTab._select(['r3']);
     result.handleDeleteSelected();
-    await nextTick();
-
-    expect(result.errorList.value).toHaveLength(2);
-    const rowIds = result.errorList.value.map((e) => e.rowId);
-    expect(rowIds).toContain('r1');
-    expect(rowIds).toContain('r2');
+    expect(result.errorList.value.map((e) => e.rowId)).toEqual(['r1', 'r2']);
   });
 
-  // ── Clear grid ──
+  // ── Clear grid (VAL-CUSTOM-040 / VAL-GRID-023) ──
 
-  it('clearGrid empties data, resets dirty count, clears errors', async () => {
-    const initialData = [{ id: 'r1', issue: 'first' }];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    // Make a row dirty
-    const cell = createMockCell({ id: 'r1', issue: 'updated' }, 0);
-    mockTab._emit('cellEdited', cell);
-    await nextTick();
-    expect(result.dirtyCount.value).toBe(1);
+  it('clearGrid empties data and clears errors and the save result', async () => {
+    const { result, mockTab } = await withTwoErrors();
 
     result.clearGrid();
 
@@ -1086,128 +1212,125 @@ describe('useGridEditor', () => {
     expect(result.saveResult.value).toBeNull();
   });
 
-  // ── VAL-CUSTOM-040: clear marks existing rows as deleted so a save ──
-  // writes an empty array to the table's stored row data.
-  // clearGrid must NOT clear the dirty map entirely — it must mark every
-  // existing row as 'deleted' so that buildSavePayload includes their ids in
-  // the deletes array, the Save button stays enabled, and the save handler
-  // can persist the empty grid. Rows that were only ever 'added' (never
-  // saved) are simply dropped from the dirty map (matching markDeleted
-  // semantics) since they were never persisted and need no delete.
-
-  it('clearGrid marks existing saved rows as deleted so the save button stays enabled', async () => {
-    const initialData = [
-      { id: 'r1', issue: 'first' },
-      { id: 'r2', issue: 'second' },
-    ];
-    const { result, mockTab, tableEl } = setupGridEditor({ initialData });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    // No edits yet — dirtyCount is 0
-    expect(result.dirtyCount.value).toBe(0);
-
+  it('clearGrid counts every saved row as a delete, so Save stays enabled', async () => {
+    const { result } = await setupGridEditor({
+      initialData: [
+        { id: 'r1', issue: 'first' },
+        { id: 'r2', issue: 'second' },
+      ],
+    });
     result.clearGrid();
-
-    // The grid is visually empty...
-    expect(mockTab._getData()).toHaveLength(0);
-    expect(result.rowCount.value).toBe(0);
-    // ...but dirtyCount > 0 because the two saved rows are now tracked as
-    // 'deleted' — the Save button stays enabled so the user can persist the
-    // empty grid.
     expect(result.dirtyCount.value).toBe(2);
   });
 
-  it('clearGrid drops added-but-unsaved rows from the dirty map (never persisted, no delete needed)', async () => {
-    const initialData = [{ id: 'r1', issue: 'saved row' }];
-    const { result, tableEl } = setupGridEditor({ initialData });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    // Add a new row (tracked as 'added', never saved)
+  it('clearGrid drops rows added since the last save (nothing to delete)', async () => {
+    const { result } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'saved row' }],
+    });
     result.handleAddRow();
-    await nextTick();
     expect(result.dirtyCount.value).toBe(1);
 
     result.clearGrid();
-
-    // The unsaved added row is dropped from tracking; the saved row is marked
-    // deleted. Net dirty count = 1 (the saved row's delete).
     expect(result.dirtyCount.value).toBe(1);
   });
 
-  it('after clearGrid, buildSavePayload includes all saved row ids in deletes', async () => {
+  it('after clearGrid, the save sends every saved row id in deletes', async () => {
     const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 2 });
-    const initialData = [
-      { id: 'r1', issue: 'first' },
-      { id: 'r2', issue: 'second' },
-    ];
-    const { result, tableEl } = setupGridEditor({ initialData, onSave });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
+    const { result } = await setupGridEditor({
+      initialData: [
+        { id: 'r1', issue: 'first' },
+        { id: 'r2', issue: 'second' },
+      ],
+      onSave,
+    });
     result.clearGrid();
 
-    // Save after clearing — the handler must receive the deleted row ids
     await result.handleSave();
 
-    expect(onSave).toHaveBeenCalledTimes(1);
-    const payload = onSave.mock.calls[0][0];
-    expect(payload.upserts).toEqual([]);
-    expect(payload.deletes).toHaveLength(2);
-    expect(payload.deletes).toContain('r1');
-    expect(payload.deletes).toContain('r2');
+    expect(onSave).toHaveBeenCalledWith({ upserts: [], deletes: ['r1', 'r2'] });
   });
 
-  it('after clearGrid on an empty grid, dirtyCount stays 0 (nothing to delete)', async () => {
-    const { result, tableEl } = setupGridEditor({ initialData: [] });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    expect(result.dirtyCount.value).toBe(0);
-
+  it('after clearGrid on an empty grid, dirtyCount stays 0', async () => {
+    const { result } = await setupGridEditor({ initialData: [] });
     result.clearGrid();
-
     expect(result.dirtyCount.value).toBe(0);
   });
 
-  // ── Export CSV ──
+  // ── Programmatic API ──
 
-  it('handleExportCSV calls tabulator.download with the export filename', async () => {
-    const { result, mockTab, tableEl } = setupGridEditor({});
+  it('agent writes are dirty and validated but not reported as person edits', async () => {
+    const { result, mockTab, onUserEdit } = await setupGridEditor({
+      initialData: [{ id: 'r1', issue: 'old' }],
+    });
 
-    tableEl.value = document.createElement('div');
-    await nextTick();
+    const [id] = await result.addRows([{ issue: 'agent row', id: 'ignored' }]);
+    const updated = await result.updateRows([
+      { id: 'r1', issue: 'agent edit' },
+      { id: 'nope', issue: 'x' },
+    ]);
 
-    result.handleExportCSV();
-
-    expect(mockTab.download).toHaveBeenCalledWith(
-      'csv',
-      'test-export.csv',
-      {
-        delimiter: ',',
-      },
-      'all',
-    );
+    expect(id).not.toBe('ignored');
+    expect(updated).toEqual({ updated: ['r1'], missing: ['nope'] });
+    expect(mockTab._row('r1').validate).toHaveBeenCalled();
+    expect(result.dirtyCount.value).toBe(2);
+    expect(result.deleteRows([id, 'nope'])).toEqual({
+      deleted: [id],
+      missing: ['nope'],
+    });
+    expect(result.dirtyCount.value).toBe(1);
+    expect(onUserEdit).not.toHaveBeenCalled();
   });
 
-  // ── VAL-GRID-022: CSV export includes ALL rows regardless of active filters ──
+  // ── Columns ──
 
-  it('handleExportCSV passes "all" as the row range so filtered rows are exported', async () => {
-    const { result, mockTab, tableEl } = setupGridEditor({});
+  it('the column menu lists visible data columns; Status is locked', async () => {
+    const { result } = await setupGridEditor({ columns: INVITE_COLUMNS });
+    expect(result.columnItems.value).toEqual([
+      { id: 'status', title: 'Status', visible: true, locked: true },
+      { id: 'email', title: 'Email', visible: true, locked: false },
+      { id: 'firstName', title: 'First Name', visible: true, locked: false },
+    ]);
+  });
 
-    tableEl.value = document.createElement('div');
-    await nextTick();
+  it('setColumnVisible hides and shows the column', async () => {
+    const { result, mockTab } = await setupGridEditor({
+      columns: INVITE_COLUMNS,
+    });
 
+    result.setColumnVisible('email', false);
+    expect(mockTab.getColumn('email')?.hide).toHaveBeenCalled();
+    expect(result.columnItems.value[1].visible).toBe(false);
+
+    result.setColumnVisible('email', true);
+    expect(mockTab.getColumn('email')?.show).toHaveBeenCalled();
+    expect(result.columnItems.value[1].visible).toBe(true);
+  });
+
+  it('a column dragged before the checkbox column puts the checkbox back first', async () => {
+    const { mockTab } = await setupGridEditor({ columns: TEST_COLUMNS });
+
+    mockTab._moveColumnToFront('issue');
+    mockTab._emit('columnMoved');
+
+    expect(mockTab._fieldOrder()).toEqual([
+      '__select',
+      'issue',
+      'categoryCode',
+      'riskLevel',
+    ]);
+  });
+
+  it('a frozen Status column stays first, the checkbox right after it', async () => {
+    const { mockTab } = await setupGridEditor({ columns: INVITE_COLUMNS });
+    mockTab._emit('columnMoved');
+    expect(mockTab._fieldOrder().slice(0, 2)).toEqual(['status', '__select']);
+  });
+
+  // ── Export CSV (VAL-GRID-022: all rows regardless of filters) ──
+
+  it('handleExportCSV downloads every row as CSV under the export filename', async () => {
+    const { result, mockTab } = await setupGridEditor();
     result.handleExportCSV();
-
-    // Tabulator's download(type, filename, options, range) 4th arg controls
-    // which rows are exported. The default ("active") honours column filters;
-    // "all" exports every row regardless of filters.
     expect(mockTab.download).toHaveBeenCalledWith(
       'csv',
       'test-export.csv',
@@ -1216,58 +1339,25 @@ describe('useGridEditor', () => {
     );
   });
 
-  it('handleExportCSV unwraps a ref exportFilename and still passes "all" range', async () => {
-    const mockTab = createMockTabulator([], []);
-    mockState.instance = mockTab;
-    mockState.ctorCalls = [];
-
+  it('handleExportCSV unwraps a ref exportFilename', async () => {
     const tableEl = ref<HTMLElement | null>(null);
-    const cols = ref<Array<Record<string, unknown>>>([
-      { field: 'issue', editor: 'input' },
-    ]);
-    const data = ref<Array<Record<string, unknown>>>([]);
-    const filenameRef = ref('dynamic-name.csv');
-    const onSave = vi.fn().mockResolvedValue({ errors: [], saved: 0 });
-
     const result = useGridEditor({
       tableEl,
-      columns: cols,
-      data,
-      onSave: onSave as any,
-      exportFilename: filenameRef,
+      columns: ref([{ field: 'issue', editor: 'input' }]),
+      data: ref([]),
+      onSave: vi.fn() as any,
+      exportFilename: ref('dynamic-name.csv'),
     });
-
     tableEl.value = document.createElement('div');
     await nextTick();
 
     result.handleExportCSV();
 
-    expect(mockTab.download).toHaveBeenCalledWith(
+    expect(mockState.instance?.download).toHaveBeenCalledWith(
       'csv',
       'dynamic-name.csv',
       { delimiter: ',' },
       'all',
     );
-  });
-
-  // ── Tabulator options ──
-
-  it('Tabulator is initialized with the expected options', async () => {
-    const { tableEl } = setupGridEditor({ columns: TEST_COLUMNS });
-
-    tableEl.value = document.createElement('div');
-    await nextTick();
-
-    const opts = mockState.ctorCalls[0].opts;
-    expect(opts.clipboard).toBe(true);
-    expect(opts.clipboardPasteAction).toBe('insert');
-    expect(opts.validationMode).toBe('highlight');
-    expect(opts.layout).toBe('fitDataFill');
-    expect(opts.headerSortClickElement).toBe('icon');
-    expect(opts).toHaveProperty('selectableRows', undefined);
-    expect(opts.selectableRange).toBe(true);
-    expect(opts.editTriggerEvent).toBe('dblclick');
-    expect(opts.reactiveData).toBe(true);
-    expect(opts.height).toBe('100%');
   });
 });

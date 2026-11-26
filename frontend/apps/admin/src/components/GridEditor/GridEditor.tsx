@@ -24,6 +24,7 @@ import UBadge from '@nuxt/ui/components/Badge.vue';
  */
 import UButton from '@nuxt/ui/components/Button.vue';
 import UModal from '@nuxt/ui/components/Modal.vue';
+import ColumnVisibilityMenu from 'components/ColumnVisibilityMenu';
 import { gridEngineProps } from 'components/gridEngineProps';
 import { useGridEditor } from 'composables/useGridEditor';
 import { rowLabel } from 'utils/gridApi';
@@ -109,6 +110,8 @@ export default defineComponent({
     });
     const {
       rowCount,
+      columnItems,
+      setColumnVisible,
       dirtyCount,
       isSaving,
       errorList,
@@ -162,6 +165,10 @@ export default defineComponent({
             onClick={handleDeleteSelected}
           />
           <div class="mx-1 h-5 w-px bg-default" />
+          <ColumnVisibilityMenu
+            columns={columnItems.value}
+            onToggle={setColumnVisible}
+          />
           <UButton
             label="Export"
             color="neutral"

@@ -2,7 +2,8 @@ import { mount } from '@vue/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
 import { h, defineComponent } from 'vue';
 import GridEditor from './GridEditor';
-import type { VNode } from 'vue';
+import type { ColumnVisibilityItem } from 'components/ColumnVisibilityMenu';
+import type { PropType, VNode } from 'vue';
 
 // ── Mock the grid engine composable so the presentation is isolated ──
 //
@@ -36,6 +37,11 @@ vi.mock('composables/useGridEditor', async () => {
     handleExportCSV: _vi.fn(),
     clearGrid: _vi.fn(),
     scrollToError: _vi.fn(),
+    columnItems: ref([
+      { id: 'status', title: 'Status', visible: true, locked: true },
+      { id: 'issue', title: 'Issue', visible: true, locked: false },
+    ]),
+    setColumnVisible: _vi.fn(),
     // Where each row sits in the grid as shown; r3 is filtered out.
     rowNumber: (rowId: string) =>
       ({ r1: 5 } as Record<string, number>)[rowId] ?? null,
@@ -112,6 +118,38 @@ vi.mock('@nuxt/ui/components/Modal.vue', () => ({
   }),
 }));
 
+// The real menu is a Nuxt UI dropdown; the stub shows the columns it got
+// and, when clicked, hides Issue, which is all GridEditor wires.
+vi.mock('components/ColumnVisibilityMenu', () => ({
+  default: defineComponent({
+    name: 'ColumnVisibilityMenu',
+    props: {
+      columns: {
+        type: Array as PropType<Array<ColumnVisibilityItem>>,
+        required: true,
+      },
+      onToggle: {
+        type: Function as PropType<(id: string, visible: boolean) => void>,
+        required: true,
+      },
+    },
+    setup(props) {
+      return (): VNode =>
+        h(
+          'button',
+          {
+            class: 'column-menu',
+            'data-columns': props.columns
+              .map((c) => `${c.id}:${c.visible}:${c.locked}`)
+              .join(','),
+            onClick: () => props.onToggle('issue', false),
+          },
+          'Columns',
+        );
+    },
+  }),
+}));
+
 // ── Helper to mount GridEditor with controllable props ──
 function mountGridEditor(
   options: {
@@ -161,6 +199,19 @@ describe('GridEditor — toolbar', () => {
     expect(labels).toContain('Export');
     expect(labels).toContain('Clear');
     expect(labels).toContain('Why Tabulator?');
+  });
+
+  it('the Columns menu lists the grid columns and hides the one picked', async () => {
+    const wrapper = mountGridEditor();
+    const menu = wrapper.find('button.column-menu');
+    expect(menu.attributes('data-columns')).toBe(
+      'status:true:true,issue:true:false',
+    );
+    await menu.trigger('click');
+    expect(mockState.refs.setColumnVisible).toHaveBeenCalledWith(
+      'issue',
+      false,
+    );
   });
 
   it('the status area has role="status" and aria-live="polite"', () => {
