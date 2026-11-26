@@ -1,11 +1,10 @@
 import { StorageSerializers, useLocalStorage } from '@vueuse/core';
 import { z } from 'zod';
+import type { InviteDraftStore } from 'utils/inviteDraft';
 
 /**
- * The invite draft as kept in localStorage between visits: the grid's rows
- * (with their ids) and which of them are agent proposed. The agent-proposed
- * set must travel with the rows: without it a row an agent resolved would
- * come back as Ready and pass the Send gate without a person confirming it.
+ * The invite draft's store in localStorage, kept between visits: the grid's
+ * rows (with their ids) and which of them are agent proposed.
  *
  * A held (unmapped) paste is not kept; it is a moment's decision, not data.
  */
@@ -17,7 +16,7 @@ const StoredDraftSchema = z.object({
 
 const INVITE_DRAFT_KEY = 'sc.invite-users.draft';
 
-export function useInviteDraftStorage() {
+export function useInviteDraftStorage(): InviteDraftStore {
   const stored = useLocalStorage<unknown>(INVITE_DRAFT_KEY, null, {
     serializer: StorageSerializers.object,
     // Each save assigns a fresh object, so a shallow ref and no deep watch
@@ -34,7 +33,7 @@ export function useInviteDraftStorage() {
      * ignored, so a bad entry never breaks the page.
      */
     restored: StoredDraftSchema.safeParse(stored.value).data ?? null,
-    save(rows: Array<Record<string, unknown>>, agentProposed: Array<string>) {
+    save(rows, agentProposed) {
       stored.value = { version: 1, rows, agentProposed };
     },
   };

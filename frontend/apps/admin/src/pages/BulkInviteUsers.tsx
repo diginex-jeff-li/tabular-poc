@@ -103,11 +103,10 @@ export default defineComponent({
     const notice = ref<string | null>(null);
     const autoMatch = ref(true);
 
-    // The draft survives a reload.
-    const storage = useInviteDraftStorage();
-
     const draft = createInviteDraft(() => grid, {
       existingEmails: EXISTING_EMAILS,
+      // The draft survives a reload.
+      store: useInviteDraftStorage(),
     });
     const tools = createInviteTools(draft);
     useAgentTools('scInvite', tools);
@@ -241,18 +240,8 @@ export default defineComponent({
       onUserEdit: draft.edited,
       pasteParser,
       onReady: (api: GridApi) => {
-        // Every draft write ends in showErrors (the draft checks and repaints
-        // after each one), so that is where the draft is saved.
-        grid = {
-          ...api,
-          showErrors(errors) {
-            api.showErrors(errors);
-            storage.save(api.getRows(), draft.agentProposedIds());
-          },
-        };
-        if (storage.restored) {
-          draft.restore(storage.restored.rows, storage.restored.agentProposed);
-        }
+        grid = api;
+        draft.resume();
       },
       title: 'Bulk invite users',
       exportFilename: 'invite-users.csv',

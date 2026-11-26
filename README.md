@@ -71,8 +71,8 @@ Always rebuild contracts after changing them before running frontend:
 ### Contracts (`contracts/`)
 
 Zod schemas only (no oRPC — backend was removed for the prototype). Per-resource
-folders under `src/`: `schemas/`, `requests/`, `responses/`. Each exports a barrel
-`index.ts`. The root `src/index.ts` aggregates all resources.
+folders under `src/`: `schemas/`, plus `responses/` where a resource has one. Each
+exports a barrel `index.ts`. The root `src/index.ts` aggregates all resources.
 
 - Build: SWC compiles `src` → `dist/esm`, `tsc` emits `dist/types`.
 - Consumed by frontend via `contracts` workspace dependency.
@@ -173,7 +173,7 @@ Programmatic access (agent tools, file import) goes through the `GridApi` seam
 | --------------------------------------------------------- | ----------------------------------------------------- |
 | `frontend/apps/admin/src/pages/ComplianceGridEditor.tsx`  | Compliance library grid page                          |
 | `frontend/apps/admin/src/components/DataGrid/DataGrid.tsx` | Grid component — toolbar, keyboard, clipboard, error sidebar |
-| `frontend/apps/admin/src/composables/useDataGrid.ts`      | DataGrid state — rows, derived dirty diff, save loop, `GridApi` |
+| `frontend/apps/admin/src/composables/useDataGrid.ts`      | DataGrid state — rows, every person write (edit, paste, fill, clear), undo/redo, derived dirty diff, save loop, `GridApi` |
 | `frontend/apps/admin/src/utils/zodToColumnDefs.ts`        | Derive grid columns from a Zod schema                 |
 | `frontend/apps/admin/src/pages/BulkInviteUsers.tsx`       | Bulk invite page (`/invite-users`) — Excel, paste, agent tools |
 | `frontend/apps/admin/src/utils/readyRows.ts`              | Ready-row check: Send errors and each row's status (also behind the agent `validate` tool) |

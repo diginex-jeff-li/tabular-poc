@@ -21,9 +21,12 @@ import type { ShallowRef } from 'vue';
  * the grid normalizes every row the draft writes).
  *
  * Rules it owns:
- * - every write is followed by a full check and repaint
+ * - every write is followed by a full check and repaint, then a save to the
+ *   draft's store (if it has one)
  * - an agent resolving a needs-review row makes it agent proposed; a person
  *   confirming or editing the row clears that
+ * - agent proposed travels with the rows: the store keeps it, and a restored
+ *   row that was agent proposed still needs a person's Confirm
  * - an agent cannot delete a row that needs review or is agent proposed
  * - a paste whose columns don't match is held as an unmapped table; the
  *   agent may propose a column mapping, only a person applies it
@@ -45,10 +48,26 @@ export interface HeldPaste {
 
 type Row = Record<string, unknown>;
 
+/** A saved draft: the grid's rows (with their ids) and which are agent proposed. */
+export interface StoredDraft {
+  rows: Array<{ id: string } & Row>;
+  agentProposed: Array<string>;
+}
+
+/** Where the draft is kept between visits (localStorage on the page). */
+export interface InviteDraftStore {
+  restored: StoredDraft | null;
+  save(rows: Array<Row>, agentProposed: Array<string>): void;
+}
+
 export function createInviteDraft(
   grid: () => GridApi | null,
-  { existingEmails }: { existingEmails: ReadonlySet<string> },
+  {
+    existingEmails,
+    store,
+  }: { existingEmails: ReadonlySet<string>; store?: InviteDraftStore },
 ) {
+  let pending = store?.restored ?? null;
   const agentProposed = new Set<string>();
   let checked = checkReadyRows([], existingEmails, agentProposed);
   const held: ShallowRef<HeldPaste | null> = shallowRef(null);
@@ -72,6 +91,7 @@ export function createInviteDraft(
     }
     checked = checkReadyRows(g.getRows(), existingEmails, agentProposed);
     g.showErrors(checked.errors);
+    store?.save(g.getRows(), [...agentProposed]);
     return checked.errors;
   }
 
@@ -95,25 +115,6 @@ export function createInviteDraft(
     const ids = api().addRows(newRows);
     check();
     return ids;
-  }
-
-  /**
-   * Brings back a saved draft. The rows enter the grid as new (so they count
-   * as unsent and Send stays available) and get fresh ids; rows that were
-   * agent proposed stay agent proposed, so they still need a person's Confirm.
-   */
-  function restore(
-    saved: Array<{ id: string } & Row>,
-    proposed: Array<string>,
-  ): void {
-    const ids = api().addRows(saved);
-    const wasProposed = new Set(proposed);
-    saved.forEach((row, i) => {
-      if (wasProposed.has(row.id)) {
-        agentProposed.add(ids[i]);
-      }
-    });
-    check();
   }
 
   function update(
@@ -174,6 +175,27 @@ export function createInviteDraft(
     for (const id of ids) {
       agentProposed.delete(id);
     }
+    check();
+  }
+
+  /**
+   * The grid is ready: bring back the stored draft, once. The rows enter the
+   * grid as new (so they count as unsent and Send stays available) and get
+   * fresh ids; rows that were agent proposed stay agent proposed.
+   */
+  function resume() {
+    if (!pending) {
+      return;
+    }
+    const { rows: saved, agentProposed: proposed } = pending;
+    pending = null;
+    const ids = api().addRows(saved);
+    const wasProposed = new Set(proposed);
+    saved.forEach((row, i) => {
+      if (wasProposed.has(row.id)) {
+        agentProposed.add(ids[i]);
+      }
+    });
     check();
   }
 
@@ -269,17 +291,15 @@ export function createInviteDraft(
   return {
     held,
     errors: () => checked.errors,
-    /** Ids of rows still waiting for a person to confirm the agent's change. */
-    agentProposedIds: () => [...agentProposed],
     status,
     rows,
     check,
     add,
-    restore,
     update,
     remove,
     confirm,
     edited,
+    resume,
     paste,
     proposeMapping,
     setMappingColumn,

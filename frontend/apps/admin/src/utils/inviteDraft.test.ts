@@ -3,14 +3,14 @@ import { normalizeInviteRow } from 'utils/draftRow';
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 import { effectScope } from 'vue';
 import { createInviteDraft } from './inviteDraft';
-import type { InviteDraft } from './inviteDraft';
+import type { InviteDraft, InviteDraftStore, StoredDraft } from './inviteDraft';
 import type { EffectScope } from 'vue';
 
 // The draft runs on the page's grid adapter, headless: each grid in its own
 // scope, stopped after the test, so window listeners never outlive it.
 const scopes: Array<EffectScope> = [];
 
-function setup() {
+function setup(store?: InviteDraftStore) {
   const scope = effectScope();
   scopes.push(scope);
   const grid = scope.run(() =>
@@ -23,8 +23,24 @@ function setup() {
   );
   const draft = createInviteDraft(() => grid.api, {
     existingEmails: new Set(['jane.doe@acme.com']),
+    store,
   });
   return { grid, draft };
+}
+
+/** The test adapter for the draft's store: a plain object. */
+function memoryStore(restored: StoredDraft | null = null) {
+  const store = {
+    restored,
+    saved: null as StoredDraft | null,
+    save(rows: Array<Record<string, unknown>>, agentProposed: Array<string>) {
+      store.saved = {
+        rows: rows.map((row) => ({ ...row, id: String(row.id) })),
+        agentProposed,
+      };
+    },
+  };
+  return store;
 }
 
 const ann = {
@@ -128,6 +144,64 @@ describe('invite draft', () => {
     expect(statuses(draft)).toEqual(['Ready', 'Not ready']);
     draft.remove([second], 'person');
     expect(statuses(draft)).toEqual(['Ready']);
+  });
+
+  describe('kept in its store', () => {
+    it('saves the rows and the agent-proposed ids after every write', () => {
+      const store = memoryStore();
+      const { draft } = setup(store);
+      const [annId, tom] = draft.add([ann, TOM_LINE], 'person');
+      expect(store.saved).toEqual({
+        rows: [
+          expect.objectContaining({ id: annId, email: 'ann@acme.com' }),
+          expect.objectContaining({ id: tom }),
+        ],
+        agentProposed: [],
+      });
+
+      draft.update([{ id: tom, ...tomFixed }], 'agent');
+      expect(store.saved?.agentProposed).toEqual([tom]);
+
+      draft.confirm(tom);
+      expect(store.saved?.agentProposed).toEqual([]);
+    });
+
+    it('restores with fresh ids; an agent-proposed row still blocks Send', () => {
+      const store = memoryStore({
+        rows: [
+          { id: 'old-ann', ...ann },
+          { id: 'old-tom', ...tomFixed },
+        ],
+        agentProposed: ['old-tom'],
+      });
+      const { draft } = setup(store);
+      draft.resume();
+
+      const restored = draft.rows();
+      expect(restored.map((r) => r.email)).toEqual([
+        'ann@acme.com',
+        'tom@acme.com',
+      ]);
+      expect(restored.map((r) => r.id)).not.toContain('old-ann');
+      expect(restored.map((r) => r.id)).not.toContain('old-tom');
+      expect(statuses(draft)).toEqual(['Ready', 'Agent proposed']);
+      expect(draft.send()).toMatchObject({ saved: 0 });
+      expect(store.saved?.agentProposed).toEqual([restored[1].id]);
+
+      draft.confirm(restored[1].id);
+      expect(draft.send()).toEqual({ errors: [], saved: 2 });
+    });
+
+    it('restores only once', () => {
+      const store = memoryStore({
+        rows: [{ id: 'old-ann', ...ann }],
+        agentProposed: [],
+      });
+      const { draft } = setup(store);
+      draft.resume();
+      draft.resume();
+      expect(draft.rows()).toHaveLength(1);
+    });
   });
 
   describe('unmapped table', () => {

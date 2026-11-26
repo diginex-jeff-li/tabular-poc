@@ -56,8 +56,8 @@ Always rebuild contracts after changing them before running frontend:
 ### Contracts (`contracts/`)
 
 Zod schemas only (no oRPC — backend was removed for the prototype). Per-resource
-folders under `src/`: `schemas/`, `requests/`, `responses/`. Each exports a barrel
-`index.ts`. The root `src/index.ts` aggregates all resources.
+folders under `src/`: `schemas/`, plus `responses/` where a resource has one. Each
+exports a barrel `index.ts`. The root `src/index.ts` aggregates all resources.
 
 - Build: SWC compiles `src` → `dist/esm`, `tsc` emits `dist/types`.
 - Consumed by frontend via `contracts` workspace dependency.
@@ -151,15 +151,16 @@ own `computed`, never in the column `cell` function. Rows have a fixed
 | --------------------------------------------------------- | ----------------------------------------------------- |
 | `frontend/apps/admin/src/pages/ComplianceGridEditor.tsx`  | Compliance grid page                                  |
 | `frontend/apps/admin/src/components/DataGrid/DataGrid.tsx` | Grid component: `UTable`, toolbar, keyboard, clipboard, error sidebar |
-| `frontend/apps/admin/src/composables/useDataGrid.ts` | DataGrid state: rows, derived dirty diff, save loop, `GridApi` |
+| `frontend/apps/admin/src/composables/useDataGrid.ts` | DataGrid state: rows, every person write (edit, paste, fill, clear), undo/redo (`useManualRefHistory`), derived dirty diff, save loop, `GridApi` |
 | `frontend/apps/admin/src/composables/useGridSelection.ts` | Active cell, range and editing state (ids, not indexes) |
 | `frontend/apps/admin/src/utils/zodToColumnDefs.ts` | Derive `GridColumn`s from a Zod schema |
-| `frontend/apps/admin/src/utils/gridApi.ts` | `GridApi` seam implemented by `DataGrid` and `memoryGridApi` |
+| `frontend/apps/admin/src/utils/gridApi.ts` | `GridApi` seam implemented by `useDataGrid`'s `api`; draft and agent-tool tests run on it headless in an `effectScope` |
+| `frontend/apps/admin/src/utils/gridClipboard.ts` | Clipboard TSV codec: `serializeTsv` and `parseTsv`, the one reader for every paste path |
 | `frontend/apps/admin/src/pages/BulkInviteUsers.tsx` | SC15-706 bulk invite prototype — Excel template/import, paste, simulated send |
 | `frontend/apps/admin/src/utils/inviteDraft.ts` | Invite draft module — every rule on who may change which rows (agent proposed, confirm, refused deletes, unmapped tables, Send gate) |
 | `frontend/apps/admin/src/utils/inviteAgentTools.ts` | Agent tools: adapter over the invite draft module (edit-only; no send/confirm/apply tool) |
-| `frontend/apps/admin/src/utils/draftRow.ts` | One draft row: cleanup + line parser (never guesses), row status |
-| `frontend/apps/admin/src/utils/memoryGridApi.ts` | In-memory `GridApi` adapter for tests |
+| `frontend/apps/admin/src/utils/draftRow.ts` | One draft row: cleanup + line parser (never guesses), needs-review detection |
+| `frontend/apps/admin/src/utils/readyRows.ts` | Ready-row check: Send errors and each row's status (needs review › agent proposed › not ready › ready) |
 | `frontend/apps/admin/src/utils/columnMapping.ts` | Pasted client tables: header/alias matching, hold vs insert, column mapping |
 | `frontend/apps/admin/src/components/ColumnMappingPanel/ColumnMappingPanel.tsx` | Mapping panel for an unmapped table (person applies; agent may propose) |
 | `CONTEXT.md` / `docs/adr/` | Domain glossary (bulk invite terms) and ADRs |

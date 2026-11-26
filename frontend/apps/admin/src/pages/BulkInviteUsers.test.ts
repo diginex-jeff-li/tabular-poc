@@ -222,23 +222,12 @@ describe('BulkInviteUsers draft in localStorage', () => {
 
     const { w } = await mountPage();
     expect(emails(w)).toEqual(['ann@acme.com', 'tom@acme.com']);
-    const statuses = () =>
-      w.findAll('[data-col-id="status"]').map((cell) => cell.text());
     // Without the stored agent-proposed mark, Tom would pass the Send gate.
-    expect(statuses()).toEqual(['Ready', 'Agent proposedConfirm']);
-
-    // The restored rows are unsent: Send is available and the gate holds.
-    const send = () => button(w, 'Send invites');
-    expect(send()?.attributes('disabled')).toBeUndefined();
-    await send()?.trigger('click');
-    await flushPromises();
-    expect(w.text()).not.toContain('Simulated');
-
-    await w.get('[data-col-id="status"] button').trigger('click');
-    expect(statuses()).toEqual(['Ready', 'Ready']);
-    await send()?.trigger('click');
-    await flushPromises();
-    expect(w.text()).toContain('Simulated — no invitations sent (2 valid)');
+    expect(
+      w.findAll('[data-col-id="status"]').map((cell) => cell.text()),
+    ).toEqual(['Ready', 'Agent proposedConfirm']);
+    // The restored rows are unsent, so Send is available.
+    expect(button(w, 'Send invites')?.attributes('disabled')).toBeUndefined();
   });
 
   it.each([
