@@ -79,6 +79,11 @@ export default defineComponent({
     const renderStatus = (): VNode => {
       const { rowCount, dirtyCount, errorList, saveResult } = props.grid;
       const saved = saveResult.value?.saved ?? 0;
+      // A failed request has no row; count it so a hidden drawer can still be reopened.
+      const errorCount =
+        errorList.value.length +
+        (saveResult.value?.errors.filter((e) => e.field === 'network').length ??
+          0);
       return (
         <div
           class="ml-3 flex shrink-0 items-center gap-3 whitespace-nowrap text-xs"
@@ -96,7 +101,7 @@ export default defineComponent({
               {dirtyCount.value === 1 ? 'change' : 'changes'}
             </span>
           )}
-          {errorList.value.length > 0 && (
+          {errorCount > 0 && (
             <UButton
               icon="i-lucide-circle-alert"
               color="error"
@@ -105,8 +110,8 @@ export default defineComponent({
               aria-expanded={props.errorsOpen.value}
               onClick={props.onToggleErrors}
             >
-              <strong class="font-semibold">{errorList.value.length}</strong>{' '}
-              {errorList.value.length === 1 ? 'error' : 'errors'}
+              <strong class="font-semibold">{errorCount}</strong>{' '}
+              {errorCount === 1 ? 'error' : 'errors'}
             </UButton>
           )}
           {saved > 0 && (

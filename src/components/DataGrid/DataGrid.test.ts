@@ -340,6 +340,23 @@ describe('DataGrid save errors', () => {
     expect(w.get('[role="alert"]').text()).toBe('NetworkSave failed');
   });
 
+  it('a hidden drawer holding only a failed request reopens from the toolbar', async () => {
+    const onSave = vi.fn(async () => {
+      throw new Error('offline');
+    });
+    const { wrapper: w } = await mountGrid(onSave);
+    await w.get('[aria-label="Select row"]').trigger('click');
+    await button(w, 'Delete').trigger('click');
+    await button(w, 'Save').trigger('click');
+    await flushPromises();
+
+    await w.get('[aria-label="Hide errors"]').trigger('click');
+    expect(w.find('[role="alert"]').exists()).toBe(false);
+
+    await button(w, '1 error')?.trigger('click');
+    expect(w.get('[role="alert"]').text()).toBe('NetworkSave failed');
+  });
+
   /** Mounts a grid whose Save fails on r3's risk, and saves once. */
   async function saveWithError() {
     let api: GridApi | undefined;
