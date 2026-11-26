@@ -1,11 +1,5 @@
-packages:
-  - frontend
-  - frontend/apps/*
-  - contracts
-
 allowBuilds:
   '@parcel/watcher': true
-  '@swc/core': true
   esbuild: true
   vue-demi: true
 minimumReleaseAgeExclude:
