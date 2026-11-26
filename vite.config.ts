@@ -7,6 +7,29 @@ import vueJsx from '@vitejs/plugin-vue-jsx';
 import AutoImport from 'unplugin-auto-import/vite';
 import { defineConfig, lazyPlugins } from 'vite-plus';
 
+/**
+ * Lint override: files `depth` folders below src/contracts may not import the
+ * app, by alias or by a relative path that climbs out of src/contracts.
+ */
+function contractsMayNotImportApp(files: string, depth: number) {
+  return {
+    files: [files],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              regex: `^((src|components|composables|config|pages|styles|utils)(/|$)|(\\.\\./){${depth + 1}})`,
+              message: 'Contracts must not import from the app.',
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
 export default defineConfig({
   server: {
     host: '0.0.0.0',
@@ -167,33 +190,12 @@ export default defineConfig({
           ],
         },
       },
-      {
-        // Contracts are the shared Zod schemas: the app imports them, never
-        // the other way round.
-        files: ['src/contracts/**'],
-        rules: {
-          'no-restricted-imports': [
-            'error',
-            {
-              patterns: [
-                {
-                  group: [
-                    'src/*',
-                    'components/*',
-                    'composables/*',
-                    'config/*',
-                    'pages/*',
-                    'styles/*',
-                    'utils/*',
-                    '../../*',
-                  ],
-                  message: 'Contracts must not import from the app.',
-                },
-              ],
-            },
-          ],
-        },
-      },
+      // Contracts are the shared Zod schemas: the app imports them, never the
+      // other way round. One entry per folder depth, so each catches the
+      // relative path that climbs out of src/contracts from that depth.
+      contractsMayNotImportApp('src/contracts/*.ts', 0),
+      contractsMayNotImportApp('src/contracts/*/*.ts', 1),
+      contractsMayNotImportApp('src/contracts/*/*/*.ts', 2),
       {
         // Logging is the job here: a CLI's report, and warnings for WebMCP
         // tools that fail to register.

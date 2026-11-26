@@ -1,6 +1,5 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
-  "entry": ["src/main.ts", "src/**/*.test.ts"],
-  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.mjs"],
-  "ignore": ["src/types/auto-imports.d.ts"]
+  "entry": ["src/**/*.test.ts"],
+  "project": ["src/**/*.{ts,tsx}", "scripts/**/*.mjs"]
 }
