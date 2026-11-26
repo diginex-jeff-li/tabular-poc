@@ -1,15 +1,39 @@
 import { ComplianceLibrarySchema } from 'contracts';
 import { fieldProblems } from 'utils/gridApi';
+import { zodToColumnDefs } from 'utils/zodToColumnDefs';
+import type { ComplianceLibraryType } from 'contracts';
 import type { GridSaveResponse } from 'utils/gridApi';
 import type { SavePayload } from 'utils/gridDiff';
+import type { GridColumn } from 'utils/zodToColumnDefs';
 
 /**
- * PROTOTYPE — the compliance library's fake backend: an in-memory store of
- * compliance library rows, seeded once, with the bulk save `DataGrid` calls
- * as `onSave`. NOT PRODUCTION.
+ * PROTOTYPE — the compliance library: its grid columns and its fake backend,
+ * an in-memory store of rows, seeded once, with the bulk save `DataGrid`
+ * calls as `onSave`. NOT PRODUCTION.
  */
 
 type Row = Record<string, unknown>;
+
+// Fixed widths in px, wide enough for the seed data and for each header title
+// beside its sort button, so filtering never reflows them.
+const WIDTHS: Partial<Record<keyof ComplianceLibraryType, number>> = {
+  categoryCode: 164,
+  complianceCategory: 204,
+  topic: 240,
+  riskLevel: 134,
+  issue: 560,
+  closureTiming: 164,
+  evidenceExpectation: 250,
+  bestPractice: 520,
+};
+
+/** Grid columns for the compliance library. */
+export function complianceColumns(): Array<GridColumn> {
+  return zodToColumnDefs(ComplianceLibrarySchema).map((column) => ({
+    ...column,
+    width: WIDTHS[column.id as keyof ComplianceLibraryType],
+  }));
+}
 
 const UpsertSchema = ComplianceLibrarySchema.omit({
   createdAt: true,

@@ -173,6 +173,7 @@ Programmatic access (agent tools, file import) goes through the `GridApi` seam
 | File                                                      | Purpose                                               |
 | --------------------------------------------------------- | ----------------------------------------------------- |
 | `frontend/apps/admin/src/pages/ComplianceGridEditor.tsx`  | Compliance library grid page                          |
+| `frontend/apps/admin/src/utils/complianceLibrary.ts`      | Compliance library — grid columns and the fake backend (`list`, `save` = `onSave`) |
 | `frontend/apps/admin/src/components/DataGrid/DataGrid.tsx` | Grid component — toolbar, keyboard, clipboard, error sidebar |
 | `frontend/apps/admin/src/composables/useDataGrid.ts`      | DataGrid state — rows, every person write (edit, paste, fill, clear), undo/redo, derived dirty diff, save loop, `GridApi` |
 | `frontend/apps/admin/src/utils/zodToColumnDefs.ts`        | Derive grid columns from a Zod schema                 |

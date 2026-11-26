@@ -1,6 +1,5 @@
 import DataGrid from 'components/DataGrid';
-import { buildComplianceGridColumns } from 'composables/buildComplianceGridColumns';
-import { complianceLibrary } from 'utils/complianceLibrary';
+import { complianceColumns, complianceLibrary } from 'utils/complianceLibrary';
 import { defineComponent } from 'vue';
 import type { VNode } from 'vue';
 
@@ -8,7 +7,7 @@ import type { VNode } from 'vue';
 export default defineComponent({
   name: 'ComplianceGridEditor',
   setup() {
-    const columns = buildComplianceGridColumns();
+    const columns = complianceColumns();
     return (): VNode => (
       <DataGrid
         columns={columns}

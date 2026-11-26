@@ -151,6 +151,7 @@ own `computed`, never in the column `cell` function. Rows have a fixed
 | File                                                      | Purpose                                               |
 | --------------------------------------------------------- | ----------------------------------------------------- |
 | `frontend/apps/admin/src/pages/ComplianceGridEditor.tsx`  | Compliance grid page                                  |
+| `frontend/apps/admin/src/utils/complianceLibrary.ts` | Compliance library: grid columns and the fake backend (`list`, `save` = `onSave`), tested through `save` |
 | `frontend/apps/admin/src/components/DataGrid/DataGrid.tsx` | Grid component: `UTable`, toolbar, keyboard, clipboard, error sidebar |
 | `frontend/apps/admin/src/composables/useDataGrid.ts` | DataGrid state: rows, every person write (edit, paste, fill, clear), undo/redo (`useManualRefHistory`), derived dirty diff, save loop, `GridApi` |
 | `frontend/apps/admin/src/composables/useGridSelection.ts` | Active cell, range and editing state (ids, not indexes) |
