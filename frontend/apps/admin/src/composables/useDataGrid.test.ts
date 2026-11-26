@@ -559,6 +559,17 @@ describe('useDataGrid', () => {
       expect(grid.rows.value.map((r) => r.name)).toEqual(['Anna', 'Bo', 'Cyd']);
     });
 
+    it('undoing a person write after an agent write never restores the rows before the agent write', () => {
+      const { grid } = setup();
+      grid.editCell({ rowId: 'a', colId: 'name' }, 'Anna');
+      grid.api.updateRows([{ id: 'c', name: 'Cyd' }]);
+      grid.editCell({ rowId: 'b', colId: 'name' }, 'Bob');
+
+      expect(grid.undo()).toBe(true);
+      expect(grid.rows.value.map((r) => r.name)).toEqual(['Anna', 'Bo', 'Cyd']);
+      expect(grid.undo()).toBe(false);
+    });
+
     it('a new person write drops the redo stack', () => {
       const { grid } = setup();
       grid.editCell({ rowId: 'a', colId: 'name' }, 'Anna');
