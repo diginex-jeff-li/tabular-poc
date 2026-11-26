@@ -24,14 +24,9 @@
     "lib": ["esnext", "dom", "dom.iterable"],
     "rootDir": "./src",
     "paths": {
-      "apis/*": ["./src/apis/*"],
       "components/*": ["./src/components/*"],
       "composables/*": ["./src/composables/*"],
-      "config/*": ["./src/config/*"],
-      "pages/*": ["./src/pages/*"],
-      "styles/*": ["./src/styles/*"],
       "utils/*": ["./src/utils/*"],
-      "src/*": ["./src/*"],
       "contracts": ["./src/contracts/index.ts"]
     }
   },

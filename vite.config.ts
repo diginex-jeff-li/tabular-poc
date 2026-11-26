@@ -20,7 +20,7 @@ function contractsMayNotImportApp(files: string, depth: number) {
         {
           patterns: [
             {
-              regex: `^((src|components|composables|config|pages|styles|utils)(/|$)|(\\.\\./){${depth + 1}})`,
+              regex: `^((components|composables|utils)(/|$)|(\\.\\./){${depth + 1}})`,
               message: 'Contracts must not import from the app.',
             },
           ],
@@ -37,12 +37,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      src: path.resolve(__dirname, 'src'),
       components: path.resolve(__dirname, 'src/components'),
       composables: path.resolve(__dirname, 'src/composables'),
-      config: path.resolve(__dirname, 'src/config'),
-      pages: path.resolve(__dirname, 'src/pages'),
-      styles: path.resolve(__dirname, 'src/styles'),
       utils: path.resolve(__dirname, 'src/utils'),
       contracts: path.resolve(__dirname, 'src/contracts'),
     },
