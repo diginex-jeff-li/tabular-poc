@@ -6,7 +6,7 @@
       "project": ["src/**/*.ts"],
       "ignore": ["dist/**"]
     },
-    "frontend": {
+    "frontend/apps/admin": {
       "entry": ["src/main.ts", "src/**/*.test.ts"],
       "project": ["src/**/*.{ts,tsx}"],
       "ignore": ["dist/**", "src/types/auto-imports.d.ts"]

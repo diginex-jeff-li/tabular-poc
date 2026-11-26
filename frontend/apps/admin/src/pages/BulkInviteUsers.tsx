@@ -130,8 +130,8 @@ export default defineComponent({
       return rows;
     }
 
-    async function applyMapping() {
-      const { added, ignored } = await draft.applyMapping();
+    function applyMapping() {
+      const { added, ignored } = draft.applyMapping();
       notice.value =
         `Added ${added} pasted row(s); ${draft.errors().length} error(s) to fix.` +
         (ignored.length ? ` Ignored columns: ${ignored.join(', ')}.` : '');
@@ -154,7 +154,7 @@ export default defineComponent({
       const { rows, ignoredHeaders } = await parseInviteWorkbook(
         await file.arrayBuffer(),
       );
-      await draft.add(rows, 'person');
+      draft.add(rows, 'person');
       notice.value =
         `Imported ${rows.length} row(s) from ${file.name}; ${draft.errors().length} error(s) to fix.` +
         (ignoredHeaders.length
@@ -251,10 +251,7 @@ export default defineComponent({
           },
         };
         if (storage.restored) {
-          void draft.restore(
-            storage.restored.rows,
-            storage.restored.agentProposed,
-          );
+          draft.restore(storage.restored.rows, storage.restored.agentProposed);
         }
       },
       title: 'Bulk invite users',

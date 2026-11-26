@@ -338,19 +338,19 @@ describe('useDataGrid', () => {
       expect(grid.rows.value[0].name).toBe('Ann');
     });
 
-    it('adds rows with fresh ids through normalizeRow, without reporting them', async () => {
+    it('adds rows with fresh ids through normalizeRow, without reporting them', () => {
       const { api, onUserEdit } = setupApi();
-      const ids = await api.addRows([{ id: 'forged', name: ' Cy ' }]);
+      const ids = api.addRows([{ id: 'forged', name: ' Cy ' }]);
       expect(ids).toHaveLength(1);
       expect(ids[0]).not.toBe('forged');
       expect(api.getRows()[2]).toEqual({ id: ids[0], name: 'Cy' });
       expect(onUserEdit).not.toHaveBeenCalled();
     });
 
-    it('merges patches through normalizeRow, reports unknown ids and counts as a change', async () => {
+    it('merges patches through normalizeRow, reports unknown ids and counts as a change', () => {
       const { grid, api, onUserEdit } = setupApi();
       const untouched = grid.rows.value[1];
-      const result = await api.updateRows([
+      const result = api.updateRows([
         { id: 'a', name: ' Anna ' },
         { id: 'gone', name: 'X' },
         { id: 'a', role: 'viewer' },
@@ -450,13 +450,13 @@ describe('useDataGrid', () => {
       expect(grid.undo()).toBe(false);
     });
 
-    it('an agent write empties both stacks and is never undone', async () => {
+    it('an agent write empties both stacks and is never undone', () => {
       const { grid } = setup();
       grid.editCell({ rowId: 'a', colId: 'name' }, 'Anna');
       grid.editCell({ rowId: 'b', colId: 'name' }, 'Bob');
       grid.undo();
 
-      await grid.api.updateRows([{ id: 'c', name: 'Cyd' }]);
+      grid.api.updateRows([{ id: 'c', name: 'Cyd' }]);
 
       expect(grid.undo()).toBe(false);
       expect(grid.redo()).toBe(false);

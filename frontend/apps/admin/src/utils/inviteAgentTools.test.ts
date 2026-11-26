@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vite-plus/test';
+import { useDataGrid } from 'composables/useDataGrid';
+import { normalizeInviteRow } from 'utils/draftRow';
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
+import { effectScope } from 'vue';
 import {
   AddRowsOutputSchema,
   createInviteTools,
@@ -7,13 +10,24 @@ import {
   UpdateRowsOutputSchema,
 } from './inviteAgentTools';
 import { createInviteDraft } from './inviteDraft';
-import { createMemoryGrid } from './memoryGridApi';
+import type { EffectScope } from 'vue';
 
 // Tool contract only: names, schemas, argument handling and output shapes.
-// The rules behind each tool are tested on the invite draft module.
+// The rules behind each tool are tested on the invite draft module. Each
+// grid runs headless in its own scope, stopped after the test.
+const scopes: Array<EffectScope> = [];
+
 function setup() {
-  const grid = createMemoryGrid();
-  const draft = createInviteDraft(() => grid, {
+  const scope = effectScope();
+  scopes.push(scope);
+  const grid = scope.run(() =>
+    useDataGrid({
+      data: [],
+      onSave: vi.fn(),
+      normalizeRow: normalizeInviteRow,
+    }),
+  );
+  const draft = createInviteDraft(() => grid.api, {
     existingEmails: new Set(['jane.doe@acme.com']),
   });
   const tools = createInviteTools(draft);
@@ -32,6 +46,12 @@ const person = {
 };
 
 describe('invite agent tools', () => {
+  afterEach(() => {
+    for (const scope of scopes.splice(0)) {
+      scope.stop();
+    }
+  });
+
   it('offers no tool that sends invites, confirms a row or applies a column mapping', () => {
     expect(setup().tools.map((t) => t.name)).toEqual([
       'get_invite_form',
@@ -103,11 +123,12 @@ describe('invite agent tools', () => {
       ],
     });
 
-    expect(grid.rows[1]).not.toHaveProperty('isAdmin');
-    expect(grid.rows[1].id).not.toBe('forged');
+    const added = grid.rows.value[1];
+    expect(added).not.toHaveProperty('isAdmin');
+    expect(added.id).not.toBe('forged');
     expect(result.errors).toEqual([
       {
-        id: grid.rows[1].id,
+        id: added.id,
         field: 'email',
         message: 'jane.doe@acme.com already has an account',
       },
@@ -117,7 +138,7 @@ describe('invite agent tools', () => {
   it('acts as the agent: update_rows marks a resolved line, delete_rows is refused for it', async () => {
     const { grid, call } = setup();
     await call('add_rows', { rows: [{ email: 'Tom Lee tom@acme.com Owner' }] });
-    const tom = grid.rows[0].id as string;
+    const tom = grid.rows.value[0].id;
     await call('update_rows', {
       rows: [{ id: tom, ...person, email: 'tom@acme.com', firstName: 'Tom' }],
     });

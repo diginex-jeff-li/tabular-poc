@@ -1,4 +1,5 @@
 import { INVITE_COLUMNS, matchInviteHeader } from 'contracts';
+import { parseTsv } from './gridClipboard';
 import type { InviteField } from 'contracts';
 
 /**
@@ -26,12 +27,11 @@ export type PastePlan =
   | { kind: 'hold'; table: UnmappedTable; mapping: ColumnMapping }
   | { kind: 'positional' };
 
+/** Pasted text as trimmed cells, blank lines left out. */
 function readTable(text: string): Array<Array<string>> {
-  return text
-    .split('\n')
-    .map((line) => line.replace(/\r$/, ''))
-    .filter((line) => line.trim())
-    .map((line) => line.split('\t').map((cell) => cell.trim()));
+  return parseTsv(text)
+    .map((cells) => cells.map((cell) => cell.trim()))
+    .filter((cells) => cells.some(Boolean));
 }
 
 export function planPaste(

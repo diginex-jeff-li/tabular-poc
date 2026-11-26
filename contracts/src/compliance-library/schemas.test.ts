@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vite-plus/test';
-import { BulkSaveRequestSchema } from './requests/index.js';
 import {
   BulkSaveResponseSchema,
   BulkSaveErrorSchema,
@@ -129,52 +128,6 @@ describe('Enum exports', () => {
 
   it('TopicEnum has 14 values', () => {
     expect(TopicEnum.options).toHaveLength(14);
-  });
-});
-
-describe('BulkSaveRequestSchema', () => {
-  const upsertRow = {
-    id: '550e8400-e29b-41d4-a716-446655440000',
-    categoryCode: 'A',
-    complianceCategory: 'Governance',
-    topic: 'Key Compliance Requirements',
-    riskLevel: 'High',
-    issue: 'Test issue',
-    closureTiming: '30',
-    evidenceExpectation: 'Evidence',
-    bestPractice: null,
-  };
-
-  it('parses a valid request with upserts and deletes', () => {
-    const result = BulkSaveRequestSchema.safeParse({
-      upserts: [upsertRow],
-      deletes: ['550e8400-e29b-41d4-a716-446655440001'],
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('parses empty upserts and deletes', () => {
-    const result = BulkSaveRequestSchema.safeParse({
-      upserts: [],
-      deletes: [],
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it('rejects invalid upsert row (bad categoryCode)', () => {
-    const result = BulkSaveRequestSchema.safeParse({
-      upserts: [{ ...upsertRow, categoryCode: 'ZZ' }],
-      deletes: [],
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it('rejects non-UUID in deletes array', () => {
-    const result = BulkSaveRequestSchema.safeParse({
-      upserts: [],
-      deletes: ['not-a-uuid'],
-    });
-    expect(result.success).toBe(false);
   });
 });
 

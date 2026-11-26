@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vite-plus/test';
-import { parsePositionalPaste, serializeTsv } from './gridClipboard';
+import { parsePositionalPaste, parseTsv, serializeTsv } from './gridClipboard';
 import type { CellPos } from './gridRange';
 import type { GridColumn } from './zodToColumnDefs';
 
@@ -75,6 +75,38 @@ describe('serializeTsv', () => {
   });
 });
 
+describe('parseTsv', () => {
+  it('reads a copied cell holding a tab, line breaks and quotes back as one cell', () => {
+    const columns = [text('name'), text('note')];
+    const rows = [{ id: 'r1', name: 'a\tb', note: 'say "hi"\r\nbye\n""' }];
+    const copied = serializeTsv(
+      rows,
+      [[at('r1', 'name'), at('r1', 'note')]],
+      columns,
+    );
+    expect(parseTsv(copied)).toEqual([['a\tb', 'say "hi"\r\nbye\n""']]);
+    expect(parsePositionalPaste(copied, columns)).toEqual([
+      { name: 'a\tb', note: 'say "hi"\r\nbye\n""' },
+    ]);
+  });
+
+  it('drops the carriage return of Windows line breaks and one trailing line break', () => {
+    expect(parseTsv('a\tb\r\nc\td\r\n')).toEqual([
+      ['a', 'b'],
+      ['c', 'd'],
+    ]);
+    expect(parseTsv('a\n\n')).toEqual([['a'], ['']]);
+    expect(parseTsv('')).toEqual([]);
+  });
+
+  it('keeps quotes that do not wrap a whole cell as text', () => {
+    expect(parseTsv('"Acme" Ltd\tsay "hi"\n"open\tx')).toEqual([
+      ['"Acme" Ltd', 'say "hi"'],
+      ['"open', 'x'],
+    ]);
+  });
+});
+
 // Ported by behaviour from `parseClipboardPaste` in useGridEditor.test.ts.
 // Its `visible: false` case has no counterpart: hidden fields never become a
 // `GridColumn`.
@@ -113,6 +145,14 @@ describe('parsePositionalPaste', () => {
       { name: 'Alice' },
       { name: 'Bob' },
       { name: 'Charlie' },
+    ]);
+  });
+
+  it('reads a Windows (CRLF) paste without a carriage return in the last cell', () => {
+    const columns = [text('name'), text('age')];
+    expect(parsePositionalPaste('Alice\t30\r\nBob\t25\r\n', columns)).toEqual([
+      { name: 'Alice', age: '30' },
+      { name: 'Bob', age: '25' },
     ]);
   });
 

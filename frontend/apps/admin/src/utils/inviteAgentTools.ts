@@ -187,7 +187,7 @@ export function createInviteTools(draft: InviteDraft): Array<AgentTool> {
       outputSchema: jsonSchema(AddRowsOutputSchema),
       annotations: { readOnlyHint: false },
       execute: async (args) => {
-        const added = await draft.add(
+        const added = draft.add(
           requireArray(args, 'rows').map(toDraftRow),
           'agent',
         );
@@ -210,7 +210,7 @@ export function createInviteTools(draft: InviteDraft): Array<AgentTool> {
           id: String((r as Record<string, unknown>)?.id ?? ''),
           ...toDraftRow(r),
         }));
-        const { updated, missing } = await draft.update(patches, 'agent');
+        const { updated, missing } = draft.update(patches, 'agent');
         return {
           updated,
           missingIds: missing,

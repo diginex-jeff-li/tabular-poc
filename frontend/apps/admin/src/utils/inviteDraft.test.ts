@@ -1,10 +1,26 @@
-import { describe, expect, it } from 'vite-plus/test';
+import { useDataGrid } from 'composables/useDataGrid';
+import { normalizeInviteRow } from 'utils/draftRow';
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
+import { effectScope } from 'vue';
 import { createInviteDraft } from './inviteDraft';
-import { createMemoryGrid } from './memoryGridApi';
+import type { InviteDraft } from './inviteDraft';
+import type { EffectScope } from 'vue';
+
+// The draft runs on the page's grid adapter, headless: each grid in its own
+// scope, stopped after the test, so window listeners never outlive it.
+const scopes: Array<EffectScope> = [];
 
 function setup() {
-  const grid = createMemoryGrid();
-  const draft = createInviteDraft(() => grid, {
+  const scope = effectScope();
+  scopes.push(scope);
+  const grid = scope.run(() =>
+    useDataGrid({
+      data: [],
+      onSave: vi.fn(),
+      normalizeRow: normalizeInviteRow,
+    }),
+  );
+  const draft = createInviteDraft(() => grid.api, {
     existingEmails: new Set(['jane.doe@acme.com']),
   });
   return { grid, draft };
@@ -23,13 +39,18 @@ const tomFixed = {
   lastName: 'Lee',
   role: 'Viewer',
 };
-const statuses = (draft: ReturnType<typeof setup>['draft']) =>
-  draft.rows().map((r) => r.status);
+const statuses = (draft: InviteDraft) => draft.rows().map((r) => r.status);
 
 describe('invite draft', () => {
-  it('normalizes what is added, checks every row and paints the errors', async () => {
+  afterEach(() => {
+    for (const scope of scopes.splice(0)) {
+      scope.stop();
+    }
+  });
+
+  it('normalizes what is added, checks every row and paints the errors', () => {
     const { draft, grid } = setup();
-    await draft.add(
+    draft.add(
       [
         { ...ann, email: ' ANN@acme.com ', role: 'viewer' },
         { ...ann, email: 'jane.doe@acme.com' },
@@ -43,66 +64,66 @@ describe('invite draft', () => {
       role: 'Viewer',
     });
     expect(statuses(draft)).toEqual(['Ready', 'Not ready', 'Needs review']);
-    expect(grid.shown).toEqual(draft.errors());
+    expect(grid.errorList.value).toEqual(draft.errors());
   });
 
   describe('agent proposed', () => {
-    async function proposed() {
+    function proposed() {
       const s = setup();
-      const [tom] = await s.draft.add([TOM_LINE], 'person');
-      await s.draft.update([{ id: tom, ...tomFixed }], 'agent');
+      const [tom] = s.draft.add([TOM_LINE], 'person');
+      s.draft.update([{ id: tom, ...tomFixed }], 'agent');
       return { ...s, tom };
     }
 
-    it('an agent resolving a needs-review row marks it and blocks Send', async () => {
-      const { draft } = await proposed();
+    it('an agent resolving a needs-review row marks it and blocks Send', () => {
+      const { draft } = proposed();
       expect(statuses(draft)).toEqual(['Agent proposed']);
       expect(draft.send()).toMatchObject({ saved: 0 });
     });
 
-    it('a person confirming it unblocks Send', async () => {
-      const { draft, tom } = await proposed();
+    it('a person confirming it unblocks Send', () => {
+      const { draft, tom } = proposed();
       draft.confirm(tom);
       expect(statuses(draft)).toEqual(['Ready']);
       expect(draft.send()).toEqual({ errors: [], saved: 1 });
     });
 
-    it('a person editing it, here or in the grid, clears the mark', async () => {
-      const a = await proposed();
-      await a.draft.update([{ id: a.tom, firstName: 'Thomas' }], 'person');
+    it('a person editing it, here or in the grid, clears the mark', () => {
+      const a = proposed();
+      a.draft.update([{ id: a.tom, firstName: 'Thomas' }], 'person');
       expect(statuses(a.draft)).toEqual(['Ready']);
 
-      const b = await proposed();
+      const b = proposed();
       b.draft.edited([b.tom]);
       expect(statuses(b.draft)).toEqual(['Ready']);
     });
 
-    it('an agent editing a row that did not need review does not mark it', async () => {
+    it('an agent editing a row that did not need review does not mark it', () => {
       const { draft } = setup();
-      const [id] = await draft.add([ann], 'person');
-      await draft.update([{ id, firstName: 'Anne' }], 'agent');
+      const [id] = draft.add([ann], 'person');
+      draft.update([{ id, firstName: 'Anne' }], 'agent');
       expect(statuses(draft)).toEqual(['Ready']);
     });
 
-    it('an agent cannot delete it and swap in an unmarked copy', async () => {
-      const { draft, tom, grid } = await proposed();
+    it('an agent cannot delete it and swap in an unmarked copy', () => {
+      const { draft, tom, grid } = proposed();
       expect(() => draft.remove([tom], 'agent')).toThrow(/agent proposed/i);
-      expect(grid.rows).toHaveLength(1);
+      expect(grid.rows.value).toHaveLength(1);
       draft.remove([tom], 'person');
-      expect(grid.rows).toHaveLength(0);
+      expect(grid.rows.value).toHaveLength(0);
     });
   });
 
-  it('an agent cannot delete a row that needs review; nothing is deleted', async () => {
+  it('an agent cannot delete a row that needs review; nothing is deleted', () => {
     const { draft, grid } = setup();
-    const ids = await draft.add([ann, TOM_LINE], 'agent');
+    const ids = draft.add([ann, TOM_LINE], 'agent');
     expect(() => draft.remove(ids, 'agent')).toThrow(/need review/i);
-    expect(grid.rows).toHaveLength(2);
+    expect(grid.rows.value).toHaveLength(2);
   });
 
-  it('re-checks after a delete: the surviving duplicate becomes ready', async () => {
+  it('re-checks after a delete: the surviving duplicate becomes ready', () => {
     const { draft } = setup();
-    const [, second] = await draft.add([ann, ann], 'person');
+    const [, second] = draft.add([ann, ann], 'person');
     expect(statuses(draft)).toEqual(['Ready', 'Not ready']);
     draft.remove([second], 'person');
     expect(statuses(draft)).toEqual(['Ready']);
@@ -132,7 +153,7 @@ describe('invite draft', () => {
       expect(draft.held.value?.mapping).toEqual(['email', null, null, null]);
     });
 
-    it('the agent proposes, a person applies, and the rows enter the draft', async () => {
+    it('the agent proposes, a person applies, and the rows enter the draft', () => {
       const { draft } = setup();
       draft.paste(PASTE, { autoMatch: true }, positional);
 
@@ -143,18 +164,16 @@ describe('invite draft', () => {
       draft.setMappingColumn(3, 'role');
       expect(draft.held.value?.agentColumns).toEqual([0, 1, 2]);
 
-      expect(await draft.applyMapping()).toEqual({ added: 1, ignored: [] });
+      expect(draft.applyMapping()).toEqual({ added: 1, ignored: [] });
       expect(draft.held.value).toBeNull();
       expect(statuses(draft)).toEqual(['Ready']);
     });
 
-    it('refuses to apply an incomplete mapping and rejects a mapping that does not fit', async () => {
+    it('refuses to apply an incomplete mapping and rejects a mapping that does not fit', () => {
       const { draft } = setup();
       expect(() => draft.proposeMapping([])).toThrow(/no pasted table/i);
       draft.paste(PASTE, { autoMatch: true }, positional);
-      await expect(draft.applyMapping()).rejects.toThrow(
-        /No column for First Name/,
-      );
+      expect(() => draft.applyMapping()).toThrow(/No column for First Name/);
       expect(() => draft.proposeMapping(['email'])).toThrow(/4 columns/);
       expect(() => draft.proposeMapping(['email', 'mail', null, null])).toThrow(
         /unknown template column "mail"/i,

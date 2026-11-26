@@ -1,7 +1,7 @@
 /**
- * The seams `DataGrid` and the in-memory adapter (`memoryGridApi`) share: the
- * save result shape, which matches the contracts' BulkSaveError/Response, and
- * the programmatic grid access the invite draft, agent tools and file import
+ * The seams `DataGrid` (through `useDataGrid`) exposes: the save result
+ * shape, which matches the contracts' BulkSaveError/Response, and the
+ * programmatic grid access the invite draft, agent tools and file import
  * use.
  */
 export interface GridSaveError {
@@ -28,10 +28,11 @@ export function rowLabel(rowNumber: number | null): string {
 /** Programmatic grid access for agent tools and file import. Rows by `id`. */
 export interface GridApi {
   getRows(): Array<Record<string, unknown>>;
-  addRows(rows: Array<Record<string, unknown>>): Promise<Array<string>>;
-  updateRows(
-    patches: Array<{ id: string } & Record<string, unknown>>,
-  ): Promise<{ updated: Array<string>; missing: Array<string> }>;
+  addRows(rows: Array<Record<string, unknown>>): Array<string>;
+  updateRows(patches: Array<{ id: string } & Record<string, unknown>>): {
+    updated: Array<string>;
+    missing: Array<string>;
+  };
   deleteRows(ids: Array<string>): {
     deleted: Array<string>;
     missing: Array<string>;

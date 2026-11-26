@@ -1,15 +1,4 @@
 import { z } from 'zod';
-import { PaginationMetaSchema } from '../../common/schemas/index.js';
-import { ComplianceLibrarySchema } from '../schemas/index.js';
-
-export const ListComplianceLibraryResponseSchema = z.object({
-  data: z.array(ComplianceLibrarySchema),
-  meta: PaginationMetaSchema,
-});
-
-export type ListComplianceLibraryResponseType = z.infer<
-  typeof ListComplianceLibraryResponseSchema
->;
 
 export const BulkSaveErrorSchema = z.object({
   row: z.number().int().min(0),

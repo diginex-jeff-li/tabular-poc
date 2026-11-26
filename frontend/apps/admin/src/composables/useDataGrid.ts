@@ -54,10 +54,11 @@ export interface DataGridState {
   /** Inserts an empty row at the top. */
   addRow: () => void;
   /**
-   * Programmatic access for agent tools and file import (`onReady`), the
-   * same behaviour as `memoryGridApi`. Writes through it are not reported to
-   * `onUserEdit` (the caller already knows what it changed) and are not
-   * undoable: a write that changes rows empties the undo and redo history.
+   * Programmatic access for agent tools and file import (`onReady`). Rows
+   * it adds or patches go through `normalizeRow`, as a person's writes do.
+   * Writes through it are not reported to `onUserEdit` (the caller already
+   * knows what it changed) and are not undoable: a write that changes rows
+   * empties the undo and redo history.
    */
   api: GridApi;
   /** Removes the ticked rows. */
@@ -270,8 +271,8 @@ export function useDataGrid(opts: {
 
   const api: GridApi = {
     getRows: () => rows.value.map((row) => ({ ...row })),
-    addRows: async (added) => addRows(added),
-    updateRows: async (patches) => updateRows(patches),
+    addRows,
+    updateRows,
     deleteRows,
     showErrors: (errors) => {
       errorList.value = errors;

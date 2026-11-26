@@ -4,12 +4,7 @@ import {
   mappingProblems,
   planPaste,
 } from 'utils/columnMapping';
-import {
-  draftFields,
-  inviteRowStatus,
-  needsReview,
-  normalizeInviteRow,
-} from 'utils/draftRow';
+import { draftFields, inviteRowStatus, needsReview } from 'utils/draftRow';
 import { validateInvites } from 'utils/validateInvites';
 import { shallowRef } from 'vue';
 import type { InviteField } from 'contracts';
@@ -22,10 +17,11 @@ import type { ShallowRef } from 'vue';
  * PROTOTYPE — the invite draft (CONTEXT.md): every rule about who may change
  * which rows, behind one interface. The page and the agent tools are thin
  * adapters over it; rows themselves live behind the `GridApi` seam
- * (`DataGrid` on the page, in memory in tests).
+ * (`useDataGrid`'s `api`, built with `normalizeRow: normalizeInviteRow`, so
+ * the grid normalizes every row the draft writes).
  *
  * Rules it owns:
- * - every write is normalized and followed by a full check and repaint
+ * - every write is followed by a full check and repaint
  * - an agent resolving a needs-review row makes it agent proposed; a person
  *   confirming or editing the row clears that
  * - an agent cannot delete a row that needs review or is agent proposed
@@ -95,8 +91,8 @@ export function createInviteDraft(
 
   // Who added rows changes no rule today; the actor stays in the interface so
   // every write names it (agreed design, spec decision Q31).
-  async function add(newRows: Array<Row>, _by: Actor): Promise<Array<string>> {
-    const ids = await api().addRows(newRows.map(normalizeInviteRow));
+  function add(newRows: Array<Row>, _by: Actor): Array<string> {
+    const ids = api().addRows(newRows);
     check();
     return ids;
   }
@@ -106,11 +102,11 @@ export function createInviteDraft(
    * as unsent and Send stays available) and get fresh ids; rows that were
    * agent proposed stay agent proposed, so they still need a person's Confirm.
    */
-  async function restore(
+  function restore(
     saved: Array<{ id: string } & Row>,
     proposed: Array<string>,
-  ): Promise<void> {
-    const ids = await api().addRows(saved);
+  ): void {
+    const ids = api().addRows(saved);
     const wasProposed = new Set(proposed);
     saved.forEach((row, i) => {
       if (wasProposed.has(row.id)) {
@@ -120,23 +116,17 @@ export function createInviteDraft(
     check();
   }
 
-  async function update(
+  function update(
     patches: Array<{ id: string } & Row>,
     by: Actor,
-  ): Promise<{ updated: Array<string>; missing: Array<string> }> {
+  ): { updated: Array<string>; missing: Array<string> } {
     const wasReview = new Set(
       patches.flatMap((p) => {
         const row = rowById(p.id);
         return row !== undefined && needsReview(row) ? [p.id] : [];
       }),
     );
-    const merged = patches.map(({ id, ...fields }) => {
-      const current = rowById(id);
-      return current
-        ? { ...normalizeInviteRow({ ...current, ...fields }), id }
-        : { id, ...fields };
-    });
-    const result = await api().updateRows(merged);
+    const result = api().updateRows(patches);
     for (const id of result.updated) {
       if (by === 'person') {
         agentProposed.delete(id);
@@ -251,10 +241,7 @@ export function createInviteDraft(
   }
 
   /** A person applies the mapping: the pasted rows enter the draft. */
-  async function applyMapping(): Promise<{
-    added: number;
-    ignored: Array<string>;
-  }> {
+  function applyMapping(): { added: number; ignored: Array<string> } {
     const { table, mapping } = heldOrThrow();
     const problems = mappingProblems(mapping);
     if (problems.length > 0) {
@@ -262,7 +249,7 @@ export function createInviteDraft(
     }
     const { rows: mapped, ignored } = applyColumnMapping(table, mapping);
     held.value = null;
-    await add(mapped, 'person');
+    add(mapped, 'person');
     return { added: mapped.length, ignored };
   }
 
