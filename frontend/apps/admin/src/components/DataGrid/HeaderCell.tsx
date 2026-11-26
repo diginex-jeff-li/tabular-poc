@@ -1,7 +1,8 @@
 /**
- * A data column's header: title, a tristate sort button (asc → desc → none)
- * and the column's filter. Only the sort button sorts; a press anywhere else
- * outside the controls selects the column.
+ * A data column's header: title, a tristate sort button (asc → desc → none),
+ * the column's filter, and a resize handle on its right edge. Only the sort
+ * button sorts; a press anywhere else outside the controls selects the
+ * column, and on a movable column a drag from there moves it.
  */
 import UButton from '@nuxt/ui/components/Button.vue';
 import UInput from '@nuxt/ui/components/Input.vue';
@@ -10,13 +11,20 @@ import { computed, defineComponent } from 'vue';
 import type { TableColumn } from '@nuxt/ui/components/Table.vue';
 import type { Row } from 'composables/useDataGrid';
 import type { GridColumn } from 'utils/zodToColumnDefs';
-import type { PropType, VNode } from 'vue';
+import type { PropType, Ref, VNode } from 'vue';
 
 type HeaderContext = Parameters<
   Extract<NonNullable<TableColumn<Row>['header']>, (...args: never) => unknown>
 >[0];
-/** The TanStack column behind a header. */
-type TableColumnApi = HeaderContext['column'];
+/** The TanStack header (and its column) behind a header cell. */
+type TableHeader = HeaderContext['header'];
+
+/** A header drag in progress, shared by every header of one grid. */
+export interface ColumnDrag {
+  /** The movable column the pointer is over while a drag is on. */
+  over: Readonly<Ref<string | null>>;
+  start: (colId: string, x: number) => void;
+}
 
 const SORT_ICONS = {
   asc: 'i-lucide-arrow-up-narrow-wide',
@@ -29,20 +37,32 @@ const SORT_NEXT = {
   none: 'ascending',
 } as const;
 
+/** Presses on these belong to the control, not to the header. */
+const HEADER_CONTROLS = 'button,input,[role=combobox],[data-resize-handle]';
+
 export default defineComponent({
   name: 'HeaderCell',
   props: {
-    column: { type: Object as PropType<TableColumnApi>, required: true },
+    header: { type: Object as PropType<TableHeader>, required: true },
     def: { type: Object as PropType<GridColumn>, required: true },
+    drag: { type: Object as PropType<ColumnDrag>, required: true },
     onSelectColumn: { type: Function as PropType<() => void>, required: true },
   },
   setup(props) {
-    const sorted = computed(() => props.column.getIsSorted() || 'none');
-    const filterValue = computed(() => props.column.getFilterValue());
+    const column = computed(() => props.header.column);
+    const sorted = computed(() => column.value.getIsSorted() || 'none');
+    const filterValue = computed(() => column.value.getFilterValue());
+    const dropTarget = computed(() => props.drag.over.value === props.def.id);
     const setFilter = (value: unknown) => {
-      props.column.setFilterValue(
+      column.value.setFilterValue(
         value === '' || value === null ? undefined : value,
       );
+    };
+    // TanStack's handler takes a mousedown or touchstart and follows the
+    // pointer on the document until release.
+    const resize = (e: MouseEvent | TouchEvent) => {
+      e.stopPropagation();
+      props.header.getResizeHandler()(e);
     };
 
     const renderFilter = (): VNode | null => {
@@ -77,19 +97,27 @@ export default defineComponent({
 
     return (): VNode => (
       <div
-        class="flex select-none flex-col gap-1 px-3 py-2"
+        data-header-id={props.def.id}
+        class={[
+          'relative flex select-none flex-col gap-1 px-3 py-2',
+          !props.def.pinned && 'cursor-grab',
+          dropTarget.value && 'shadow-[inset_3px_0_0_var(--ui-primary)]',
+        ]}
         onPointerdown={(e: PointerEvent) => {
           if (
             e.button === 0 &&
-            !(e.target as Element).closest('button,input,[role=combobox]')
+            !(e.target as Element).closest(HEADER_CONTROLS)
           ) {
             props.onSelectColumn();
+            if (!props.def.pinned) {
+              props.drag.start(props.def.id, e.clientX);
+            }
           }
         }}
       >
         <div class="flex items-center gap-1">
           <span class="truncate">{props.def.title}</span>
-          {props.column.getCanSort() && (
+          {column.value.getCanSort() && (
             <UButton
               size="xs"
               color="neutral"
@@ -98,11 +126,19 @@ export default defineComponent({
               icon={SORT_ICONS[sorted.value]}
               aria-label={`Sort ${props.def.title} ${SORT_NEXT[sorted.value]}`}
               data-sort={sorted.value}
-              onClick={() => props.column.toggleSorting(undefined, false)}
+              onClick={() => column.value.toggleSorting(undefined, false)}
             />
           )}
         </div>
         {renderFilter()}
+        <div
+          data-resize-handle
+          aria-hidden="true"
+          class="absolute inset-y-0 -right-1 z-10 w-2 cursor-col-resize hover:bg-primary/40"
+          onMousedown={resize}
+          onTouchstart={resize}
+          onDblclick={() => column.value.resetSize()}
+        />
       </div>
     );
   },

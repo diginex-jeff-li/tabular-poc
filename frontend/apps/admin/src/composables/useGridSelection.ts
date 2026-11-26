@@ -16,12 +16,20 @@ import type { ComputedRef, Ref, ShallowRef } from 'vue';
  */
 type Editing = { pos: CellPos; seed: string | null };
 
+/** A fill-handle drag: the range it copies and the row the pointer is on. */
+type Fill = { source: Range; toRowId: string };
+
 /**
  * Everything a person is doing in the grid, by row and column id. The active
  * cell is the range's anchor; one selected cell is a range whose anchor and
- * focus are the same cell.
+ * focus are the same cell. Editing and filling never overlap: starting an
+ * edit ends a fill, and a fill only starts while nothing is edited.
  */
-type GridInteraction = { range: Range | null; editing: Editing | null };
+type GridInteraction = {
+  range: Range | null;
+  editing: Editing | null;
+  fill: Fill | null;
+};
 
 export interface GridSelection {
   state: Readonly<ShallowRef<GridInteraction>>;
@@ -29,33 +37,68 @@ export interface GridSelection {
   isActive: (rowId: string, colId: string) => boolean;
   isSelected: (rowId: string, colId: string) => boolean;
   isEditing: (rowId: string, colId: string) => boolean;
+  /** The range's bottom-right cell on screen, where the fill handle sits. */
+  isCorner: (rowId: string, colId: string) => boolean;
+  /** In the rows a fill drag would write, within the source's columns. */
+  isFillTarget: (rowId: string, colId: string) => boolean;
   /** The range's visible cells, row-major. */
   cells: () => Array<Array<CellPos>>;
   /** A click: the cell becomes the range, or with `extend` the range's new focus. */
   select: (pos: CellPos, extend?: boolean) => void;
-  /** A drag over `pos` with the button held: moves the focus there. */
+  /** A drag over `pos` with the button held: moves the focus there, or the fill's target row. */
   dragTo: (pos: CellPos) => void;
   /** A key move: the active cell moves (collapsing the range), or with `extend` the focus. */
   step: (dir: Dir, extend?: boolean) => boolean;
   selectRow: (rowId: string) => void;
   selectColumn: (colId: string) => void;
+  /** Nothing selected: the next paste appends. */
+  clear: () => void;
   startEdit: (pos: CellPos, seed: string | null) => void;
   stopEdit: () => void;
+  /** A press on the fill handle: the current range becomes the fill's source. */
+  startFill: () => void;
+  /**
+   * The button is released: ends the fill and returns it, and the range
+   * grows over the rows it filled. Null when no fill was running.
+   */
+  endFill: () => Fill | null;
 }
 
 const same = (a: CellPos, b: CellPos) =>
   a.rowId === b.rowId && a.colId === b.colId;
 
+/** The range covering `source` and the rows up to `toRowId`. */
+function filledRange(source: Range, toRowId: string, order: GridOrder): Range {
+  const cells = cellsIn(source, order);
+  const first = cells[0]?.[0];
+  const last = cells.at(-1)?.at(-1);
+  const to = order.rowIds.indexOf(toRowId);
+  if (!first || !last || to === -1) {
+    return source;
+  }
+  if (to > order.rowIds.indexOf(last.rowId)) {
+    return { anchor: first, focus: { rowId: toRowId, colId: last.colId } };
+  }
+  if (to < order.rowIds.indexOf(first.rowId)) {
+    return { anchor: { rowId: toRowId, colId: first.colId }, focus: last };
+  }
+  return source;
+}
+
 /**
  * Active cell, range and editing cell over the grid's visible `order`
- * (sorted and filtered row ids, visible column ids). When the order changes,
- * the range is fitted to it (`reconcile`) and an edit on a row that left the
- * view ends.
+ * (sorted and filtered row ids, visible column ids in screen order). When
+ * the order changes, the range is fitted to it (`reconcile`) and an edit on
+ * a row that left the view ends.
  */
 export function useGridSelection(
   order: Readonly<Ref<GridOrder>>,
 ): GridSelection {
-  const state = shallowRef<GridInteraction>({ range: null, editing: null });
+  const state = shallowRef<GridInteraction>({
+    range: null,
+    editing: null,
+    fill: null,
+  });
   const active = computed(() => state.value.range?.anchor ?? null);
   // The rows and columns the range spans, for per-cell lookups.
   const covered = computed(() => {
@@ -65,6 +108,27 @@ export function useGridSelection(
     return {
       rowIds: new Set(cells.map((line) => line[0].rowId)),
       colIds: new Set(cells[0]?.map((cell) => cell.colId)),
+      corner: cells.at(-1)?.at(-1) ?? null,
+    };
+  });
+  // The rows a running fill would write, with the source's columns.
+  const fillTarget = computed(() => {
+    const fill = state.value.fill;
+    if (!fill) {
+      return null;
+    }
+    const grown = cellsIn(
+      filledRange(fill.source, fill.toRowId, order.value),
+      order.value,
+    );
+    const source = new Set(
+      cellsIn(fill.source, order.value).map((line) => line[0].rowId),
+    );
+    return {
+      rowIds: new Set(
+        grown.map((line) => line[0].rowId).filter((id) => !source.has(id)),
+      ),
+      colIds: new Set(grown[0]?.map((cell) => cell.colId)),
     };
   });
 
@@ -80,7 +144,7 @@ export function useGridSelection(
     const stillEditing =
       editing && next.rowIds.includes(editing.pos.rowId) ? editing : null;
     if (fitted !== range || stillEditing !== editing) {
-      state.value = { range: fitted, editing: stillEditing };
+      state.value = { ...state.value, range: fitted, editing: stillEditing };
     }
   });
 
@@ -97,6 +161,16 @@ export function useGridSelection(
       const pos = state.value.editing?.pos;
       return pos !== undefined && pos.rowId === rowId && pos.colId === colId;
     },
+    isCorner: (rowId, colId) => {
+      const corner = covered.value.corner;
+      return (
+        corner !== null && corner.rowId === rowId && corner.colId === colId
+      );
+    },
+    isFillTarget: (rowId, colId) =>
+      fillTarget.value !== null &&
+      fillTarget.value.rowIds.has(rowId) &&
+      fillTarget.value.colIds.has(colId),
     cells: () =>
       state.value.range ? cellsIn(state.value.range, order.value) : [],
     select(pos, extendRange = false) {
@@ -108,8 +182,15 @@ export function useGridSelection(
       );
     },
     dragTo(pos) {
-      const range = state.value.range;
-      if (range && !same(range.focus, pos)) {
+      const { range, fill } = state.value;
+      if (fill) {
+        if (fill.toRowId !== pos.rowId) {
+          state.value = {
+            ...state.value,
+            fill: { source: fill.source, toRowId: pos.rowId },
+          };
+        }
+      } else if (range && !same(range.focus, pos)) {
         setRange({ anchor: range.anchor, focus: pos });
       }
     },
@@ -132,16 +213,43 @@ export function useGridSelection(
     },
     selectRow: (rowId) => setRange(rowRange(rowId, order.value)),
     selectColumn: (colId) => setRange(colRange(colId, order.value)),
+    clear() {
+      if (state.value.range || state.value.editing || state.value.fill) {
+        state.value = { range: null, editing: null, fill: null };
+      }
+    },
     startEdit(pos, seed) {
       state.value = {
         range: { anchor: pos, focus: pos },
         editing: { pos, seed },
+        fill: null,
       };
     },
     stopEdit() {
       if (state.value.editing) {
         state.value = { ...state.value, editing: null };
       }
+    },
+    startFill() {
+      const { range, editing } = state.value;
+      if (range && !editing) {
+        state.value = {
+          ...state.value,
+          fill: { source: range, toRowId: range.focus.rowId },
+        };
+      }
+    },
+    endFill() {
+      const fill = state.value.fill;
+      if (!fill) {
+        return null;
+      }
+      state.value = {
+        ...state.value,
+        range: filledRange(fill.source, fill.toRowId, order.value),
+        fill: null,
+      };
+      return fill;
     },
   };
 }

@@ -1,11 +1,12 @@
 import { useEventListener } from '@vueuse/core';
 import { clearCells as clearCellsIn } from 'utils/gridClear';
-import { buildSavePayload, diffRows } from 'utils/gridDiff';
+import { buildSavePayload, changedIds, diffRows } from 'utils/gridDiff';
+import { appendRows, writeCells } from 'utils/gridWrite';
 import { computed, readonly, ref, shallowRef, watch } from 'vue';
 import type { GridApi, GridSaveError, GridSaveResponse } from 'utils/gridApi';
 import type { SavePayload } from 'utils/gridDiff';
 import type { CellPos } from 'utils/gridRange';
-import type { GridColumn } from 'utils/zodToColumnDefs';
+import type { RowChange, WritableColumn } from 'utils/gridWrite';
 import type { ComputedRef, Ref, ShallowRef } from 'vue';
 
 /** A grid row. Rows are never mutated; every change replaces the row and the array. */
@@ -38,18 +39,25 @@ export interface DataGridState {
   /** Backend save errors for rows still in the grid. */
   errorList: Readonly<ShallowRef<ReadonlyArray<GridSaveError>>>;
   setRowSelected: (rowId: string, selected: boolean) => void;
+  /**
+   * Every person write goes through here (edit, paste, fill, clear, Add Row,
+   * Delete, Clear all): the touched rows still in the grid run through
+   * `normalizeRow`, the previous rows become one undo step (redo is
+   * dropped), and `onUserEdit(touchedIds)` is called once. A change whose
+   * `rows` is the current array records no undo step but is still reported.
+   */
+  commit: (change: RowChange) => void;
+  /** Steps back one person write; false when there is none. Reported to `onUserEdit`. */
+  undo: () => boolean;
+  /** Re-applies the last undone write; false when there is none. Reported to `onUserEdit`. */
+  redo: () => boolean;
   /** Inserts an empty row at the top. */
   addRow: () => void;
   /**
-   * Appends rows, each with a fresh id and through `normalizeRow`, and
-   * returns their ids. Not reported to `onUserEdit`: a paste reports them,
-   * an agent write (`api.addRows`) does not.
-   */
-  addRows: (rows: ReadonlyArray<Record<string, unknown>>) => Array<string>;
-  /**
    * Programmatic access for agent tools and file import (`onReady`), the
    * same behaviour as `memoryGridApi`. Writes through it are not reported to
-   * `onUserEdit`: the caller already knows what it changed.
+   * `onUserEdit` (the caller already knows what it changed) and are not
+   * undoable: a write that changes rows empties the undo and redo history.
    */
   api: GridApi;
   /** Removes the ticked rows. */
@@ -57,20 +65,17 @@ export interface DataGridState {
   /** Removes every row; saved ones are sent as deletes on the next save. */
   clearAll: () => void;
   /**
-   * A person's edit of one cell: the row is rebuilt through `normalizeRow`,
-   * replaced, and reported to `onUserEdit`. Returns false, and does nothing,
-   * when the value is unchanged (blank equals blank).
+   * A person's edit of one cell. Returns false, and does nothing, when the
+   * value is unchanged (blank equals blank).
    */
   editCell: (pos: CellPos, value: string) => boolean;
   /**
    * A person's Delete/Backspace over a block: empties its editable,
-   * non-blank cells, rebuilds each touched row through `normalizeRow`, and
-   * reports the touched rows to `onUserEdit` once. Nothing touched, nothing
-   * reported.
+   * non-blank cells. Nothing touched, nothing reported.
    */
   clearCells: (
     cells: ReadonlyArray<ReadonlyArray<CellPos>>,
-    columns: ReadonlyArray<GridColumn>,
+    columns: ReadonlyArray<WritableColumn>,
   ) => void;
   save: () => Promise<void>;
 }
@@ -93,6 +98,12 @@ export function useDataGrid(opts: {
   const isSaving = ref(false);
   const saveResult = shallowRef<GridSaveResponse | null>(null);
   const errorList = shallowRef<Array<GridSaveError>>([]);
+  // Earlier states of `rows`, newest last. Rows are immutable, so a state is
+  // an array reference: a step costs one array of pointers, never a clone.
+  const history = {
+    undo: [] as Array<ReadonlyArray<Row>>,
+    redo: [] as Array<ReadonlyArray<Row>>,
+  };
 
   // Baseline at load and after each successful save. Rows are immutable, so
   // the array reference is the snapshot; no clone needed.
@@ -126,43 +137,89 @@ export function useDataGrid(opts: {
     return { ...(opts.normalizeRow?.(row) ?? row), id: row.id };
   }
 
+  /** Replaces `rows`; ticks and save errors of rows that left go with them. */
+  function replace(next: ReadonlyArray<Row>) {
+    rows.value = next;
+    const ticked = Object.keys(rowSelection.value);
+    if (ticked.length === 0 && errorList.value.length === 0) {
+      return;
+    }
+    const present = new Set(next.map((row) => row.id));
+    if (ticked.some((id) => !present.has(id))) {
+      rowSelection.value = Object.fromEntries(
+        ticked.filter((id) => present.has(id)).map((id) => [id, true]),
+      );
+    }
+    if (errorList.value.some((err) => !present.has(err.rowId))) {
+      errorList.value = errorList.value.filter((err) => present.has(err.rowId));
+    }
+  }
+
   function setRowSelected(rowId: string, selected: boolean) {
     const { [rowId]: _, ...rest } = rowSelection.value;
     rowSelection.value = selected ? { ...rest, [rowId]: true } : rest;
   }
 
-  function addRow() {
-    const row = normalized({ id: crypto.randomUUID() });
-    rows.value = [row, ...rows.value];
-    opts.onUserEdit?.([row.id]);
-  }
-
-  function addRows(added: ReadonlyArray<Record<string, unknown>>) {
-    const fresh = added.map((row) =>
-      normalized({ ...row, id: crypto.randomUUID() }),
-    );
-    rows.value = [...rows.value, ...fresh];
-    return fresh.map((row) => row.id);
-  }
-
-  /** Drops these rows, their tick and their save errors. */
-  function removeRows(gone: ReadonlySet<string>) {
-    if (gone.size === 0) {
-      return;
+  function commit({ rows: next, touchedIds }: RowChange) {
+    if (next !== rows.value) {
+      const touched = new Set(touchedIds);
+      history.undo.push(rows.value);
+      history.redo = [];
+      replace(next.map((row) => (touched.has(row.id) ? normalized(row) : row)));
     }
-    rows.value = rows.value.filter((row) => !gone.has(row.id));
-    rowSelection.value = Object.fromEntries(
-      Object.entries(rowSelection.value).filter(([id]) => !gone.has(id)),
-    );
-    errorList.value = errorList.value.filter((err) => !gone.has(err.rowId));
+    opts.onUserEdit?.(touchedIds);
+  }
+
+  /** Moves one state from `from` to the current rows, keeping the current one in `to`. */
+  function travel(
+    from: Array<ReadonlyArray<Row>>,
+    to: Array<ReadonlyArray<Row>>,
+  ): boolean {
+    const target = from.pop();
+    if (!target) {
+      return false;
+    }
+    to.push(rows.value);
+    const ids = changedIds(rows.value, target);
+    replace(target);
+    opts.onUserEdit?.(ids);
+    return true;
+  }
+
+  /** An agent's write: not undoable, and the history before it no longer applies. */
+  function agentWrite(next: ReadonlyArray<Row>) {
+    if (next !== rows.value) {
+      history.undo = [];
+      history.redo = [];
+      replace(next);
+    }
+  }
+
+  function addRow() {
+    const id = crypto.randomUUID();
+    commit({ rows: [{ id }, ...rows.value], touchedIds: [id] });
   }
 
   function deleteSelected() {
     const ids = rows.value
       .filter((row) => rowSelection.value[row.id])
       .map((row) => row.id);
-    removeRows(new Set(ids));
-    opts.onUserEdit?.(ids);
+    const gone = new Set(ids);
+    commit({
+      rows: ids.length
+        ? rows.value.filter((row) => !gone.has(row.id))
+        : rows.value,
+      touchedIds: ids,
+    });
+  }
+
+  function addRows(added: ReadonlyArray<Record<string, unknown>>) {
+    const change = appendRows(rows.value, added);
+    const fresh = new Set(change.touchedIds);
+    agentWrite(
+      change.rows.map((row) => (fresh.has(row.id) ? normalized(row) : row)),
+    );
+    return change.touchedIds;
   }
 
   /** Merges each patch into its row, in order, through `normalizeRow`. */
@@ -184,7 +241,7 @@ export function useDataGrid(opts: {
       }
     }
     if (result.updated.length > 0) {
-      rows.value = rows.value.map((row) => byId.get(row.id) ?? row);
+      agentWrite(rows.value.map((row) => byId.get(row.id) ?? row));
     }
     return result;
   }
@@ -205,7 +262,9 @@ export function useDataGrid(opts: {
         result.missing.push(id);
       }
     }
-    removeRows(new Set(result.deleted));
+    if (result.deleted.length > 0) {
+      agentWrite(rows.value.filter((row) => present.has(row.id)));
+    }
     return result;
   }
 
@@ -220,37 +279,32 @@ export function useDataGrid(opts: {
   };
 
   function clearAll() {
-    rows.value = [];
+    commit({ rows: rows.value.length ? [] : rows.value, touchedIds: [] });
     rowSelection.value = {};
     errorList.value = [];
     saveResult.value = null;
-    opts.onUserEdit?.([]);
   }
 
   function editCell(pos: CellPos, value: string): boolean {
-    const row = rows.value.find((r) => r.id === pos.rowId);
-    if (!row || sameValue(row[pos.colId], value)) {
+    const change = writeCells(
+      rows.value,
+      new Map([[pos.rowId, { [pos.colId]: value }]]),
+    );
+    if (change.touchedIds.length === 0) {
       return false;
     }
-    const next = normalized({ ...row, [pos.colId]: value });
-    rows.value = rows.value.map((r) => (r === row ? next : r));
-    opts.onUserEdit?.([row.id]);
+    commit(change);
     return true;
   }
 
   function clearCells(
     cells: ReadonlyArray<ReadonlyArray<CellPos>>,
-    columns: ReadonlyArray<GridColumn>,
+    columns: ReadonlyArray<WritableColumn>,
   ) {
-    const cleared = clearCellsIn(rows.value, cells, columns);
-    if (cleared.touchedIds.length === 0) {
-      return;
+    const change = clearCellsIn(rows.value, cells, columns);
+    if (change.touchedIds.length > 0) {
+      commit(change);
     }
-    const touched = new Set(cleared.touchedIds);
-    rows.value = cleared.rows.map((row) =>
-      touched.has(row.id) ? normalized(row) : row,
-    );
-    opts.onUserEdit?.(cleared.touchedIds);
   }
 
   async function save() {
@@ -292,8 +346,10 @@ export function useDataGrid(opts: {
     saveResult,
     errorList,
     setRowSelected,
+    commit,
+    undo: () => travel(history.undo, history.redo),
+    redo: () => travel(history.redo, history.undo),
     addRow,
-    addRows,
     api,
     deleteSelected,
     clearAll,
@@ -301,9 +357,4 @@ export function useDataGrid(opts: {
     clearCells,
     save,
   };
-}
-
-function sameValue(before: unknown, after: string): boolean {
-  const blank = before === null || before === undefined || before === '';
-  return blank ? after === '' : before === after;
 }

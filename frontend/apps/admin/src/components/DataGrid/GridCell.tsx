@@ -51,6 +51,8 @@ export interface GridCellContext {
   pressed: Ref<boolean>;
   startEdit: (pos: CellPos, seed: string | null) => void;
   endEdit: (pos: CellPos, end: EditEnd) => void;
+  /** A column's 1-based place on screen, the checkbox column included. */
+  colIndex: (colId: string) => number;
 }
 
 type Finish = (end: EditEnd) => void;
@@ -171,18 +173,22 @@ function cellClass(cell: {
   saveError: boolean;
   outlined: boolean;
   editing: boolean;
+  fillTarget: boolean;
 }): Array<string | false> {
   return [
-    'flex select-none items-center border-b border-default',
+    'relative flex select-none items-center border-b border-default',
     // An open editor fills the cell and supplies the same padding itself.
     !cell.editing && 'px-3',
     cell.saveError
       ? 'bg-error/10'
-      : cell.selected && !cell.editing && 'bg-primary/10',
+      : (cell.selected || cell.fillTarget) && !cell.editing && 'bg-primary/10',
     (cell.invalid || cell.saveError) && 'ring-2 ring-inset ring-error',
     cell.outlined
       ? 'outline-3 -outline-offset-3 outline-error'
-      : cell.active && 'outline-2 -outline-offset-2 outline-primary',
+      : cell.active
+        ? 'outline-2 -outline-offset-2 outline-primary'
+        : cell.fillTarget &&
+          'outline-1 -outline-offset-1 outline-dashed outline-primary',
   ];
 }
 
@@ -191,8 +197,6 @@ export default defineComponent({
   props: {
     row: { type: Object as PropType<Row>, required: true },
     column: { type: Object as PropType<GridColumn>, required: true },
-    /** 1-based, counting the checkbox column. */
-    colIndex: { type: Number, required: true },
     ctx: { type: Object as PropType<GridCellContext>, required: true },
   },
   setup(props) {
@@ -202,6 +206,11 @@ export default defineComponent({
     const editing = computed(() => selection.isEditing(props.row.id, colId));
     const active = computed(() => selection.isActive(props.row.id, colId));
     const selected = computed(() => selection.isSelected(props.row.id, colId));
+    const corner = computed(() => selection.isCorner(props.row.id, colId));
+    const fillTarget = computed(() =>
+      selection.isFillTarget(props.row.id, colId),
+    );
+    const colIndex = computed(() => props.ctx.colIndex(colId));
     const message = computed(
       () =>
         saveErrors.value.get(props.row.id)?.[colId] ??
@@ -217,7 +226,12 @@ export default defineComponent({
     );
 
     function onPointerdown(e: PointerEvent) {
-      if (e.button === 0 && !editing.value) {
+      if (e.button !== 0 || editing.value) {
+        return;
+      }
+      if ((e.target as Element).closest('[data-fill-handle]')) {
+        selection.startFill();
+      } else {
         selection.select(pos(), e.shiftKey);
       }
     }
@@ -274,7 +288,7 @@ export default defineComponent({
         data-col-id={colId}
         // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- UTable owns the <td> and binds no attributes on it
         role="gridcell"
-        aria-colindex={props.colIndex}
+        aria-colindex={colIndex.value}
         aria-selected={selected.value}
         aria-invalid={message.value === null ? undefined : true}
         title={message.value ?? undefined}
@@ -285,6 +299,7 @@ export default defineComponent({
           saveError: saveError.value,
           outlined: outlined.value,
           editing: editing.value,
+          fillTarget: fillTarget.value,
         })}
         style={{ height: `${ROW_HEIGHT}px` }}
         onPointerdown={onPointerdown}
@@ -292,6 +307,13 @@ export default defineComponent({
         onDblclick={() => props.ctx.startEdit(pos(), null)}
       >
         {editing.value ? renderEditor() : renderValue()}
+        {corner.value && !editing.value && (
+          <span
+            data-fill-handle
+            aria-hidden="true"
+            class="absolute right-0 bottom-0 z-10 size-2 cursor-crosshair bg-primary ring-1 ring-default"
+          />
+        )}
       </div>
     );
   },

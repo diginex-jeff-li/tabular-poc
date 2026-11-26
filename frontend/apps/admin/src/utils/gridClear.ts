@@ -1,5 +1,6 @@
+import { editableIds, writeCells } from './gridWrite';
 import type { CellPos } from './gridRange';
-import type { GridColumn } from './zodToColumnDefs';
+import type { RowChange, WritableColumn } from './gridWrite';
 import type { Row } from 'composables/useDataGrid';
 
 /**
@@ -13,33 +14,14 @@ import type { Row } from 'composables/useDataGrid';
 export function clearCells(
   rows: ReadonlyArray<Row>,
   cells: ReadonlyArray<ReadonlyArray<CellPos>>,
-  columns: ReadonlyArray<GridColumn>,
-): { rows: ReadonlyArray<Row>; touchedIds: Array<string> } {
-  const editable = new Set(
-    columns.flatMap((c) => (c.editor === null ? [] : [c.id])),
-  );
-  const targets = new Map<string, Array<string>>();
+  columns: ReadonlyArray<WritableColumn>,
+): RowChange {
+  const editable = editableIds(columns);
+  const writes = new Map<string, Record<string, null>>();
   for (const { rowId, colId } of cells.flat()) {
     if (editable.has(colId)) {
-      targets.set(rowId, [...(targets.get(rowId) ?? []), colId]);
+      writes.set(rowId, { ...writes.get(rowId), [colId]: null });
     }
   }
-
-  const touchedIds: Array<string> = [];
-  const next = rows.map((row) => {
-    const cleared = (targets.get(row.id) ?? []).filter((colId) => {
-      const value = row[colId];
-      return value !== null && value !== undefined && value !== '';
-    });
-    if (!cleared.length) {
-      return row;
-    }
-    touchedIds.push(row.id);
-    const copy: Row = { ...row };
-    for (const colId of cleared) {
-      copy[colId] = null;
-    }
-    return copy;
-  });
-  return { rows: touchedIds.length ? next : rows, touchedIds };
+  return writeCells(rows, writes);
 }

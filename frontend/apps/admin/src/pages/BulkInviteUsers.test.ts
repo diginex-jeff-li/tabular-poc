@@ -136,6 +136,67 @@ describe('BulkInviteUsers (TanStack engine)', () => {
   });
 });
 
+describe('BulkInviteUsers undo (TanStack engine)', () => {
+  /** ⌘Z on the grid root. */
+  async function undo(w: VueWrapper) {
+    w.get('[data-slot="root"][tabindex]').element.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'z',
+        metaKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    await flushPromises();
+  }
+  const firstName = (w: VueWrapper, rowId: string) =>
+    w.get(`[data-row-id="${rowId}"][data-col-id="firstName"]`);
+
+  it('never undoes an agent write or a Confirm; a person edit after them still undoes', async () => {
+    const { w, agent } = await mountPage();
+    await paste(w, 'bo@acme.com\tBo\tKim\tViewer');
+    const [bo] = w
+      .findAll('[data-col-id="email"]')
+      .map((c) => c.attributes('data-row-id') ?? '');
+    const { added } = (await agent.call('add_rows', {
+      rows: [{ email: 'Tom Lee tom@acme.com Owner' }],
+    })) as { added: Array<string> };
+    const [tom] = added;
+    await agent.call('update_rows', {
+      rows: [
+        {
+          id: tom,
+          email: 'tom@acme.com',
+          firstName: 'Tom',
+          lastName: 'Lee',
+          role: 'Viewer',
+        },
+      ],
+    });
+    await flushPromises();
+    expect(statusOf(w, tom).text()).toContain('Agent proposed');
+
+    // The agent's writes emptied the history: the person's paste stays too.
+    await undo(w);
+    expect(emails(w)).toEqual(['bo@acme.com', 'tom@acme.com']);
+    expect(statusOf(w, tom).text()).toContain('Agent proposed');
+
+    await firstName(w, bo).trigger('dblclick');
+    const input = firstName(w, bo).get('[data-grid-editor] input');
+    await input.setValue('Bob');
+    await input.trigger('keydown', { key: 'Enter' });
+    await statusOf(w, tom).get('button').trigger('click');
+    expect(statusOf(w, tom).text()).toBe('Ready');
+
+    await undo(w);
+    expect(firstName(w, bo).text()).toBe('Bo');
+    expect(statusOf(w, tom).text()).toBe('Ready');
+    await button(w, 'Send invites')?.trigger('click');
+    await flushPromises();
+    expect(w.text()).toContain('Simulated — no invitations sent (2 valid)');
+  });
+});
+
 describe('BulkInviteUsers draft in localStorage', () => {
   it('brings an unsent draft back after a reload, still waiting for Confirm', async () => {
     const first = await mountPage();

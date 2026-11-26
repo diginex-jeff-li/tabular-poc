@@ -1,3 +1,4 @@
+import { appendRows } from 'utils/gridWrite';
 import { afterEach, describe, it, expect, vi } from 'vite-plus/test';
 import { effectScope, nextTick } from 'vue';
 import { useDataGrid } from './useDataGrid';
@@ -220,7 +221,7 @@ describe('useDataGrid', () => {
     expect(onUserEdit).not.toHaveBeenCalled();
   });
 
-  it('appends added rows with fresh ids through normalizeRow, without reporting them', () => {
+  it('commits appended rows with fresh ids through normalizeRow and reports them once', () => {
     const onUserEdit = vi.fn();
     const scope = effectScope();
     scopes.push(scope);
@@ -233,18 +234,19 @@ describe('useDataGrid', () => {
       }),
     );
 
-    const ids = grid.addRows([{ id: 'a', name: ' Bo ' }, { name: 'Cy' }]);
+    grid.commit(
+      appendRows(grid.rows.value, [{ id: 'a', name: ' Bo ' }, { name: 'Cy' }]),
+    );
 
-    expect(ids).toHaveLength(2);
-    expect(new Set(ids).size).toBe(2);
-    expect(ids).not.toContain('a');
+    const ids = grid.rows.value.slice(1).map((row) => row.id);
+    expect(new Set([...ids, 'a']).size).toBe(3);
     expect(grid.rows.value).toEqual([
       { id: 'a', name: 'Ann' },
       { id: ids[0], name: 'Bo' },
       { id: ids[1], name: 'Cy' },
     ]);
     expect(grid.dirtyCount.value).toBe(2);
-    expect(onUserEdit).not.toHaveBeenCalled();
+    expect(onUserEdit).toHaveBeenCalledExactlyOnceWith(ids);
   });
 
   it('clears the editable cells of a block through normalizeRow and reports the touched rows once', () => {
@@ -385,6 +387,89 @@ describe('useDataGrid', () => {
       api.showErrors([error('a')]);
       api.showErrors([error('b')]);
       expect(grid.errorList.value).toEqual([error('b')]);
+    });
+  });
+
+  describe('undo and redo', () => {
+    it('undoes an edit back to the loaded data (0 changes) and redoes it, reporting the row each time', () => {
+      const { grid, onUserEdit } = setup();
+      grid.editCell({ rowId: 'b', colId: 'name' }, 'Bob');
+      expect(grid.dirtyCount.value).toBe(1);
+
+      expect(grid.undo()).toBe(true);
+      expect(grid.rows.value.map((r) => r.name)).toEqual(['Ann', 'Bo', 'Cy']);
+      expect(grid.dirtyCount.value).toBe(0);
+      expect(onUserEdit).toHaveBeenLastCalledWith(['b']);
+
+      expect(grid.redo()).toBe(true);
+      expect(grid.rows.value.map((r) => r.name)).toEqual(['Ann', 'Bob', 'Cy']);
+      expect(grid.dirtyCount.value).toBe(1);
+      expect(onUserEdit).toHaveBeenLastCalledWith(['b']);
+      expect(onUserEdit).toHaveBeenCalledTimes(3);
+      expect(grid.redo()).toBe(false);
+    });
+
+    it('undoes a paste by removing its rows, and redo brings the same rows back', () => {
+      const { grid, onUserEdit } = setup();
+      grid.commit(
+        appendRows(grid.rows.value, [{ name: 'Di' }, { name: 'Ed' }]),
+      );
+      const pasted = grid.rows.value.slice(3);
+
+      grid.undo();
+      expect(grid.rows.value.map((r) => r.id)).toEqual(['a', 'b', 'c']);
+      expect(onUserEdit).toHaveBeenLastCalledWith(pasted.map((r) => r.id));
+      expect(grid.dirtyCount.value).toBe(0);
+
+      grid.redo();
+      expect(grid.rows.value.slice(3)).toEqual(pasted);
+      expect(grid.dirtyCount.value).toBe(2);
+    });
+
+    it('undoes a Clear all, then a delete, one write at a time', () => {
+      const { grid, onUserEdit } = setup();
+      grid.setRowSelected('b', true);
+      grid.deleteSelected();
+      grid.clearAll();
+      expect(grid.rowCount.value).toBe(0);
+
+      grid.undo();
+      expect(grid.rows.value.map((r) => r.id)).toEqual(['a', 'c']);
+      expect(onUserEdit).toHaveBeenLastCalledWith(['a', 'c']);
+      grid.undo();
+      expect(grid.rows.value.map((r) => r.name)).toEqual(['Ann', 'Bo', 'Cy']);
+      expect(onUserEdit).toHaveBeenLastCalledWith(['b']);
+      expect(grid.dirtyCount.value).toBe(0);
+      expect(grid.undo()).toBe(false);
+    });
+
+    it('records nothing for a write that changes nothing', () => {
+      const { grid } = setup();
+      grid.editCell({ rowId: 'a', colId: 'name' }, 'Ann');
+      grid.deleteSelected();
+      expect(grid.undo()).toBe(false);
+    });
+
+    it('an agent write empties both stacks and is never undone', async () => {
+      const { grid } = setup();
+      grid.editCell({ rowId: 'a', colId: 'name' }, 'Anna');
+      grid.editCell({ rowId: 'b', colId: 'name' }, 'Bob');
+      grid.undo();
+
+      await grid.api.updateRows([{ id: 'c', name: 'Cyd' }]);
+
+      expect(grid.undo()).toBe(false);
+      expect(grid.redo()).toBe(false);
+      expect(grid.rows.value.map((r) => r.name)).toEqual(['Anna', 'Bo', 'Cyd']);
+    });
+
+    it('a new person write drops the redo stack', () => {
+      const { grid } = setup();
+      grid.editCell({ rowId: 'a', colId: 'name' }, 'Anna');
+      grid.undo();
+      grid.editCell({ rowId: 'b', colId: 'name' }, 'Bob');
+      expect(grid.redo()).toBe(false);
+      expect(grid.rows.value.map((r) => r.name)).toEqual(['Ann', 'Bob', 'Cy']);
     });
   });
 });

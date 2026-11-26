@@ -7,8 +7,10 @@ import UBadge from '@nuxt/ui/components/Badge.vue';
 import UButton from '@nuxt/ui/components/Button.vue';
 import UModal from '@nuxt/ui/components/Modal.vue';
 import { useConfirmDialog, useObjectUrl } from '@vueuse/core';
+import ColumnVisibilityMenu from 'components/ColumnVisibilityMenu';
 import { buildCsv } from 'utils/csv';
 import { defineComponent, nextTick, shallowRef } from 'vue';
+import type { ColumnVisibilityItem } from 'components/ColumnVisibilityMenu';
 import type { DataGridState } from 'composables/useDataGrid';
 import type { GridColumn } from 'utils/zodToColumnDefs';
 import type { PropType, VNode } from 'vue';
@@ -19,6 +21,14 @@ export default defineComponent({
     grid: { type: Object as PropType<DataGridState>, required: true },
     columns: {
       type: Array as PropType<ReadonlyArray<GridColumn>>,
+      required: true,
+    },
+    columnMenu: {
+      type: Array as PropType<ReadonlyArray<ColumnVisibilityItem>>,
+      required: true,
+    },
+    onToggleColumn: {
+      type: Function as PropType<(id: string, visible: boolean) => void>,
       required: true,
     },
     title: { type: String, required: true },
@@ -139,6 +149,10 @@ export default defineComponent({
           variant="ghost"
           size="xs"
           onClick={confirmClear}
+        />
+        <ColumnVisibilityMenu
+          columns={props.columnMenu}
+          onToggle={props.onToggleColumn}
         />
         {props.toolbarActions?.()}
         {renderStatus()}

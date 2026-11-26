@@ -81,3 +81,21 @@ function sameValue(a: unknown, b: unknown): boolean {
     JSON.stringify(a) === JSON.stringify(b)
   );
 }
+
+/**
+ * Ids of the rows that differ between two states of the grid: present in
+ * only one, or a different row object (rows are never mutated, so identity
+ * is change). `after`'s order, then rows only in `before`.
+ */
+export function changedIds(
+  before: ReadonlyArray<Row>,
+  after: ReadonlyArray<Row>,
+): Array<string> {
+  const old = new Map(before.map((row) => [row.id, row]));
+  const ids = after.flatMap((row) => {
+    const prev = old.get(row.id);
+    old.delete(row.id);
+    return prev === row ? [] : [row.id];
+  });
+  return [...ids, ...old.keys()];
+}

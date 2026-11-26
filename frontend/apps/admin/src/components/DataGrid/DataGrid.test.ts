@@ -543,6 +543,18 @@ describe('DataGrid CSV export', () => {
   });
 });
 
+/** Fires a copy on the grid and returns the text it put on the clipboard. */
+async function copy(w: VueWrapper): Promise<string> {
+  await flushPromises();
+  let text = '';
+  const event = new Event('copy', { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'clipboardData', {
+    value: { setData: (_type: string, value: string) => (text = value) },
+  });
+  root(w).element.dispatchEvent(event);
+  return text;
+}
+
 describe('DataGrid virtualization', () => {
   // Three screens of rows; the stubbed viewport shows 20.
   const MANY = Array.from({ length: 60 }, (_, i) => ({
@@ -557,18 +569,6 @@ describe('DataGrid virtualization', () => {
     el.scrollTop = top;
     el.dispatchEvent(new Event('scroll'));
     await flushPromises();
-  }
-
-  /** Fires a copy on the grid and returns the text it put on the clipboard. */
-  async function copy(w: VueWrapper): Promise<string> {
-    await flushPromises();
-    let text = '';
-    const event = new Event('copy', { bubbles: true, cancelable: true });
-    Object.defineProperty(event, 'clipboardData', {
-      value: { setData: (_type: string, value: string) => (text = value) },
-    });
-    root(w).element.dispatchEvent(event);
-    return text;
   }
 
   it('commits an open edit when its row scrolls out of view', async () => {
@@ -607,5 +607,223 @@ describe('DataGrid virtualization', () => {
     expect(lines).toHaveLength(60);
     expect(lines[0]).toBe('Topic 1\tLow');
     expect(lines[59]).toBe('Topic 60\tLow');
+  });
+});
+
+/** A key pressed on `target`; it bubbles to the grid root and the document. */
+async function press(
+  target: Element,
+  init: KeyboardEventInit,
+): Promise<KeyboardEvent> {
+  const event = new KeyboardEvent('keydown', {
+    bubbles: true,
+    cancelable: true,
+    ...init,
+  });
+  target.dispatchEvent(event);
+  await flushPromises();
+  return event;
+}
+
+/** Releases the mouse button, wherever the pointer is. */
+async function release() {
+  window.dispatchEvent(new PointerEvent('pointerup'));
+  await flushPromises();
+}
+
+describe('DataGrid undo and redo', () => {
+  it('⌘Z undoes an edit and ⌘⇧Z / Ctrl+Y redo it, from the grid or after a toolbar click', async () => {
+    const onUserEdit = vi.fn();
+    const { wrapper: w } = await mountGrid(undefined, { onUserEdit });
+    const input = await editCell(w, 'r1', 'topic');
+    await input.setValue('Fire safety');
+    await input.trigger('keydown', { key: 'Enter' });
+    expect(w.get('[role="status"]').text()).toContain('1 change');
+
+    const undo = await press(root(w).element, { key: 'z', metaKey: true });
+    expect(undo.defaultPrevented).toBe(true);
+    expect(cell(w, 'r1', 'topic').text()).toBe('Child labor');
+    expect(w.get('[role="status"]').text()).not.toContain('change');
+    expect(onUserEdit).toHaveBeenLastCalledWith(['r1']);
+
+    // Focus left the grid for a toolbar button.
+    const addRow = button(w, 'Add Row')?.element as Element;
+    await press(addRow, { key: 'Z', metaKey: true, shiftKey: true });
+    expect(cell(w, 'r1', 'topic').text()).toBe('Fire safety');
+
+    await press(root(w).element, { key: 'z', ctrlKey: true });
+    await press(root(w).element, { key: 'y', ctrlKey: true });
+    expect(cell(w, 'r1', 'topic').text()).toBe('Fire safety');
+    expect(onUserEdit).toHaveBeenCalledTimes(5);
+  });
+
+  it('leaves ⌘Z typed in a header filter to the filter', async () => {
+    const onUserEdit = vi.fn();
+    const { wrapper: w } = await mountGrid(undefined, { onUserEdit });
+    const input = await editCell(w, 'r1', 'topic');
+    await input.setValue('Fire safety');
+    await input.trigger('keydown', { key: 'Enter' });
+
+    const filter = w.get('input[aria-label="Filter Topic"]').element;
+    const key = await press(filter, { key: 'z', metaKey: true });
+    expect(key.defaultPrevented).toBe(false);
+    expect(cell(w, 'r1', 'topic').text()).toBe('Fire safety');
+  });
+});
+
+describe('DataGrid paste over a range', () => {
+  it('writes a 2×2 block from the selected Status cell into the editable cells, as one undo step', async () => {
+    const onUserEdit = vi.fn();
+    const { wrapper: w, onSave } = await mountGrid(undefined, {
+      onUserEdit,
+      columns: [STATUS, ...COLUMNS],
+      data: DATA.map((row) => ({ ...row, status: 'Ready' })),
+    });
+    await cell(w, 'r2', 'status').trigger('pointerdown', { button: 0 });
+    await release();
+
+    const event = await paste(root(w).element, 'Noise\tLow\nDust\tMedium\n');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(visibleTopics(w)).toEqual(['Child labor', 'Noise', 'Dust']);
+    expect(cell(w, 'r2', 'risk').text()).toBe('Low');
+    expect(cell(w, 'r3', 'risk').text()).toBe('Medium');
+    expect(cell(w, 'r2', 'status').text()).toBe('Ready');
+    expect(onUserEdit).toHaveBeenCalledExactlyOnceWith(['r2', 'r3']);
+    expect(w.get('[role="status"]').text()).toContain('2 changes');
+
+    await button(w, 'Save')?.trigger('click');
+    await flushPromises();
+    expect(onSave).toHaveBeenCalledExactlyOnceWith({
+      upserts: [
+        { id: 'r2', topic: 'Noise', risk: 'Low', status: 'Ready' },
+        { id: 'r3', topic: 'Dust', risk: 'Medium', status: 'Ready' },
+      ],
+      deletes: [],
+    });
+
+    await press(root(w).element, { key: 'z', metaKey: true });
+    expect(visibleTopics(w)).toEqual(['Child labor', 'Wages', 'Air quality']);
+  });
+
+  it('adds the lines past the last row as new rows; after Escape a paste appends again', async () => {
+    const { wrapper: w } = await mountGrid();
+    await cell(w, 'r3', 'topic').trigger('pointerdown', { button: 0 });
+    await release();
+
+    await paste(root(w).element, 'One\nTwo\nThree');
+    expect(visibleTopics(w)).toEqual([
+      'Child labor',
+      'Wages',
+      'One',
+      'Two',
+      'Three',
+    ]);
+
+    await press(root(w).element, { key: 'Escape' });
+    await paste(root(w).element, 'Four\tHigh');
+    expect(visibleTopics(w)).toHaveLength(6);
+    expect(visibleTopics(w)[5]).toBe('Four');
+  });
+});
+
+describe('DataGrid fill handle', () => {
+  it('dragging the handle down copies the selection as one undoable write', async () => {
+    const onUserEdit = vi.fn();
+    const { wrapper: w } = await mountGrid(undefined, { onUserEdit });
+    await cell(w, 'r1', 'topic').trigger('pointerdown', { button: 0 });
+    await cell(w, 'r1', 'risk').trigger('pointerdown', {
+      button: 0,
+      shiftKey: true,
+    });
+    await release();
+    expect(cell(w, 'r1', 'topic').find('[data-fill-handle]').exists()).toBe(
+      false,
+    );
+
+    await cell(w, 'r1', 'risk')
+      .get('[data-fill-handle]')
+      .trigger('pointerdown', { button: 0 });
+    await cell(w, 'r3', 'risk').trigger('pointerenter');
+    expect(cell(w, 'r3', 'topic').classes()).toContain('outline-dashed');
+    await release();
+
+    expect(visibleTopics(w)).toEqual([
+      'Child labor',
+      'Child labor',
+      'Child labor',
+    ]);
+    expect(cell(w, 'r3', 'risk').text()).toBe('Low');
+    expect(cell(w, 'r3', 'risk').attributes('aria-selected')).toBe('true');
+    expect(onUserEdit).toHaveBeenCalledExactlyOnceWith(['r2', 'r3']);
+    expect(w.get('[role="status"]').text()).toContain('2 changes');
+
+    await press(root(w).element, { key: 'z', metaKey: true });
+    expect(visibleTopics(w)).toEqual(['Child labor', 'Wages', 'Air quality']);
+    expect(cell(w, 'r3', 'risk').text()).toBe('High');
+  });
+});
+
+describe('DataGrid column layout', () => {
+  /** Data column ids in header order, left to right. */
+  const headers = (w: VueWrapper) =>
+    w.findAll('[data-header-id]').map((h) => h.attributes('data-header-id'));
+
+  it('a header dragged onto another takes its place; keys, copy and paste follow', async () => {
+    const { wrapper: w } = await mountGrid();
+    const header = (id: string) => w.get(`[data-header-id="${id}"]`);
+    await header('topic').trigger('pointerdown', { button: 0, clientX: 10 });
+    header('risk').element.dispatchEvent(
+      new PointerEvent('pointermove', { bubbles: true, clientX: 200 }),
+    );
+    await release();
+
+    expect(headers(w)).toEqual(['risk', 'topic']);
+    expect(cell(w, 'r1', 'topic').attributes('aria-colindex')).toBe('3');
+
+    await cell(w, 'r1', 'risk').trigger('pointerdown', { button: 0 });
+    await release();
+    await root(w).trigger('keydown', { key: 'ArrowRight', shiftKey: true });
+    expect(await copy(w)).toBe('Low\tChild labor');
+
+    await paste(root(w).element, 'High\tFire');
+    expect(cell(w, 'r1', 'risk').text()).toBe('High');
+    expect(cell(w, 'r1', 'topic').text()).toBe('Fire');
+  });
+
+  it('a hidden column leaves the keys, copy, paste and fill, and comes back', async () => {
+    const { wrapper: w } = await mountGrid();
+    /** Ticks a column in the toolbar's Columns menu, opening it if needed. */
+    async function toggleColumn(title: string) {
+      const item = () =>
+        [...document.body.querySelectorAll('[role="menuitemcheckbox"]')].find(
+          (el) => el.textContent?.trim() === title,
+        ) as HTMLElement | undefined;
+      if (!item()) {
+        await button(w, 'Columns')?.trigger('click', { button: 0 });
+        await flushPromises();
+      }
+      item()?.click();
+      await flushPromises();
+    }
+    await toggleColumn('Topic');
+    expect(w.find('[data-col-id="topic"]').exists()).toBe(false);
+
+    await cell(w, 'r1', 'risk').trigger('pointerdown', { button: 0 });
+    await release();
+    await root(w).trigger('keydown', { key: 'ArrowLeft', shiftKey: true });
+    expect(await copy(w)).toBe('Low');
+
+    await paste(root(w).element, 'High\tFire');
+    await cell(w, 'r1', 'risk')
+      .get('[data-fill-handle]')
+      .trigger('pointerdown', { button: 0 });
+    await cell(w, 'r2', 'risk').trigger('pointerenter');
+    await release();
+
+    await toggleColumn('Topic');
+    expect(visibleTopics(w)).toEqual(['Child labor', 'Wages', 'Air quality']);
+    expect(cell(w, 'r1', 'risk').text()).toBe('High');
+    expect(cell(w, 'r2', 'risk').text()).toBe('High');
   });
 });
