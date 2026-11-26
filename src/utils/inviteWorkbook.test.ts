@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import { describe, expect, it } from 'vite-plus/test';
-import { buildInviteWorkbook, parseInviteWorkbook } from './inviteWorkbook';
+import { buildInviteWorkbook, readInviteWorkbook } from './inviteWorkbook';
 
 async function load(data: ArrayBuffer) {
   const workbook = new ExcelJS.Workbook();
@@ -31,7 +31,7 @@ describe('buildInviteWorkbook', () => {
     });
   });
 
-  it('round-trips the current rows through parseInviteWorkbook', async () => {
+  it('round-trips the current rows through readInviteWorkbook as text', async () => {
     const rows = [
       {
         email: 'a@acme.com',
@@ -48,31 +48,34 @@ describe('buildInviteWorkbook', () => {
         groups: 'Apparel; Electronics',
       },
     ];
-    const parsed = await parseInviteWorkbook(await buildInviteWorkbook(rows));
-    expect(parsed).toEqual({ rows, ignoredHeaders: [] });
+    expect(await readInviteWorkbook(await buildInviteWorkbook(rows))).toEqual({
+      headers: ['Email', 'First Name', 'Last Name', 'Role', 'Groups'],
+      rows: [
+        ['a@acme.com', 'Ann', 'Lee', 'Viewer', ''],
+        ['b@acme.com', 'Bo', 'Chan', 'Responder', 'Apparel; Electronics'],
+      ],
+    });
   });
 });
 
-describe('parseInviteWorkbook', () => {
-  it('maps columns by header name or alias, skips blank rows and reports unknown headers', async () => {
+describe('readInviteWorkbook', () => {
+  it('reads the first sheet as header text and row text, skipping blank rows', async () => {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Anything');
-    sheet.addRow(['role', 'Notes', 'E-mail', 'Given name', 'Surname']);
-    sheet.addRow(['Viewer', 'ignore me', 'a@acme.com', 'Ann', 'Lee']);
+    sheet.addRow(['role', ' Notes ', 'E-mail', 'Given name', 'Surname']);
+    sheet.addRow(['Viewer', 'ignore me', 'a@acme.com', 'Ann', 42]);
     sheet.addRow([]);
-    sheet.addRow(['', '', 'b@acme.com', '', '']);
+    sheet.addRow(['', '  ', 'b@acme.com', '', '']);
+    workbook.addWorksheet('Second').addRow(['Email']);
 
-    const parsed = await parseInviteWorkbook(await workbook.xlsx.writeBuffer());
-
-    expect(parsed.ignoredHeaders).toEqual(['Notes']);
-    expect(parsed.rows).toEqual([
+    expect(await readInviteWorkbook(await workbook.xlsx.writeBuffer())).toEqual(
       {
-        role: 'Viewer',
-        email: 'a@acme.com',
-        firstName: 'Ann',
-        lastName: 'Lee',
+        headers: ['role', 'Notes', 'E-mail', 'Given name', 'Surname'],
+        rows: [
+          ['Viewer', 'ignore me', 'a@acme.com', 'Ann', '42'],
+          ['', '', 'b@acme.com', '', ''],
+        ],
       },
-      { role: null, email: 'b@acme.com', firstName: null, lastName: null },
-    ]);
+    );
   });
 });

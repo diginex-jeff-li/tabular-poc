@@ -3,6 +3,7 @@ import {
   applyColumnMapping,
   mappingProblems,
   planPaste,
+  planTable,
 } from './columnMapping';
 
 const tsv = (...lines: Array<Array<string>>) =>
@@ -35,9 +36,12 @@ const BO = [
   'Apparel',
 ];
 
-describe('planPaste', () => {
+describe('planTable', () => {
   it('maps a client table by header name and lists the ignored columns', () => {
-    const plan = planPaste(tsv(CLIENT_HEADER, BO), { autoMatch: true });
+    const plan = planTable(
+      { headers: CLIENT_HEADER, rows: [BO] },
+      { autoMatch: true },
+    );
     expect(plan).toEqual({
       kind: 'insert',
       rows: [
@@ -60,11 +64,11 @@ describe('planPaste', () => {
   });
 
   it('matches alternative header names, ignoring case and punctuation', () => {
-    const plan = planPaste(
-      tsv(
-        ['E-mail', 'Given name', 'SURNAME', 'Access level'],
-        ['a@x.com', 'Ann', 'Lee', 'Viewer'],
-      ),
+    const plan = planTable(
+      {
+        headers: ['E-mail', 'Given name', 'SURNAME', 'Access level'],
+        rows: [['a@x.com', 'Ann', 'Lee', 'Viewer']],
+      },
       { autoMatch: true },
     );
     expect(plan).toMatchObject({
@@ -75,29 +79,59 @@ describe('planPaste', () => {
     });
   });
 
-  it('holds the paste when a required column has no match', () => {
-    const plan = planPaste(
-      tsv(
-        ['Email', 'Nom', 'Apellido', 'Role'],
-        ['a@x.com', 'Ann', 'Lee', 'Viewer'],
-      ),
-      { autoMatch: true },
-    );
-    expect(plan).toMatchObject({
+  it('holds the table when a required column has no match', () => {
+    const table = {
+      headers: ['Email', 'Nom', 'Apellido', 'Role'],
+      rows: [['a@x.com', 'Ann', 'Lee', 'Viewer']],
+    };
+    expect(planTable(table, { autoMatch: true })).toEqual({
       kind: 'hold',
-      table: {
-        headers: ['Email', 'Nom', 'Apellido', 'Role'],
-        rows: [['a@x.com', 'Ann', 'Lee', 'Viewer']],
-      },
+      table,
       mapping: ['email', null, null, 'role'],
     });
   });
 
-  it('holds every header paste, unmatched, when auto-match is off', () => {
-    const plan = planPaste(tsv(CLIENT_HEADER, BO), { autoMatch: false });
+  it('holds the table when two columns match one template column', () => {
+    const plan = planTable(
+      {
+        headers: ['Email', 'E-mail', 'First name', 'Last name', 'Role'],
+        rows: [['a@x.com', 'b@x.com', 'Ann', 'Lee', 'Viewer']],
+      },
+      { autoMatch: true },
+    );
+    expect(plan).toMatchObject({
+      kind: 'hold',
+      mapping: ['email', 'email', 'firstName', 'lastName', 'role'],
+    });
+  });
+
+  it('holds every table, unmatched, when auto-match is off', () => {
+    const plan = planTable(
+      { headers: CLIENT_HEADER, rows: [BO] },
+      { autoMatch: false },
+    );
     expect(plan).toMatchObject({
       kind: 'hold',
       mapping: CLIENT_HEADER.map((): null => null),
+    });
+  });
+});
+
+describe('planPaste', () => {
+  it('reads a first line that names a column as the header row', () => {
+    expect(
+      planPaste(tsv(CLIENT_HEADER, BO), { autoMatch: true }),
+    ).toMatchObject({
+      kind: 'insert',
+      rows: [{ email: 'bo.chan@acme.com', groups: 'Apparel' }],
+    });
+    expect(
+      planPaste(tsv(['Email', 'Notes'], ['a@x.com', 'hi']), {
+        autoMatch: true,
+      }),
+    ).toMatchObject({
+      kind: 'hold',
+      table: { headers: ['Email', 'Notes'], rows: [['a@x.com', 'hi']] },
     });
   });
 
@@ -142,6 +176,15 @@ describe('applyColumnMapping and mappingProblems', () => {
       ],
       ignored: ['ID'],
     });
+  });
+
+  it('does not name a column without a header among the ignored ones', () => {
+    expect(
+      applyColumnMapping({ headers: ['', 'Mail'], rows: [['x', 'a@x.com']] }, [
+        null,
+        'email',
+      ]).ignored,
+    ).toEqual([]);
   });
 
   it('names missing required columns and columns mapped twice', () => {

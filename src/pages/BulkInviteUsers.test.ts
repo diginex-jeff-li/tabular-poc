@@ -128,10 +128,12 @@ describe('BulkInviteUsers', () => {
     input.dispatchEvent(new Event('change'));
     // ExcelJS reads the file over several macrotasks.
     await vi.waitFor(() => expect(emails(w)).toEqual(['cy@acme.com']));
-    expect(w.text()).toContain('Imported 1 row(s) from people.xlsx');
+    expect(w.text()).toContain(
+      'Added 1 row from people.xlsx; 0 errors to fix.',
+    );
   });
 
-  it.fails('holds an .xlsx whose columns don’t match the template for a column mapping, like a paste', async () => {
+  it('holds an .xlsx whose columns don’t match the template for a column mapping, like a paste', async () => {
     const { w } = await mountPage();
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('People');
@@ -147,6 +149,9 @@ describe('BulkInviteUsers', () => {
 
     await vi.waitFor(() => expect(button(w, 'Apply mapping')).toBeDefined());
     expect(emails(w)).toEqual([]);
+    expect(w.text()).toContain(
+      'people.xlsx needs a column mapping before it enters the draft.',
+    );
   });
 });
 

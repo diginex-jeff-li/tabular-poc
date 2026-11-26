@@ -120,7 +120,7 @@ own `computed`, never in the column `cell` function. Rows have a fixed
 | `src/utils/inviteAgentTools.ts` | Agent tools: adapter over the invite draft module (edit-only; no send/confirm/apply tool) |
 | `src/utils/draftRow.ts` | One draft row: cleanup + line parser (never guesses), needs-review detection |
 | `src/utils/readyRows.ts` | Ready-row check: Send errors and each row's status (needs review › agent proposed › not ready › ready) |
-| `src/utils/columnMapping.ts` | Pasted client tables: header/alias matching, hold vs insert, column mapping |
+| `src/utils/columnMapping.ts` | Client tables (pasted or imported): `planTable` header/alias matching, hold vs insert, column mapping |
 | `src/components/ColumnMappingPanel/ColumnMappingPanel.tsx` | Mapping panel for an unmapped table (person applies; agent may propose) |
 | `CONTEXT.md` / `docs/adr/` | Domain glossary (bulk invite terms) and ADRs |
 | `src/composables/useAgentTools.ts` | Registers tools on `document.modelContext` (WebMCP) + `window.scInvite` bridge |

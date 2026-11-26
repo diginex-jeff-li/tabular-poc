@@ -2,7 +2,7 @@ import { useDataGrid } from 'composables/useDataGrid';
 import { normalizeInviteRow } from 'utils/draftRow';
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 import { effectScope } from 'vue';
-import { createInviteDraft } from './inviteDraft';
+import { createInviteDraft, describeOutcome } from './inviteDraft';
 import type { InviteDraft, InviteDraftStore, StoredDraft } from './inviteDraft';
 import type { EffectScope } from 'vue';
 
@@ -217,10 +217,15 @@ describe('invite draft', () => {
 
     it('holds a paste it cannot match and inserts nothing', () => {
       const { draft } = setup();
-      expect(draft.paste(PASTE, { autoMatch: true }, positional)).toEqual({
-        rows: [],
-        ignored: [],
-      });
+      const { rows, outcome } = draft.paste(
+        PASTE,
+        { autoMatch: true },
+        positional,
+      );
+      expect(rows).toEqual([]);
+      expect(describeOutcome(outcome, 'paste')).toBe(
+        'The paste needs a column mapping before it enters the draft.',
+      );
       expect(draft.held.value?.table.headers).toEqual([
         'Work Email',
         'Nom',
@@ -241,14 +246,23 @@ describe('invite draft', () => {
       draft.setMappingColumn(3, 'role');
       expect(draft.held.value?.agentColumns).toEqual([0, 1, 2]);
 
-      expect(draft.applyMapping()).toEqual({ added: 1, ignored: [] });
+      const outcome = draft.applyMapping();
+      expect(outcome).toEqual({
+        kind: 'added',
+        added: 1,
+        ignored: [],
+        errors: 0,
+      });
+      expect(describeOutcome(outcome, 'mapping')).toBe(
+        'Added 1 row from the mapped table; 0 errors to fix.',
+      );
       expect(draft.held.value).toBeNull();
       expect(statuses(draft)).toEqual(['Ready']);
     });
 
     it('refuses to apply an incomplete mapping and rejects a mapping that does not fit', () => {
       const { draft } = setup();
-      expect(() => draft.proposeMapping([])).toThrow(/no pasted table/i);
+      expect(() => draft.proposeMapping([])).toThrow(/no table waiting/i);
       draft.paste(PASTE, { autoMatch: true }, positional);
       expect(() => draft.applyMapping()).toThrow(/No column for First Name/);
       expect(() => draft.proposeMapping(['email'])).toThrow(/4 columns/);
@@ -262,6 +276,95 @@ describe('invite draft', () => {
       expect(
         draft.paste('ann@acme.com\tAnn', { autoMatch: true }, positional).rows,
       ).toEqual(positional());
+    });
+
+    it('a header paste goes back to the grid, naming the ignored columns', () => {
+      const { draft, grid } = setup();
+      const { rows, outcome } = draft.paste(
+        'Email\tFirst name\tLast name\tRole\tNotes\nann@acme.com\tAnn\tLee\tViewer\tvip',
+        { autoMatch: true },
+        positional,
+      );
+      expect(rows).toEqual([
+        {
+          email: 'ann@acme.com',
+          firstName: 'Ann',
+          lastName: 'Lee',
+          role: 'Viewer',
+        },
+      ]);
+      expect(grid.rows.value).toHaveLength(0);
+      expect(describeOutcome(outcome, 'paste')).toBe(
+        'Added 1 row from the paste. Ignored columns: Notes.',
+      );
+    });
+  });
+
+  describe('importing a table', () => {
+    const FILE = { file: 'people.xlsx' };
+
+    it('adds a table whose headers match, naming ignored columns and errors left', () => {
+      const { draft } = setup();
+      const outcome = draft.importTable(
+        {
+          headers: ['Email', 'First Name', 'Last Name', 'Role', 'Notes'],
+          rows: [
+            ['ann@acme.com', 'Ann', 'Lee', 'Viewer', 'vip'],
+            ['jane.doe@acme.com', 'Jane', 'Doe', 'Viewer', ''],
+          ],
+        },
+        { autoMatch: true },
+      );
+      expect(outcome).toEqual({
+        kind: 'added',
+        added: 2,
+        ignored: ['Notes'],
+        errors: 1,
+      });
+      expect(statuses(draft)).toEqual(['Ready', 'Not ready']);
+      expect(describeOutcome(outcome, FILE)).toBe(
+        'Added 2 rows from people.xlsx; 1 error to fix. Ignored columns: Notes.',
+      );
+    });
+
+    it('holds a table missing a template column and adds nothing; Apply adds it', () => {
+      const { draft } = setup();
+      const outcome = draft.importTable(
+        {
+          headers: ['Email', 'Given name', 'Surname', 'Access'],
+          rows: [['cy@acme.com', 'Cy', 'Ng', 'Viewer']],
+        },
+        { autoMatch: true },
+      );
+      expect(outcome).toEqual({ kind: 'held' });
+      expect(draft.rows()).toEqual([]);
+      expect(draft.held.value?.mapping).toEqual([
+        'email',
+        'firstName',
+        'lastName',
+        null,
+      ]);
+      expect(describeOutcome(outcome, FILE)).toBe(
+        'people.xlsx needs a column mapping before it enters the draft.',
+      );
+
+      draft.setMappingColumn(3, 'role');
+      expect(draft.applyMapping()).toMatchObject({ kind: 'added', added: 1 });
+      expect(draft.rows().map((r) => r.email)).toEqual(['cy@acme.com']);
+    });
+
+    it('holds even a matching table, unmatched, when auto-match is off', () => {
+      const { draft } = setup();
+      const outcome = draft.importTable(
+        {
+          headers: ['Email', 'First Name', 'Last Name', 'Role'],
+          rows: [['ann@acme.com', 'Ann', 'Lee', 'Viewer']],
+        },
+        { autoMatch: false },
+      );
+      expect(outcome).toEqual({ kind: 'held' });
+      expect(draft.rows()).toEqual([]);
+      expect(draft.held.value?.mapping).toEqual([null, null, null, null]);
     });
   });
 });

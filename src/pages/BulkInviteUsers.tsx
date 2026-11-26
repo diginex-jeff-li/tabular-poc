@@ -30,8 +30,8 @@ import { useInviteDraftStorage } from 'composables/useInviteDraftStorage';
 import { INVITE_TITLES, InviteRowSchema } from 'contracts';
 import { normalizeInviteRow } from 'utils/draftRow';
 import { createInviteTools } from 'utils/inviteAgentTools';
-import { createInviteDraft } from 'utils/inviteDraft';
-import { buildInviteWorkbook, parseInviteWorkbook } from 'utils/inviteWorkbook';
+import { createInviteDraft, describeOutcome } from 'utils/inviteDraft';
+import { buildInviteWorkbook, readInviteWorkbook } from 'utils/inviteWorkbook';
 import { zodToColumnDefs } from 'utils/zodToColumnDefs';
 import { defineComponent, nextTick, onMounted, ref, shallowRef } from 'vue';
 import type { GridApi, GridColumn } from 'utils/gridApi';
@@ -117,22 +117,17 @@ export default defineComponent({
       clipboard: string,
       positional: () => Array<Record<string, unknown>>,
     ): Array<Record<string, unknown>> {
-      const { rows, ignored } = draft.paste(
+      const { rows, outcome } = draft.paste(
         clipboard,
         { autoMatch: autoMatch.value },
         positional,
       );
-      if (ignored.length > 0) {
-        notice.value = `Pasted by header name. Ignored columns: ${ignored.join(', ')}.`;
-      }
+      notice.value = describeOutcome(outcome, 'paste');
       return rows;
     }
 
     function applyMapping() {
-      const { added, ignored } = draft.applyMapping();
-      notice.value =
-        `Added ${added} pasted row(s); ${draft.errors().length} error(s) to fix.` +
-        (ignored.length ? ` Ignored columns: ${ignored.join(', ')}.` : '');
+      notice.value = describeOutcome(draft.applyMapping(), 'mapping');
     }
 
     // The hidden input below stays the dialog (and the test hook); `reset`
@@ -149,15 +144,11 @@ export default defineComponent({
       if (!file) {
         return;
       }
-      const { rows, ignoredHeaders } = await parseInviteWorkbook(
-        await file.arrayBuffer(),
+      const table = await readInviteWorkbook(await file.arrayBuffer());
+      notice.value = describeOutcome(
+        draft.importTable(table, { autoMatch: autoMatch.value }),
+        { file: file.name },
       );
-      draft.importRows(rows);
-      notice.value =
-        `Imported ${rows.length} row(s) from ${file.name}; ${draft.errors().length} error(s) to fix.` +
-        (ignoredHeaders.length
-          ? ` Ignored columns: ${ignoredHeaders.join(', ')}.`
-          : '');
     }
 
     // The URL is made by useObjectUrl's watcher (hence the nextTick) and

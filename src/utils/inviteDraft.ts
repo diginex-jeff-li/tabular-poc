@@ -3,6 +3,7 @@ import {
   applyColumnMapping,
   mappingProblems,
   planPaste,
+  planTable,
 } from 'utils/columnMapping';
 import { draftFields, needsReview } from 'utils/draftRow';
 import { checkReadyRows } from 'utils/readyRows';
@@ -24,9 +25,10 @@ import type { ShallowRef } from 'vue';
  * - `add`, `update` and `remove` are the agent's writes (the grid's agent
  *   write: not undoable)
  * - a person writes in the grid, or brings a table through `importRows` (a
- *   person write: one undo step). Those writes reach the draft only through
- *   `edited`, so the grid's `onUserEdit` must call `edited`; that call runs
- *   the check after a person's write
+ *   person write: one undo step; `importTable` and `applyMapping` use it).
+ *   Those writes reach the draft only through `edited`, so the grid's
+ *   `onUserEdit` must call `edited`; that call runs the check after a
+ *   person's write
  *
  * Rules it owns:
  * - every write is followed by a full check and repaint, then a save to the
@@ -36,8 +38,9 @@ import type { ShallowRef } from 'vue';
  * - agent proposed travels with the rows: the store keeps it, and a restored
  *   row that was agent proposed still needs a person's Confirm
  * - an agent cannot delete a row that needs review or is agent proposed
- * - a paste whose columns don't match is held as an unmapped table; the
- *   agent may propose a column mapping, only a person applies it
+ * - a paste or an imported table whose columns don't match is held as an
+ *   unmapped table; the agent may propose a column mapping, only a person
+ *   applies it
  * - Send passes only when every row is ready
  */
 
@@ -46,11 +49,54 @@ export type DraftRowView = { id: string } & Record<
   string | null
 > & { status: InviteRowStatus };
 
-export interface HeldPaste {
+export interface HeldTable {
   table: UnmappedTable;
   mapping: ColumnMapping;
   /** Columns whose mapping the agent proposed and no person has changed. */
   agentColumns: Array<number>;
+}
+
+/**
+ * What a paste, an import or an applied column mapping did: rows added (with
+ * the ignored columns and the errors left in the draft, null when the grid
+ * has not written the rows yet), or the table held for a column mapping.
+ */
+export type TableOutcome =
+  | { kind: 'held' }
+  | {
+      kind: 'added';
+      added: number;
+      ignored: Array<string>;
+      errors: number | null;
+    };
+
+/** Where the table came from: a paste, an applied mapping, or a file. */
+export type TableSource = 'paste' | 'mapping' | { file: string };
+
+const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`;
+
+function sourceName(source: TableSource, capital: boolean): string {
+  if (typeof source !== 'string') {
+    return source.file;
+  }
+  const noun = source === 'paste' ? 'paste' : 'mapped table';
+  return `${capital ? 'The' : 'the'} ${noun}`;
+}
+
+/** The one sentence the page shows for an outcome. */
+export function describeOutcome(
+  outcome: TableOutcome,
+  source: TableSource,
+): string {
+  if (outcome.kind === 'held') {
+    return `${sourceName(source, true)} needs a column mapping before it enters the draft.`;
+  }
+  const { added, ignored, errors } = outcome;
+  return (
+    `Added ${count(added, 'row')} from ${sourceName(source, false)}` +
+    (errors === null ? '.' : `; ${count(errors, 'error')} to fix.`) +
+    (ignored.length > 0 ? ` Ignored columns: ${ignored.join(', ')}.` : '')
+  );
 }
 
 type Row = Record<string, unknown>;
@@ -77,7 +123,7 @@ export function createInviteDraft(
   let pending = store?.restored ?? null;
   const agentProposed = new Set<string>();
   let checked = checkReadyRows([], existingEmails, agentProposed);
-  const held: ShallowRef<HeldPaste | null> = shallowRef(null);
+  const held: ShallowRef<HeldTable | null> = shallowRef(null);
 
   const api = (): GridApi => {
     const g = grid();
@@ -211,30 +257,62 @@ export function createInviteDraft(
     check();
   }
 
+  function hold(table: UnmappedTable, mapping: ColumnMapping): TableOutcome {
+    held.value = { table, mapping, agentColumns: [] };
+    return { kind: 'held' };
+  }
+
+  /** A person's table enters the draft as one undo step. */
+  function insert(newRows: Array<Row>, ignored: Array<string>): TableOutcome {
+    importRows(newRows);
+    return {
+      kind: 'added',
+      added: newRows.length,
+      ignored,
+      errors: checked.errors.length,
+    };
+  }
+
   /**
-   * A person pasted text into the grid. Returns the rows to insert now
-   * (empty when the paste is held as an unmapped table) and the pasted
-   * columns that were ignored. `positional` is the grid's default parse.
+   * A person pasted text into the grid. Returns the rows for the grid to
+   * insert (empty when the paste is held as an unmapped table) and the
+   * outcome. `positional` is the grid's default parse.
    */
   function paste(
     text: string,
     { autoMatch }: { autoMatch: boolean },
     positional: () => Array<Row>,
-  ): { rows: Array<Row>; ignored: Array<string> } {
+  ): { rows: Array<Row>; outcome: TableOutcome } {
     const plan = planPaste(text, { autoMatch });
-    if (plan.kind === 'positional') {
-      return { rows: positional(), ignored: [] };
+    if (plan.kind === 'hold') {
+      return { rows: [], outcome: hold(plan.table, plan.mapping) };
     }
-    if (plan.kind === 'insert') {
-      return { rows: plan.rows, ignored: plan.ignored };
-    }
-    held.value = { table: plan.table, mapping: plan.mapping, agentColumns: [] };
-    return { rows: [], ignored: [] };
+    const {
+      rows: pasted,
+      ignored,
+    }: { rows: Array<Row>; ignored: Array<string> } =
+      plan.kind === 'insert' ? plan : { rows: positional(), ignored: [] };
+    // The grid writes the rows after this returns: their errors are not known yet.
+    return {
+      rows: pasted,
+      outcome: { kind: 'added', added: pasted.length, ignored, errors: null },
+    };
   }
 
-  function heldOrThrow(): HeldPaste {
+  /** A person imports a table (an Excel file): it enters the draft, or is held. */
+  function importTable(
+    table: UnmappedTable,
+    { autoMatch }: { autoMatch: boolean },
+  ): TableOutcome {
+    const plan = planTable(table, { autoMatch });
+    return plan.kind === 'hold'
+      ? hold(plan.table, plan.mapping)
+      : insert(plan.rows, plan.ignored);
+  }
+
+  function heldOrThrow(): HeldTable {
     if (!held.value) {
-      throw new Error('There is no pasted table waiting for a column mapping.');
+      throw new Error('There is no table waiting for a column mapping.');
     }
     return held.value;
   }
@@ -244,7 +322,7 @@ export function createInviteDraft(
     const { table } = heldOrThrow();
     if (mapping.length !== table.headers.length) {
       throw new Error(
-        `The pasted table has ${table.headers.length} columns; send one entry per column.`,
+        `The held table has ${table.headers.length} columns; send one entry per column.`,
       );
     }
     const unknown = mapping.find(
@@ -262,7 +340,7 @@ export function createInviteDraft(
     return mappingProblems(proposed);
   }
 
-  /** A person picks the template column for one pasted column. */
+  /** A person picks the template column for one column of the held table. */
   function setMappingColumn(column: number, field: InviteField | null) {
     const current = heldOrThrow();
     const mapping = [...current.mapping];
@@ -274,8 +352,8 @@ export function createInviteDraft(
     };
   }
 
-  /** A person applies the mapping: the pasted rows enter the draft. */
-  function applyMapping(): { added: number; ignored: Array<string> } {
+  /** A person applies the mapping: the held table's rows enter the draft. */
+  function applyMapping(): TableOutcome {
     const { table, mapping } = heldOrThrow();
     const problems = mappingProblems(mapping);
     if (problems.length > 0) {
@@ -283,8 +361,7 @@ export function createInviteDraft(
     }
     const { rows: mapped, ignored } = applyColumnMapping(table, mapping);
     held.value = null;
-    importRows(mapped);
-    return { added: mapped.length, ignored };
+    return insert(mapped, ignored);
   }
 
   function discardMapping() {
@@ -314,6 +391,7 @@ export function createInviteDraft(
     edited,
     resume,
     paste,
+    importTable,
     proposeMapping,
     setMappingColumn,
     applyMapping,

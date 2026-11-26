@@ -5,10 +5,10 @@ import {
   INVITE_NAME_LENGTH,
   INVITE_ROLES,
   INVITE_TITLES,
-  matchInviteHeader,
 } from 'contracts';
 import ExcelJS from 'exceljs';
 import type { InviteField } from 'contracts';
+import type { UnmappedTable } from 'utils/columnMapping';
 
 /**
  * PROTOTYPE — the Excel side of bulk invite (SC15-706).
@@ -137,56 +137,35 @@ export async function buildInviteWorkbook(
   return workbook.xlsx.writeBuffer();
 }
 
-export interface ParsedInviteWorkbook {
-  rows: Array<Record<string, string | null>>;
-  /** Header cells that match no invite column (their data is ignored). */
-  ignoredHeaders: Array<string>;
-}
-
 /**
- * Read the first worksheet: row 1 is the header, matched to invite columns by
- * header text (case-insensitive), so column order does not matter. Blank
- * rows are skipped; blank cells become null. Values are NOT validated here —
- * the grid and `checkReadyRows` do that, so imported rows show their errors
- * in place.
+ * Read the first worksheet as a plain table: row 1 is the header row, every
+ * cell its text, trimmed; blank rows are skipped. Columns are matched to the
+ * template by `planTable`, and values are checked by the draft, so imported
+ * rows show their errors in place.
  */
-export async function parseInviteWorkbook(
+export async function readInviteWorkbook(
   data: ArrayBuffer,
-): Promise<ParsedInviteWorkbook> {
+): Promise<UnmappedTable> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(data);
   const sheet = workbook.worksheets[0];
   if (!sheet) {
-    return { rows: [], ignoredHeaders: [] };
+    return { headers: [], rows: [] };
   }
-
-  const fieldByColumn = new Map<number, string>();
-  const ignoredHeaders: Array<string> = [];
-  sheet.getRow(1).eachCell((cell, col) => {
-    const header = cell.text.trim();
-    const field = matchInviteHeader(header);
-    if (field) {
-      fieldByColumn.set(col, field);
-    } else if (header) {
-      ignoredHeaders.push(header);
-    }
-  });
-
-  const rows: Array<Record<string, string | null>> = [];
+  const width = sheet.getRow(1).cellCount;
+  const cells = (r: number) =>
+    Array.from({ length: width }, (_, c) =>
+      sheet
+        .getRow(r)
+        .getCell(c + 1)
+        .text.trim(),
+    );
+  const rows: Array<Array<string>> = [];
   for (let r = 2; r <= sheet.rowCount; r++) {
-    const excelRow = sheet.getRow(r);
-    const row: Record<string, string | null> = {};
-    let blank = true;
-    for (const [col, field] of fieldByColumn) {
-      const text = excelRow.getCell(col).text.trim();
-      row[field] = text || null;
-      if (text) {
-        blank = false;
-      }
-    }
-    if (!blank) {
+    const row = cells(r);
+    if (row.some(Boolean)) {
       rows.push(row);
     }
   }
-  return { rows, ignoredHeaders };
+  return { headers: cells(1), rows };
 }

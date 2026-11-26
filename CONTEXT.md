@@ -29,7 +29,7 @@ A needs-review row the agent has resolved; it blocks sending until a person conf
 _Avoid_: AI-fixed, auto-resolved
 
 **Unmapped table**:
-A pasted table held outside the invite draft because its columns could not be matched to the template's columns.
+A pasted or imported table held outside the invite draft because its columns could not be matched to the template's columns.
 _Avoid_: staging, raw paste
 
 **Column mapping**:
