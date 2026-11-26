@@ -4,22 +4,15 @@ import { ComplianceLibrarySchema } from 'contracts';
 /**
  * PROTOTYPE — Compliance Library Grid Editor
  *
- * Thin wrapper over a grid engine: the TanStack `DataGrid` or the Tabulator
- * `GridEditor` (the `engine` prop; both take the same props contract). This
- * page owns only compliance-specific material: the contracts schema,
- * SEED_ROWS, the in-memory mock store, mockList, mockBulkSave, and the
- * column builders.
+ * Thin wrapper over `DataGrid`. This page owns only compliance-specific
+ * material: the contracts schema, SEED_ROWS, the in-memory mock store,
+ * mockList, mockBulkSave, and the column builder.
  *
  * NOT PRODUCTION — throwaway prototype code.
  */
-import { defineAsyncComponent, defineComponent } from 'vue';
+import { defineComponent } from 'vue';
 import type { BulkSaveErrorType, BulkSaveResponseType } from 'contracts';
-import type { PropType, VNode } from 'vue';
-
-// Loaded only on the Tabulator route, so TanStack pages never fetch Tabulator.
-const ComplianceTabulatorGrid = defineAsyncComponent(
-  () => import('components/TabulatorGrids/ComplianceTabulatorGrid'),
-);
+import type { VNode } from 'vue';
 
 // ── Derived from the shared contracts schema ──
 
@@ -225,27 +218,16 @@ async function mockBulkSave(payload: {
 
 export default defineComponent({
   name: 'ComplianceGridEditor',
-  props: {
-    engine: {
-      type: String as PropType<'tanstack' | 'tabulator'>,
-      required: true,
-    },
-  },
-  setup(props) {
-    const shared = {
-      onSave: mockBulkSave,
-      title: 'Compliance Library Editor',
-      exportFilename: 'compliance-library.csv',
-    };
-
-    if (props.engine === 'tanstack') {
-      const columns = buildComplianceGridColumns();
-      return (): VNode => (
-        <DataGrid columns={columns} data={mockList()} {...shared} />
-      );
-    }
+  setup() {
+    const columns = buildComplianceGridColumns();
     return (): VNode => (
-      <ComplianceTabulatorGrid data={mockList()} {...shared} />
+      <DataGrid
+        columns={columns}
+        data={mockList()}
+        onSave={mockBulkSave}
+        title="Compliance Library Editor"
+        exportFilename="compliance-library.csv"
+      />
     );
   },
 });

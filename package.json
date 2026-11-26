@@ -2,7 +2,7 @@
   "name": "sc-tabulator",
   "version": "0.1.0",
   "private": true,
-  "description": "Tabulator grid editor prototype — compliance library admin grid",
+  "description": "Spreadsheet-style grid prototype on TanStack Table — compliance library admin grid and bulk invite",
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @sc/admin dev",

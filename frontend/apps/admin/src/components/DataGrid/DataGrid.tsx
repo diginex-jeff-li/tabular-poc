@@ -1,13 +1,13 @@
 /**
- * DataGrid — the TanStack (`UTable`) grid engine's presentation.
+ * DataGrid — a spreadsheet-style grid on Nuxt UI's `UTable` (TanStack Table).
  *
- * Same props contract as `GridEditor` (`gridEngineProps`), with
- * engine-neutral `GridColumn`s. Row state lives in `useDataGrid`; `rows` is
- * the single source of truth, and every person write reaches it through
- * `grid.commit` (one undo step each). Sorting and filtering are views over
- * it: they never change row ids or the order of `rows`. Active cell, range,
- * the editing cell and a fill drag live in `useGridSelection`, by row and
- * column id. Column order, visibility and widths live in `useColumnLayout`.
+ * Columns are `GridColumn`s (`zodToColumnDefs` derives them from a Zod
+ * schema). Row state lives in `useDataGrid`; `rows` is the single source of
+ * truth, and every person write reaches it through `grid.commit` (one undo
+ * step each). Sorting and filtering are views over it: they never change row
+ * ids or the order of `rows`. Active cell, range, the editing cell and a fill
+ * drag live in `useGridSelection`, by row and column id. Column order,
+ * visibility and widths live in `useColumnLayout`.
  *
  * Layout contract (mandatory): the root is `flex flex-col h-full`; the grid
  * host is `flex-1 min-h-0`, and `UTable`'s root (the scroll container) fills
@@ -38,7 +38,6 @@ import {
   useFocus,
   useRafFn,
 } from '@vueuse/core';
-import { gridEngineProps } from 'components/gridEngineProps';
 import { ROW_HEIGHT, useDataGrid } from 'composables/useDataGrid';
 import { useGridSelection } from 'composables/useGridSelection';
 import { parsePositionalPaste, serializeTsv } from 'utils/gridClipboard';
@@ -65,7 +64,7 @@ import type { ColumnDrag } from './HeaderCell';
 import type { TableColumn } from '@nuxt/ui/components/Table.vue';
 import type { DataGridState, Row } from 'composables/useDataGrid';
 import type { GridSelection } from 'composables/useGridSelection';
-import type { GridSaveError } from 'utils/gridApi';
+import type { GridApi, GridSaveError, GridSaveResponse } from 'utils/gridApi';
 import type { CellPos, Dir, GridOrder } from 'utils/gridRange';
 import type { GridColumn } from 'utils/zodToColumnDefs';
 import type { PropType, VNode } from 'vue';
@@ -127,7 +126,7 @@ const MOVES: Partial<Record<string, readonly [Dir, Dir]>> = {
   End: ['end', 'last'],
 };
 
-/** Where a key moves the active cell. Tab stops at the row's edge (Tabulator's range mode). */
+/** Where a key moves the active cell. Tab stops at the row's edge instead of wrapping to the next row. */
 function keyDir(e: KeyboardEvent): Dir | null {
   const move = MOVES[e.key];
   if (move) {
@@ -284,7 +283,63 @@ export default defineComponent({
       type: Array as PropType<Array<GridColumn>>,
       required: true,
     },
-    ...gridEngineProps,
+    data: {
+      type: Array as PropType<Array<Record<string, unknown>>>,
+      required: true,
+    },
+    onSave: {
+      type: Function as PropType<
+        (payload: {
+          upserts: Array<Record<string, unknown>>;
+          deletes: Array<string>;
+        }) => Promise<GridSaveResponse>
+      >,
+      required: true,
+    },
+    title: {
+      type: String,
+      required: true,
+    },
+    exportFilename: {
+      type: String,
+      required: true,
+    },
+    toolbarActions: {
+      type: Function as PropType<() => VNode | Array<VNode>>,
+    },
+    /** Save button label (e.g. "Send invites"). */
+    saveLabel: {
+      type: String,
+      default: 'Save',
+    },
+    /** Success badge text for N saved rows. */
+    savedLabel: {
+      type: Function as PropType<(saved: number) => string>,
+      default: (saved: number) => `Saved ${saved}`,
+    },
+    /** Receives the programmatic grid API (agent tools, file import). */
+    onReady: {
+      type: Function as PropType<(api: GridApi) => void>,
+    },
+    /** Applied to every row that enters or is edited in the grid. */
+    normalizeRow: {
+      type: Function as PropType<
+        (row: Record<string, unknown>) => Record<string, unknown>
+      >,
+    },
+    /** Called with row ids after a person adds, pastes, edits or deletes rows. */
+    onUserEdit: {
+      type: Function as PropType<(rowIds: Array<string>) => void>,
+    },
+    /** Replaces the positional paste parser. */
+    pasteParser: {
+      type: Function as PropType<
+        (
+          clipboard: string,
+          positional: () => Array<Record<string, unknown>>,
+        ) => Array<Record<string, unknown>>
+      >,
+    },
   },
   setup(props) {
     const grid = useDataGrid({

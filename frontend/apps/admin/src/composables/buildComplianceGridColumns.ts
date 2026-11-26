@@ -16,7 +16,7 @@ const WIDTHS: Partial<Record<keyof ComplianceLibraryType, number>> = {
   bestPractice: 520,
 };
 
-/** Grid columns for the compliance library grid on the `DataGrid` engine. */
+/** Grid columns for the compliance library `DataGrid`. */
 export function buildComplianceGridColumns(): Array<GridColumn> {
   return zodToColumnDefs(ComplianceLibrarySchema).map((column) => ({
     ...column,

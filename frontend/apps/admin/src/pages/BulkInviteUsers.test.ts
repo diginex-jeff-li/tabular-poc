@@ -5,8 +5,6 @@ import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 import BulkInviteUsers from './BulkInviteUsers';
 import type { VueWrapper } from '@vue/test-utils';
 
-// The TanStack build of the page. The Tabulator build needs a real browser
-// (its engine is mocked in unit tests) and is checked there.
 type Bridge = {
   call: (name: string, args: Record<string, unknown>) => Promise<unknown>;
 };
@@ -24,10 +22,7 @@ afterEach(() => {
 });
 
 async function mountPage() {
-  wrapper = mount(BulkInviteUsers, {
-    attachTo: document.body,
-    props: { engine: 'tanstack' },
-  });
+  wrapper = mount(BulkInviteUsers, { attachTo: document.body });
   // Agent tools and the grid's root listeners attach after mount.
   await flushPromises();
   if (!('scInvite' in window)) {
@@ -55,7 +50,7 @@ async function paste(w: VueWrapper, text: string) {
   await flushPromises();
 }
 
-describe('BulkInviteUsers (TanStack engine)', () => {
+describe('BulkInviteUsers', () => {
   it('shows Status first, and an agent-resolved line waits for Confirm before Send passes', async () => {
     const { w, agent } = await mountPage();
     expect(w.findAll('th')[0].text()).toBe('Status');
@@ -136,7 +131,7 @@ describe('BulkInviteUsers (TanStack engine)', () => {
   });
 });
 
-describe('BulkInviteUsers undo (TanStack engine)', () => {
+describe('BulkInviteUsers undo', () => {
   /** ⌘Z on the grid root. */
   async function undo(w: VueWrapper) {
     w.get('[data-slot="root"][tabindex]').element.dispatchEvent(

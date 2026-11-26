@@ -14,9 +14,6 @@
  * Only a person can confirm an agent-proposed row (its Confirm button, or
  * editing it).
  *
- * The `engine` prop picks the grid (TanStack `DataGrid` or Tabulator
- * `GridEditor`) and its columns; everything else is written once.
- *
  * "Send invites" is SIMULATED: it runs the send checks and sends nothing.
  * The real bulk backend — atomicity, oversight approval, partial failure —
  * is not defined by SC15-706 or the single-invite contract.
@@ -36,24 +33,12 @@ import { createInviteTools } from 'utils/inviteAgentTools';
 import { createInviteDraft } from 'utils/inviteDraft';
 import { buildInviteWorkbook, parseInviteWorkbook } from 'utils/inviteWorkbook';
 import { zodToColumnDefs } from 'utils/zodToColumnDefs';
-import {
-  defineAsyncComponent,
-  defineComponent,
-  nextTick,
-  onMounted,
-  ref,
-  shallowRef,
-} from 'vue';
+import { defineComponent, nextTick, onMounted, ref, shallowRef } from 'vue';
 import type { InviteRowStatus } from 'utils/draftRow';
 import type { GridApi } from 'utils/gridApi';
 import type { InviteDraft } from 'utils/inviteDraft';
 import type { GridColumn } from 'utils/zodToColumnDefs';
-import type { PropType, VNode } from 'vue';
-
-// Loaded only on the Tabulator route, so TanStack pages never fetch Tabulator.
-const InviteTabulatorGrid = defineAsyncComponent(
-  () => import('components/TabulatorGrids/InviteTabulatorGrid'),
-);
+import type { VNode } from 'vue';
 
 // Mock directory: these emails already have accounts in the organisation.
 const EXISTING_EMAILS: ReadonlySet<string> = new Set([
@@ -111,24 +96,15 @@ function gridColumns(draft: InviteDraft): Array<GridColumn> {
 
 export default defineComponent({
   name: 'BulkInviteUsers',
-  props: {
-    engine: {
-      type: String as PropType<'tanstack' | 'tabulator'>,
-      required: true,
-    },
-  },
-  setup(props) {
+  setup() {
     let grid: GridApi | null = null;
     const fileInput = ref<HTMLInputElement | null>(null);
     const webmcp = ref(false);
     const notice = ref<string | null>(null);
     const autoMatch = ref(true);
 
-    // The draft survives a reload on the default (TanStack) route only; the
-    // Tabulator comparison route always starts empty.
-    const storage =
-      props.engine === 'tanstack' ? useInviteDraftStorage() : null;
-    const restored = storage?.restored ?? null;
+    // The draft survives a reload.
+    const storage = useInviteDraftStorage();
 
     const draft = createInviteDraft(() => grid, {
       existingEmails: EXISTING_EMAILS,
@@ -267,17 +243,18 @@ export default defineComponent({
       onReady: (api: GridApi) => {
         // Every draft write ends in showErrors (the draft checks and repaints
         // after each one), so that is where the draft is saved.
-        grid = storage
-          ? {
-              ...api,
-              showErrors(errors) {
-                api.showErrors(errors);
-                storage.save(api.getRows(), draft.agentProposedIds());
-              },
-            }
-          : api;
-        if (restored) {
-          void draft.restore(restored.rows, restored.agentProposed);
+        grid = {
+          ...api,
+          showErrors(errors) {
+            api.showErrors(errors);
+            storage.save(api.getRows(), draft.agentProposedIds());
+          },
+        };
+        if (storage.restored) {
+          void draft.restore(
+            storage.restored.rows,
+            storage.restored.agentProposed,
+          );
         }
       },
       title: 'Bulk invite users',
@@ -287,20 +264,7 @@ export default defineComponent({
       toolbarActions,
     };
 
-    const renderGrid = ((): (() => VNode | Array<VNode>) => {
-      if (props.engine === 'tanstack') {
-        const columns = gridColumns(draft);
-        return () => <DataGrid columns={columns} {...gridProps} />;
-      }
-      return () => (
-        <InviteTabulatorGrid
-          draft={draft}
-          statusClass={STATUS_CLASS}
-          statusWidth={STATUS_WIDTH}
-          {...gridProps}
-        />
-      );
-    })();
+    const columns = gridColumns(draft);
 
     return (): VNode => (
       <div class="flex h-full flex-col">
@@ -337,7 +301,9 @@ export default defineComponent({
             />
           )}
         </div>
-        <div class="invite-grid min-h-0 flex-1">{renderGrid()}</div>
+        <div class="min-h-0 flex-1">
+          <DataGrid columns={columns} {...gridProps} />
+        </div>
       </div>
     );
   },

@@ -4,9 +4,9 @@ import type { Row } from 'composables/useDataGrid';
 
 /**
  * Copies a block of cells as TSV, no header row: one line per row, cells
- * joined by tabs. Like Tabulator's range copy, only columns that take part in
- * paste (`column.paste`) are copied, so Status and the checkbox column never
- * are, and a copied block pastes back positionally. A value holding a tab,
+ * joined by tabs. As in a spreadsheet range copy, only columns that take part
+ * in paste (`column.paste`) are copied, so Status and the checkbox column
+ * never are, and a copied block pastes back positionally. A value holding a tab,
  * line break or quote is quoted the way Excel reads it. Blank cells copy as
  * empty strings.
  */
@@ -37,7 +37,7 @@ export function serializeTsv(
  * position onto the columns with `column.paste`, in column order, so a
  * read-only column anywhere in the grid never shifts the mapping. Extra
  * pasted cells are dropped; missing trailing ones are left out. Quoted cells
- * and `\r` are not handled (a known gap Tabulator shares).
+ * and `\r` are not handled (a known gap).
  */
 export function parsePositionalPaste(
   text: string,

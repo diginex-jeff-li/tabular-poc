@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
-import { defineComponent, h, nextTick } from 'vue';
+import { defineComponent, h } from 'vue';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import Application from './Application';
 import type { VNode } from 'vue';
@@ -41,8 +41,6 @@ async function mountApplication(initialPath = '/') {
     routes: [
       { path: '/', component: PlaceholderPage },
       { path: '/invite-users', component: PlaceholderPage },
-      { path: '/tabulator', component: PlaceholderPage },
-      { path: '/tabulator/invite-users', component: PlaceholderPage },
     ],
   });
   await router.push(initialPath);
@@ -91,14 +89,12 @@ describe('Application — nav shell', () => {
     // — either way it is a link, not a dead-end
   });
 
-  it('the header nav links are the two TanStack pages, then the two Tabulator comparison pages', async () => {
+  it('the header nav links are Compliance Library and Invite Users', async () => {
     const wrapper = await mountApplication();
     const links = wrapper.findAll('header a[href]');
     expect(links.map((l) => [l.text(), l.attributes('href')])).toEqual([
       ['Compliance Library', '/'],
       ['Invite Users', '/invite-users'],
-      ['Compliance', '/tabulator'],
-      ['Invite', '/tabulator/invite-users'],
     ]);
   });
 
@@ -132,7 +128,7 @@ describe('Application — nav shell', () => {
     expect(root.classes()).toContain('flex-col');
   });
 
-  it('the router outlet is flex-1 with min-h-0 so the GridEditor flex layout resolves', async () => {
+  it('the router outlet is flex-1 with min-h-0 so the grid page flex layout resolves', async () => {
     const wrapper = await mountApplication();
     const outlet = wrapper.find('.u-app > div > .router-outlet');
     expect(outlet.exists()).toBe(true);
@@ -144,34 +140,5 @@ describe('Application — nav shell', () => {
     const wrapper = await mountApplication();
     const header = wrapper.find('header');
     expect(header.classes()).toContain('shrink-0');
-  });
-
-  it('remounts a page shared by two routes, so each route gets its own engine', async () => {
-    // The page reads its prop once in setup, as the grid pages read `engine`.
-    const EnginePage = defineComponent({
-      props: { engine: { type: String, required: true } },
-      setup(props) {
-        const engine = props.engine;
-        return (): VNode => h('div', { class: 'engine' }, engine);
-      },
-    });
-    const router = createRouter({
-      history: createMemoryHistory(),
-      routes: [
-        { path: '/', component: EnginePage, props: { engine: 'tanstack' } },
-        {
-          path: '/tabulator',
-          component: EnginePage,
-          props: { engine: 'tabulator' },
-        },
-      ],
-    });
-    await router.push('/');
-    await router.isReady();
-    const wrapper = mount(Application, { global: { plugins: [router] } });
-    expect(wrapper.find('.engine').text()).toBe('tanstack');
-    await router.push('/tabulator');
-    await nextTick();
-    expect(wrapper.find('.engine').text()).toBe('tabulator');
   });
 });

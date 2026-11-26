@@ -1,7 +1,7 @@
 /**
  * The toolbar's "Columns" menu: one checkbox per column to hide or show it.
- * Engine-neutral, so both grid engines render the same menu. A locked column
- * (the pinned Status) is listed but can't be hidden.
+ * It takes plain `{ id, title, visible }` entries, not `UTable` columns. A
+ * locked column (the pinned Status) is listed but can't be hidden.
  */
 import UButton from '@nuxt/ui/components/Button.vue';
 import UDropdownMenu from '@nuxt/ui/components/DropdownMenu.vue';

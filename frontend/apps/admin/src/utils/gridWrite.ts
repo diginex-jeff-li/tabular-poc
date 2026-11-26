@@ -11,7 +11,7 @@ export type RowChange = {
   touchedIds: Array<string>;
 };
 
-/** The column fields the write rules read; both engines can build these. */
+/** The column fields the write rules read. */
 export type WritableColumn = Pick<GridColumn, 'id' | 'editor'>;
 
 /** The ids of the columns a person can type into. */

@@ -24,7 +24,7 @@ describe('move', () => {
     expect(move(at('r2', 'b'), 'right', order)).toEqual(at('r2', 'c'));
   });
 
-  it('clamps at every edge, so Tab at the row end stays put like Tabulator', () => {
+  it('clamps at every edge, so Tab at the row end stays put', () => {
     const topLeft = at('r1', 'a');
     const bottomRight = at('r4', 'c');
     expect(move(topLeft, 'up', order)).toEqual(topLeft);

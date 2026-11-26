@@ -1,8 +1,7 @@
 import UApp from '@nuxt/ui/components/App.vue';
-import { cloneVNode, defineComponent } from 'vue';
+import { defineComponent } from 'vue';
 import { RouterLink, RouterView } from 'vue-router';
 import type { VNode } from 'vue';
-import type { RouteLocationNormalizedLoaded } from 'vue-router';
 
 /**
  * Application shell — wraps every route with a slim nav header and the router
@@ -10,14 +9,12 @@ import type { RouteLocationNormalizedLoaded } from 'vue-router';
  *
  * Layout contract (mandatory): the shell root is `flex h-screen flex-col`; the
  * header is `shrink-0` so it never compresses or scrolls away; the router
- * outlet is `flex-1 min-h-0` so the GridEditor's `h-full` resolves to a real
+ * outlet is `flex-1 min-h-0` so the grid page's `h-full` resolves to a real
  * height and the grid's column headers sit entirely below the header's bottom
  * edge. No `100vh` arithmetic — the flex chain carries the height.
  *
- * Nav links: "Compliance Library" → `/` and "Invite Users" → `/invite-users`
- * (TanStack `DataGrid`), plus the same two pages on Tabulator under
- * `/tabulator` for comparison. The active route is visually indicated via
- * `activeClass`.
+ * Nav links: "Compliance Library" → `/` and "Invite Users" → `/invite-users`.
+ * The active route is visually indicated via `activeClass`.
  *
  * PROTOTYPE — throwaway prototype code.
  */
@@ -47,41 +44,12 @@ export default defineComponent({
               >
                 Invite Users
               </RouterLink>
-              <span class="ml-4 text-xs text-dimmed">
-                Tabulator (comparison):
-              </span>
-              <RouterLink
-                to="/tabulator"
-                class="text-sm text-muted hover:text-default"
-                activeClass="font-semibold text-primary"
-              >
-                Compliance
-              </RouterLink>
-              <RouterLink
-                to="/tabulator/invite-users"
-                class="text-sm text-muted hover:text-default"
-                activeClass="font-semibold text-primary"
-              >
-                Invite
-              </RouterLink>
             </nav>
           </header>
 
           {/* ── Router outlet (flex-1 min-h-0 — fills remaining space) ── */}
           <div class="router-outlet min-h-0 flex-1 overflow-hidden">
-            {/* Keyed by path: `/` and `/tabulator` share a page component
-                with a different `engine`, and the page picks its engine once. */}
-            <RouterView>
-              {{
-                default: ({
-                  Component,
-                  route,
-                }: {
-                  Component: VNode | undefined;
-                  route: RouteLocationNormalizedLoaded;
-                }) => Component && cloneVNode(Component, { key: route.path }),
-              }}
-            </RouterView>
+            <RouterView />
           </div>
         </div>
       </UApp>

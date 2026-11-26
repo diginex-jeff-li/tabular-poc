@@ -3,8 +3,9 @@ import type { VNode } from 'vue';
 import type { z } from 'zod';
 
 /**
- * One grid column, independent of the table engine. `DataGrid` maps it to a
- * `UTable` column; validation, paste, CSV and range logic read it directly.
+ * One grid column, kept apart from `UTable`'s column type. `DataGrid` maps it
+ * to a `UTable` column; validation, paste, CSV and range logic read it
+ * directly.
  */
 export type GridColumn = {
   id: string;
@@ -28,8 +29,7 @@ export type GridColumn = {
       /**
        * Renders the cell instead of the row's value; the column can't be
        * sorted. Re-runs when the row changes and when errors are shown
-       * (`GridApi.showErrors`), so it may show state kept outside the row,
-       * as Tabulator's formatters re-run on `reformat`.
+       * (`GridApi.showErrors`), so it may show state kept outside the row.
        */
       render?: (row: Row) => VNode;
     }

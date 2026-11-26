@@ -3,9 +3,9 @@
  * indexes, so a position survives sorting, filtering and row inserts; every
  * function resolves ids against the `GridOrder` it is given.
  *
- * Keys map to `Dir` like Tabulator's range mode (measured on `/tabulator`):
- * Tab is `right` and Shift+Tab is `left`, and both stop at the row's edge
- * instead of wrapping to the next row.
+ * Keys map to `Dir` as in a spreadsheet's range mode: Tab is `right` and
+ * Shift+Tab is `left`, and both stop at the row's edge instead of wrapping to
+ * the next row.
  */
 
 /** A cell, by row id and column id. */

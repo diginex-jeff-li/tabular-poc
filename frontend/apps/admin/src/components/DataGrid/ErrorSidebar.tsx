@@ -1,7 +1,7 @@
 /**
- * Save errors beside the grid, as on the Tabulator engine: one entry per
- * backend error; clicking it shows the cell. A failed request (no response)
- * shows as a network entry with nothing to point at.
+ * Save errors beside the grid: one entry per backend error; clicking it shows
+ * the cell. A failed request (no response) shows as a network entry with
+ * nothing to point at.
  */
 import { rowLabel } from 'utils/gridApi';
 import { computed, defineComponent } from 'vue';

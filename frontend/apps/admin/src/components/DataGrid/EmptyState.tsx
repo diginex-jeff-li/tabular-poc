@@ -1,7 +1,7 @@
 /**
- * The empty-grid overlay, as on the Tabulator engine. A press on it focuses
- * the grid, so the next Ctrl/Cmd+V pastes into it. Keyboard users reach the
- * grid with Tab; the overlay only covers it.
+ * The empty-grid overlay, shown while the grid has no rows. A press on it
+ * focuses the grid, so the next Ctrl/Cmd+V pastes into it. Keyboard users
+ * reach the grid with Tab; the overlay only covers it.
  */
 import { defineComponent } from 'vue';
 import type { DataGridState } from 'composables/useDataGrid';

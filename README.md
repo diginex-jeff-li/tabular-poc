@@ -1,15 +1,12 @@
 # sc-tabulator
 
-Spreadsheet-style grid prototype on TanStack Table (Nuxt UI `UTable`), with
-the earlier Tabulator build kept alongside for comparison. Two areas:
+Spreadsheet-style grid prototype on TanStack Table (Nuxt UI `UTable`). Two
+areas:
 
 - **Compliance Library** (`/`) — admin grid for compliance reference data.
 - **Invite Users** (`/invite-users`) — SC15-706 bulk invite prototype: Excel
   template with built-in validation, import, paste, and AI agent tools via
   WebMCP.
-
-Both pages also run on Tabulator at `/tabulator` and `/tabulator/invite-users`,
-on the same data.
 
 A pnpm workspace monorepo with two packages:
 
@@ -137,12 +134,10 @@ Trying it with an agent (observed):
 
 ## Routes
 
-| Path                      | Page                 | Engine                 | Description                             |
-| ------------------------- | -------------------- | ---------------------- | --------------------------------------- |
-| `/`                       | ComplianceGridEditor | TanStack (`DataGrid`)  | Compliance library reference data grid  |
-| `/invite-users`           | BulkInviteUsers      | TanStack (`DataGrid`)  | SC15-706 bulk invite + WebMCP prototype |
-| `/tabulator`              | ComplianceGridEditor | Tabulator (comparison) | Same page on Tabulator                  |
-| `/tabulator/invite-users` | BulkInviteUsers      | Tabulator (comparison) | Same page on Tabulator                  |
+| Path            | Page                 | Description                             |
+| --------------- | -------------------- | --------------------------------------- |
+| `/`             | ComplianceGridEditor | Compliance library reference data grid  |
+| `/invite-users` | BulkInviteUsers      | SC15-706 bulk invite + WebMCP prototype |
 
 ## Monorepo Conventions
 
@@ -168,22 +163,18 @@ components and types, kebab-case for file names of non-component modules. Oxlint
 must not import from frontend. Frontend imports contracts via the `contracts`
 workspace dependency only.
 
-**Grid engines** — each page takes an `engine` prop from its route. The
-TanStack `DataGrid` (Nuxt UI `UTable`) is the default; the Tabulator
-`GridEditor` is kept for comparison only. Both share one props contract
-(`components/gridEngineProps.ts`) and the `GridApi` seam (`utils/gridApi.ts`).
+**Grid** — both pages render `DataGrid` (Nuxt UI `UTable`, TanStack Table).
+Programmatic access (agent tools, file import) goes through the `GridApi` seam
+(`utils/gridApi.ts`).
 
 ## Key Files
 
 | File                                                      | Purpose                                               |
 | --------------------------------------------------------- | ----------------------------------------------------- |
-| `frontend/apps/admin/src/pages/ComplianceGridEditor.tsx`  | Compliance library grid page (either engine)          |
-| `frontend/apps/admin/src/components/DataGrid/DataGrid.tsx` | TanStack grid engine — toolbar, keyboard, clipboard, error sidebar |
+| `frontend/apps/admin/src/pages/ComplianceGridEditor.tsx`  | Compliance library grid page                          |
+| `frontend/apps/admin/src/components/DataGrid/DataGrid.tsx` | Grid component — toolbar, keyboard, clipboard, error sidebar |
 | `frontend/apps/admin/src/composables/useDataGrid.ts`      | DataGrid state — rows, derived dirty diff, save loop, `GridApi` |
-| `frontend/apps/admin/src/utils/zodToColumnDefs.ts`        | Derive engine-neutral grid columns from a Zod schema  |
-| `frontend/apps/admin/src/composables/useGridEditor.ts`    | Tabulator engine (comparison only)                    |
-| `frontend/apps/admin/src/components/GridEditor/GridEditor.tsx` | Tabulator presentation component (comparison only) |
-| `frontend/apps/admin/src/utils/zodToTabulatorColumns.ts`  | Tabulator column defs from Zod schema (comparison only) |
+| `frontend/apps/admin/src/utils/zodToColumnDefs.ts`        | Derive grid columns from a Zod schema                 |
 | `frontend/apps/admin/src/pages/BulkInviteUsers.tsx`       | Bulk invite page (`/invite-users`) — Excel, paste, agent tools |
 | `frontend/apps/admin/src/utils/validateInvites.ts`        | Send checks for the invite draft (also behind the agent `validate` tool) |
 | `frontend/apps/admin/src/utils/inviteDraft.ts`            | Invite draft module — who may change which rows, statuses, unmapped tables, Send gate |

@@ -1,8 +1,8 @@
 /**
- * The seams every grid engine (`DataGrid`, `GridEditor`) and the in-memory
- * adapter (`memoryGridApi`) share: the save result shape, which matches the
- * contracts' BulkSaveError/Response, and the programmatic grid access the
- * invite draft, agent tools and file import use.
+ * The seams `DataGrid` and the in-memory adapter (`memoryGridApi`) share: the
+ * save result shape, which matches the contracts' BulkSaveError/Response, and
+ * the programmatic grid access the invite draft, agent tools and file import
+ * use.
  */
 export interface GridSaveError {
   /** Index in the save request's `upserts`, not the row's place in the grid. */
