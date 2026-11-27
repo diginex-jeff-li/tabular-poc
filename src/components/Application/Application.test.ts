@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils';
-import { describe, it, expect, vi, beforeEach } from 'vite-plus/test';
+import { describe, it, expect, vi } from 'vite-plus/test';
 import { defineComponent, h } from 'vue';
 import { createRouter, createMemoryHistory } from 'vue-router';
 import Application from './Application';
@@ -53,10 +53,6 @@ async function mountApplication(initialPath = '/') {
 }
 
 describe('Application — nav shell', () => {
-  beforeEach(() => {
-    // Ensure clean state between tests
-  });
-
   it('renders a <header> element above the router outlet', async () => {
     const wrapper = await mountApplication();
     const header = wrapper.find('header');
