@@ -19,7 +19,7 @@ export interface UnmappedTable {
   rows: Array<Array<string>>;
 }
 
-/** Per pasted column: the template column it fills, or null to ignore it. */
+/** Per column of a pasted or imported table: the template column it fills, or null to ignore it. */
 export type ColumnMapping = Array<InviteField | null>;
 
 type DraftRow = Partial<Record<InviteField, string | null>>;
