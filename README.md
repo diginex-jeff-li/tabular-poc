@@ -5,8 +5,8 @@ areas:
 
 - **Compliance Library** (`/`) — admin grid for compliance reference data.
 - **Invite Users** (`/invite-users`) — SC15-706 bulk invite prototype: Excel
-  template with built-in validation, import, paste, and AI agent tools via
-  WebMCP.
+  template with header notes and a Role dropdown, import, paste, and AI agent
+  tools via WebMCP.
 
 One package at the repo root: a Vue 3.5 + TSX admin app (port 3500) on Vite+
 (Vite 8), Nuxt UI v4 and Tailwind v4. The shared Zod schemas live in
@@ -87,9 +87,9 @@ design decisions: `.scratch/invite-draft-rows/spec.md` and
   template column is held in a mapping panel. The agent may propose a mapping;
   only a person applies it. The "Auto-match headers" switch off holds every
   paste and import (agent demo).
-- **Excel**: `utils/inviteWorkbook.ts` generates `.xlsx` with data validation
-  (first-pass only; typed entries) and reads the first sheet as a plain table.
-  Import re-checks every row with the real rules.
+- **Excel**: `utils/inviteWorkbook.ts` generates `.xlsx` with a note on each
+  header (the column's rules, from the invite contract) and a Role dropdown,
+  and reads the first sheet as a plain table. The grid is the only validation.
 - **Send invites is simulated** — nothing is sent. Bulk atomicity, oversight
   approval and partial failure are undefined by the ticket.
 - **Agent tools** (`utils/inviteAgentTools.ts`, an adapter over the invite draft
@@ -160,7 +160,7 @@ Programmatic access (agent tools, file import) goes through the `GridApi` seam
 | `src/utils/inviteDraft.ts`                                | Invite draft module — who may change which rows, statuses, unmapped tables, Send gate |
 | `src/utils/draftRow.ts`                                   | One draft row: cleanup, line parser, needs-review detection |
 | `src/utils/columnMapping.ts`                              | Client tables (pasted or imported): header/alias matching, hold vs insert |
-| `src/utils/inviteWorkbook.ts`                             | Excel template (with data validation) + `.xlsx` read as a plain table |
+| `src/utils/inviteWorkbook.ts`                             | Excel template (header notes, Role dropdown) + `.xlsx` read as a plain table |
 | `src/utils/inviteAgentTools.ts`                           | Agent tools — adapter over the invite draft module (no send/confirm/apply tool) |
 | `src/composables/useAgentTools.ts`                        | Register tools on WebMCP + `window` bridge            |
 | `src/composables/useInviteDraftStorage.ts` | Keeps the `/invite-users` draft in localStorage across reloads |

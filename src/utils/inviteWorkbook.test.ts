@@ -1,3 +1,4 @@
+import { INVITE_GROUPS, INVITE_ROLES } from 'contracts';
 import ExcelJS from 'exceljs';
 import { describe, expect, it } from 'vite-plus/test';
 import { buildInviteWorkbook, readInviteWorkbook } from './inviteWorkbook';
@@ -9,26 +10,36 @@ async function load(data: ArrayBuffer) {
 }
 
 describe('buildInviteWorkbook', () => {
-  it('carries Excel data validation for every invite column', async () => {
+  it('notes each header with its rules and validates only the Role column', async () => {
     const sheet = (await load(await buildInviteWorkbook())).getWorksheet(
       'Invites',
     );
 
-    expect(sheet.getCell('A2').dataValidation).toMatchObject({
-      type: 'custom',
-      formulae: [expect.stringContaining('COUNTIF($A$2:$A$501,A2)=1')],
-    });
-    expect(sheet.getCell('C500').dataValidation).toMatchObject({
-      type: 'textLength',
-      operator: 'between',
-    });
+    const noteText = (address: string) => {
+      const { note } = sheet.getCell(address);
+      return typeof note === 'string'
+        ? note
+        : note?.texts?.map((t) => t.text).join('');
+    };
+    expect(['A1', 'B1', 'C1', 'D1', 'E1'].map(noteText)).toEqual([
+      'Email (required)\nA valid email address, unique in this sheet.',
+      'First Name (required)\nUp to 100 characters.',
+      'Last Name (required)\nUp to 100 characters.',
+      `Role (required)\nPick from the list: ${INVITE_ROLES.join(', ')}.`,
+      `Groups (optional)\nSeparate with "; ". Allowed: ${INVITE_GROUPS.join('; ')}.`,
+    ]);
+
     const role = sheet.getCell('D2').dataValidation;
     expect(role).toMatchObject({ type: 'list', formulae: ['Lists!$A$2:$A$5'] });
     expect(role.allowBlank).toBeFalsy();
-    expect(sheet.getCell('E2').dataValidation).toMatchObject({
-      type: 'custom',
-      allowBlank: true,
+    expect(sheet.getCell('D501').dataValidation).toMatchObject({
+      type: 'list',
     });
+    for (let r = 2; r <= 501; r++) {
+      for (const col of ['A', 'B', 'C', 'E']) {
+        expect(sheet.getCell(`${col}${r}`).dataValidation).toBeUndefined();
+      }
+    }
   });
 
   it('round-trips the current rows through readInviteWorkbook as text', async () => {

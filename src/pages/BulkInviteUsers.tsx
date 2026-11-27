@@ -3,8 +3,8 @@
  *
  * Shows three ways to fill the same invite draft, all checked by one
  * validator (vocabulary: CONTEXT.md):
- * - Excel: download a template that carries its own data validation
- *   (dropdowns, email/uniqueness, name length), fill it, import it.
+ * - Excel: download a template whose header notes give each column's rules
+ *   (Role is a dropdown), fill it, import it.
  * - Paste from Excel straight into the grid.
  * - An AI agent through WebMCP tools (or the `window.scInvite` bridge).
  *
