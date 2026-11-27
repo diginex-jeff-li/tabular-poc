@@ -50,11 +50,9 @@ returns is the grid's `GridSaveResponse` (`utils/gridApi.ts`), not a contract.
 
 ## Conventions
 
-**Dependency versions** — no `catalog:` references (StackBlitz does not support
-catalogs). Dependencies are pinned to exact versions in `package.json`, with
-no range operator. `pnpm-workspace.yaml` holds only pnpm settings:
-`allowBuilds`, `nodeLinker: hoisted` (StackBlitz WebContainers need a flat
-`node_modules`), and one `overrides` entry that pins every `vite` to Vite+'s
+**Dependency versions** — dependencies are pinned to exact versions in
+`package.json`, with no range operator. `pnpm-workspace.yaml` holds only pnpm
+settings: `allowBuilds` and one `overrides` entry that pins every `vite` to Vite+'s
 bundled core (`npm:@voidzero-dev/vite-plus-core@…`, an explicit version) so
 tests and the app share one Vite. `vp migrate` maintains it; keep it, the
 `vite` devDependency and `vite-plus` in step when upgrading Vite+.
