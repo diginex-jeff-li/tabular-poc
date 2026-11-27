@@ -33,5 +33,5 @@ A pasted or imported table held outside the invite draft because its columns cou
 _Avoid_: staging, raw paste
 
 **Column mapping**:
-Which pasted column fills which template column, or is ignored.
+Which column of a pasted or imported table fills which template column, or is ignored.
 _Avoid_: header map, field map
