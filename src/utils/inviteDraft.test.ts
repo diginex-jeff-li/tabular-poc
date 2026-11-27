@@ -76,7 +76,7 @@ describe('invite draft', () => {
 
   it('normalizes what a person imports, checks every row and paints the errors', () => {
     const { draft, grid } = setup();
-    draft.importRows([
+    grid.api.importRows([
       { ...ann, email: ' ANN@acme.com ', role: 'viewer' },
       { ...ann, email: 'jane.doe@acme.com' },
       TOM_LINE,
@@ -93,7 +93,7 @@ describe('invite draft', () => {
   describe('agent proposed', () => {
     function proposed() {
       const s = setup();
-      const [tom] = s.draft.importRows([TOM_LINE]);
+      const [tom] = s.grid.api.importRows([TOM_LINE]);
       s.draft.update([{ id: tom, ...tomFixed }]);
       return { ...s, tom };
     }
@@ -118,8 +118,8 @@ describe('invite draft', () => {
     });
 
     it('an agent editing a row that did not need review does not mark it', () => {
-      const { draft } = setup();
-      const [id] = draft.importRows([ann]);
+      const { draft, grid } = setup();
+      const [id] = grid.api.importRows([ann]);
       draft.update([{ id, firstName: 'Anne' }]);
       expect(statuses(draft)).toEqual(['Ready']);
     });
@@ -141,8 +141,8 @@ describe('invite draft', () => {
   });
 
   it('re-checks after a person deletes: the surviving duplicate becomes ready', () => {
-    const { draft, personDeletes } = setup();
-    const [, second] = draft.importRows([ann, ann]);
+    const { draft, grid, personDeletes } = setup();
+    const [, second] = grid.api.importRows([ann, ann]);
     expect(statuses(draft)).toEqual(['Ready', 'Not ready']);
     personDeletes([second]);
     expect(statuses(draft)).toEqual(['Ready']);
@@ -151,8 +151,8 @@ describe('invite draft', () => {
   describe('kept in its store', () => {
     it('saves the rows and the agent-proposed ids after every write', () => {
       const store = memoryStore();
-      const { draft } = setup(store);
-      const [annId, tom] = draft.importRows([ann, TOM_LINE]);
+      const { draft, grid } = setup(store);
+      const [annId, tom] = grid.api.importRows([ann, TOM_LINE]);
       expect(store.saved).toEqual({
         rows: [
           expect.objectContaining({ id: annId, email: 'ann@acme.com' }),

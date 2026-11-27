@@ -28,8 +28,9 @@ import type { ShallowRef } from 'vue';
  * Who writes:
  * - `add`, `update` and `remove` are the agent's writes (the grid's agent
  *   write: not undoable)
- * - a person writes in the grid, or brings a table through `importRows` (a
- *   person write: one undo step; `importTable` and `applyMapping` use it).
+ * - a person writes in the grid, or brings a table through the grid's
+ *   `importRows` (a person write: one undo step; `importTable` and
+ *   `applyMapping` use it).
  *   Those writes reach the draft only through `edited`, so the grid's
  *   `onUserEdit` must call `edited`; that call runs the check after a
  *   person's write
@@ -172,14 +173,6 @@ export function createInviteDraft(
     return ids;
   }
 
-  /**
-   * A person brings a table (file import, an applied column mapping). The
-   * grid reports the new rows to `onUserEdit`, whose `edited` checks them.
-   */
-  function importRows(newRows: Array<Row>): Array<string> {
-    return api().importRows(newRows);
-  }
-
   /** The agent patches rows; resolving a needs-review row makes it agent proposed. */
   function update(patches: Array<{ id: string } & Row>): {
     updated: Array<string>;
@@ -267,7 +260,7 @@ export function createInviteDraft(
 
   /** A person's table enters the draft as one undo step. */
   function insert(newRows: Array<Row>, ignored: Array<string>): TableOutcome {
-    importRows(newRows);
+    api().importRows(newRows);
     return {
       kind: 'added',
       added: newRows.length,
@@ -383,7 +376,6 @@ export function createInviteDraft(
     rows,
     check,
     add,
-    importRows,
     update,
     remove,
     confirm,
