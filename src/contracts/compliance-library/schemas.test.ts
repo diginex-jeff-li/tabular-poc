@@ -90,9 +90,7 @@ describe('Option lists', () => {
   const { shape } = ComplianceLibrarySchema;
 
   it('categoryCode has 17 values A-Q', () => {
-    expect(shape.categoryCode.options).toHaveLength(17);
-    expect(shape.categoryCode.options[0]).toBe('A');
-    expect(shape.categoryCode.options[16]).toBe('Q');
+    expect(shape.categoryCode.options).toEqual('ABCDEFGHIJKLMNOPQ'.split(''));
   });
 
   it('complianceCategory has 3 values', () => {

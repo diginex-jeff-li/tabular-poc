@@ -75,7 +75,9 @@ describe('diffRows + buildSavePayload', () => {
       name: String(row.name).trim(),
     });
     expect(
-      buildSavePayload(diffRows([ann], [{ ...ann, name: ' Ann ' }], trim)),
+      buildSavePayload(
+        diffRows([{ ...ann, name: 'Ann ' }], [{ ...ann, name: ' Ann' }], trim),
+      ),
     ).toEqual({ upserts: [], deletes: [] });
   });
 });

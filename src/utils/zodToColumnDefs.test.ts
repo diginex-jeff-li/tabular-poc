@@ -140,8 +140,8 @@ describe('zodToColumnDefs', () => {
       });
 
       it('reports a blank value as missing, not as breaking the rule', () => {
-        expect(email.validate('')).toBe(name.validate(''));
-        expect(email.validate('')).not.toBe(email.validate('a@b.c'));
+        expect(email.validate('')).toBe('Required');
+        expect(name.validate('')).toBe('Required');
       });
     });
   });
