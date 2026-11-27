@@ -66,7 +66,7 @@ export default defineComponent({
 
     const renderFilter = (): VNode | null => {
       const def: GridColumn = props.def;
-      if (def.filter === 'text') {
+      if (def.editor === 'text') {
         return (
           <UInput
             size="xs"

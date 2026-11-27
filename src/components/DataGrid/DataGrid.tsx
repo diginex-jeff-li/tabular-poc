@@ -244,8 +244,8 @@ function dataColumn(
     enableSorting: !('render' in column && column.render),
     sortingFn: 'alphanumeric',
     sortDescFirst: false,
-    enableColumnFilter: column.filter !== null,
-    filterFn: column.filter === 'choice' ? 'equals' : 'includesString',
+    enableColumnFilter: column.editor !== null,
+    filterFn: column.editor === 'choice' ? 'equals' : 'includesString',
     size: column.width ?? DEFAULT_WIDTH,
     minSize: MIN_WIDTH,
     meta: {

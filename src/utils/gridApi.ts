@@ -30,11 +30,10 @@ export type GridColumn = {
   /** Stays at the left edge while the grid scrolls sideways. */
   pinned?: boolean;
 } & (
-  | { editor: 'choice'; options: ReadonlyArray<string>; filter: 'choice' }
-  | { editor: 'text'; filter: 'text' }
+  | { editor: 'choice'; options: ReadonlyArray<string> }
+  | { editor: 'text' }
   | {
       editor: null;
-      filter: null;
       /**
        * Renders the cell instead of the row's value; the column can't be
        * sorted. Re-runs when the row changes and when errors are shown

@@ -11,7 +11,6 @@ const TEXT: GridColumn = {
   id: '',
   title: '',
   editor: 'text',
-  filter: 'text',
   validate: () => null,
   paste: true,
   export: true,
@@ -21,7 +20,6 @@ const STATUS: GridColumn = {
   ...TEXT,
   id: 'status',
   editor: null,
-  filter: null,
 };
 const TOPIC: GridColumn = { ...TEXT, id: 'topic' };
 const RISK: GridColumn = { ...TEXT, id: 'risk' };

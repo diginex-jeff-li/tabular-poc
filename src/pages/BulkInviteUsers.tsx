@@ -82,7 +82,6 @@ function gridColumns(draft: InviteDraft): Array<GridColumn> {
       width: STATUS_WIDTH,
       pinned: true,
       editor: null,
-      filter: null,
       paste: false,
       export: false,
       validate: () => null,

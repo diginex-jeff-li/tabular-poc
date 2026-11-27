@@ -12,17 +12,17 @@ class SilentResizeObserver {
  * happy-dom lays nothing out, so every size is 0 and `DataGrid`'s row
  * virtualizer renders no rows. Call at a test file's top level: every
  * element is `ROW_HEIGHT` tall (`offsetHeight`, which the virtualizer
- * measures rows with) and shows `viewport` px (`clientHeight`, which it sizes
- * the scroll container with), so the grid shows `viewport / ROW_HEIGHT` rows.
+ * measures rows with) and shows 20 rows' height (`clientHeight`, which it
+ * sizes the scroll container with), so the grid shows 20 rows.
  * Applied per test, so a test's `vi.restoreAllMocks()` doesn't remove it.
  */
-export function useGridLayout(viewport = 20 * ROW_HEIGHT): void {
+export function useGridLayout(): void {
   beforeEach(() => {
     vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(
       ROW_HEIGHT,
     );
     vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(
-      viewport,
+      20 * ROW_HEIGHT,
     );
     vi.stubGlobal('ResizeObserver', SilentResizeObserver);
   });

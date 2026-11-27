@@ -169,7 +169,7 @@ function cellClass(cell: {
     cell.saveError
       ? 'bg-error/10'
       : (cell.selected || cell.fillTarget) && !cell.editing && 'bg-primary/10',
-    (cell.invalid || cell.saveError) && 'ring-2 ring-inset ring-error',
+    cell.invalid && 'ring-2 ring-inset ring-error',
     cell.outlined
       ? 'outline-3 -outline-offset-3 outline-error'
       : cell.active

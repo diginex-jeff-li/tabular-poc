@@ -59,7 +59,7 @@ function deriveColumn(
   };
 }
 
-/** Editor and filter for a field, and its rule for a non-blank value. */
+/** Editor for a field, and its rule for a non-blank value. */
 function deriveKind(type: z.ZodType) {
   if (type._zod.def.type === 'enum') {
     const options = (type as z.ZodEnum).options as Array<string>;
@@ -67,7 +67,6 @@ function deriveKind(type: z.ZodType) {
     return {
       editor: 'choice',
       options,
-      filter: 'choice',
       rule: (value: unknown) =>
         options.includes(value as string) ? null : invalid,
     } as const;
@@ -82,7 +81,6 @@ function deriveKind(type: z.ZodType) {
   }
   return {
     editor: 'text',
-    filter: 'text',
     rule: (value: unknown) => {
       const result = string.safeParse(value);
       return result.success

@@ -61,19 +61,17 @@ describe('zodToColumnDefs', () => {
     expect(column.title).toBe('Given name');
   });
 
-  it('gives an enum a choice editor and filter over its options', () => {
+  it('gives an enum a choice editor over its options', () => {
     expect(byId(columns, 'riskLevel')).toMatchObject({
       editor: 'choice',
       options: ['High', 'Medium', 'Low'],
-      filter: 'choice',
     });
   });
 
-  it('gives a string a text editor and filter', () => {
+  it('gives a string a text editor', () => {
     for (const id of ['issue', 'evidenceExpectation', 'bestPractice']) {
       expect(byId(columns, id)).toMatchObject({
         editor: 'text',
-        filter: 'text',
       });
     }
   });
