@@ -61,7 +61,7 @@ export interface DataGridState {
   isSaving: Readonly<Ref<boolean>>;
   /** The last save's outcome; cleared when the next change appears. */
   saveResult: Readonly<ShallowRef<GridSaveResponse | null>>;
-  /** Backend save errors; those of rows that later leave the grid are dropped. */
+  /** Backend save errors, including those for rows the save deleted; dropped when their row leaves the grid afterwards. */
   errorList: Readonly<ShallowRef<ReadonlyArray<GridSaveError>>>;
   setRowSelected: (rowId: string, selected: boolean) => void;
   /** Steps back one person write; false when there is none. Reported to `onUserEdit`. */
