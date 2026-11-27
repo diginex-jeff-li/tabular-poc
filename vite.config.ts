@@ -75,11 +75,6 @@ export default defineConfig({
     target: 'esnext',
   },
   test: {
-    // Vitest v4 compatibility: preserve mock call history.
-    // Remove after tests no longer rely on calls from setup or earlier tests.
-    // https://viteplus.dev/guide/vitest-v5#remove-unneeded-compatibility-settings
-    // https://vitest.dev/guide/migration/#clearmocks-is-enabled-by-default
-    clearMocks: false,
     globals: true,
     environment: 'happy-dom',
     include: ['src/**/*.test.ts'],
@@ -153,9 +148,6 @@ export default defineConfig({
       'react/no-unknown-property': 'off',
       'react/rules-of-hooks': 'off',
       'react/immutability': 'off',
-      // Only recognises React's `htmlFor`; Vue labels use `for` (the 3 `for`
-      // labels it flagged were correct; the 2 unlinked ones are now linked).
-      'jsx-a11y/label-has-associated-control': 'off',
       // Needs strictNullChecks; tsconfig.json sets it false.
       'typescript/no-useless-default-assignment': 'off',
       // Grid cell values, WebMCP registerTool and agent tool results are
@@ -166,11 +158,8 @@ export default defineConfig({
       // breaks (count at adoption). Remove one per commit, fix or justify.
       'quality/no-unsafe-dictionary-type': 'off', // 144
       'typescript/no-unsafe-type-assertion': 'off', // 125
-      'typescript/no-unsafe-call': 'off', // 63
       'vitest/require-mock-type-parameters': 'off', // 45
-      'typescript/no-unsafe-member-access': 'off', // 39
       'quality/no-known-value-widening': 'off', // 23
-      'typescript/no-unsafe-assignment': 'off', // 22
       'quality/no-chained-type-assertions': 'off', // 19
       'typescript/no-base-to-string': 'off', // 13
     },

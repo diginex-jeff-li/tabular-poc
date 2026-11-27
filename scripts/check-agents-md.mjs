@@ -3,7 +3,8 @@
  * Validates that AGENTS.md exists, is non-empty, and documents the essential
  * commands an agent needs: install, dev, build, test, lint, typecheck.
  *
- * Run as a pre-commit hook (via lint-staged on *.md files) or standalone:
+ * Run as a pre-commit hook (via vp staged on *.md files, the vite.config.ts
+ * staged block) or standalone:
  *   pnpm run agents:check
  */
 import { readFileSync } from 'node:fs';
