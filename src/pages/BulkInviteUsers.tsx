@@ -284,7 +284,7 @@ export default defineComponent({
                 ? `WebMCP: ${tools.length} agent tools registered on this page`
                 : 'WebMCP not available in this browser — agent tools only via window.scInvite'
             }
-            description="Agents can add, edit, delete and validate rows, split lines that need review, and propose how a pasted or imported table's columns map — a person confirms each of those. Only you can click Send invites. Existing users for testing: jane.doe@acme.com, tom.lee@acme.com, admin@acme.com."
+            description="Agents can add, edit, delete and validate rows. Their adds, edits and deletes apply at once. Rows an agent splits out of a line that needs review wait for you to confirm them, and a column mapping an agent proposes waits for you to apply it. Only you can click Send invites. Existing users for testing: jane.doe@acme.com, tom.lee@acme.com, admin@acme.com."
           />
           <Transition name="rise" css={animatePanels.value}>
             {notice.value ? (
