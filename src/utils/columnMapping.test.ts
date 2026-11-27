@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vite-plus/test';
 import {
   applyColumnMapping,
-  mappingProblems,
   planPaste,
   planTable,
+  tableMapping,
 } from './columnMapping';
 
 const tsv = (...lines: Array<Array<string>>) =>
@@ -156,7 +156,7 @@ describe('planPaste', () => {
   });
 });
 
-describe('applyColumnMapping and mappingProblems', () => {
+describe('applyColumnMapping and tableMapping', () => {
   const table = {
     headers: ['ID', 'Mail', 'Given', 'Family', 'Level'],
     rows: [['1', 'a@x.com', 'Ann', 'Lee', 'Viewer']],
@@ -189,15 +189,16 @@ describe('applyColumnMapping and mappingProblems', () => {
   });
 
   it('names missing required columns and columns mapped twice', () => {
-    expect(mappingProblems([null, 'email', 'email', 'lastName', null])).toEqual(
-      [
-        'Email is mapped from more than one column',
-        'No column for First Name',
-        'No column for Role',
-      ],
-    );
     expect(
-      mappingProblems([null, 'email', 'firstName', 'lastName', 'role']),
+      tableMapping(table, [null, 'email', 'email', 'lastName', null]).problems,
+    ).toEqual([
+      'Email is mapped from more than one column',
+      'No column for First Name',
+      'No column for Role',
+    ]);
+    expect(
+      tableMapping(table, [null, 'email', 'firstName', 'lastName', 'role'])
+        .problems,
     ).toEqual([]);
   });
 });

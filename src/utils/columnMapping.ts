@@ -111,7 +111,7 @@ export function applyColumnMapping(
 }
 
 /** Why a mapping cannot be applied yet; empty when it can. */
-export function mappingProblems(mapping: ColumnMapping): Array<string> {
+function mappingProblems(mapping: ColumnMapping): Array<string> {
   const problems: Array<string> = [];
   for (const column of INVITE_COLUMNS) {
     const uses = mapping.filter((f) => f === column.field).length;
