@@ -87,7 +87,9 @@ export function extend(range: Range, dir: Dir, order: GridOrder): Range {
 export function cellsIn(range: Range, order: GridOrder): Array<Array<CellPos>> {
   const rowIds = span(order.rowIds, range.anchor.rowId, range.focus.rowId);
   const colIds = span(order.colIds, range.anchor.colId, range.focus.colId);
-  return rowIds.map((rowId) => colIds.map((colId) => ({ rowId, colId })));
+  return colIds.length === 0
+    ? []
+    : rowIds.map((rowId) => colIds.map((colId) => ({ rowId, colId })));
 }
 
 /** The whole row, first to last visible column. Null when no column is visible. */
