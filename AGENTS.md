@@ -33,7 +33,7 @@ Vue 3.5 + Vite+ (Vite 8) + TSX (NOT SFCs) + Nuxt UI v4 + Tailwind v4.
 - All components are `.tsx` using `defineComponent({ setup() { return (): VNode =>
 <.../> } })` with render functions. No SFCs, no `<script setup>`.
 - Nuxt UI v4 components imported explicitly with `U` prefix (no auto-registration).
-- AutoImport configured for Vue + vue-router APIs only. VueUse (`@vueuse/core`)
+- AutoImport configured for Vue APIs only. VueUse (`@vueuse/core`)
   is imported explicitly; reach for a VueUse composable before custom code.
 - Vite resolve aliases (mirrored in `tsconfig.json` paths): `components`,
   `composables`, `utils`, and `contracts` → `src/contracts`. Everything else

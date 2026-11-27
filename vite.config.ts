@@ -49,24 +49,7 @@ export default defineConfig({
     vueJsx(),
     ui({ autoImport: false, components: false, colorMode: false }),
     AutoImport({
-      imports: [
-        'vue',
-        {
-          'vue-router': [
-            'useRoute',
-            'useRouter',
-            'createRouter',
-            'createWebHistory',
-            'RouterLink',
-            'RouterView',
-          ],
-        },
-        {
-          from: 'vue',
-          imports: ['PropType', 'Ref', 'MaybeRef', 'MaybeRefOrGetter'],
-          type: true,
-        },
-      ],
+      imports: ['vue'],
       dts: 'src/types/auto-imports.d.ts',
     }),
   ]),

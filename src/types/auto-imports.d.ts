@@ -9,12 +9,8 @@
 export {}
 declare global {
   const EffectScope: typeof import('vue').EffectScope
-  const RouterLink: typeof import('vue-router').RouterLink
-  const RouterView: typeof import('vue-router').RouterView
   const computed: typeof import('vue').computed
   const createApp: typeof import('vue').createApp
-  const createRouter: typeof import('vue-router').createRouter
-  const createWebHistory: typeof import('vue-router').createWebHistory
   const customRef: typeof import('vue').customRef
   const defineAsyncComponent: typeof import('vue').defineAsyncComponent
   const defineComponent: typeof import('vue').defineComponent
@@ -64,8 +60,6 @@ declare global {
   const useCssVars: typeof import('vue').useCssVars
   const useId: typeof import('vue').useId
   const useModel: typeof import('vue').useModel
-  const useRoute: typeof import('vue-router').useRoute
-  const useRouter: typeof import('vue-router').useRouter
   const useSlots: typeof import('vue').useSlots
   const useTemplateRef: typeof import('vue').useTemplateRef
   const watch: typeof import('vue').watch
@@ -76,6 +70,6 @@ declare global {
 // for type re-export
 declare global {
   // @ts-ignore
-  export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, ShallowRef, VNode, WritableComputedRef, PropType, Ref, MaybeRef, MaybeRefOrGetter } from 'vue'
+  export type { Component, Slot, Slots, ComponentPublicInstance, ComputedRef, DirectiveBinding, ExtractDefaultPropTypes, ExtractPropTypes, ExtractPublicPropTypes, InjectionKey, PropType, Ref, ShallowRef, MaybeRef, MaybeRefOrGetter, VNode, WritableComputedRef } from 'vue'
   import('vue')
 }
