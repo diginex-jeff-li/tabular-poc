@@ -127,6 +127,28 @@ describe('useGridSelection', () => {
     expect(sel.release()).toBeNull();
   });
 
+  it('fits a running fill to the visible columns when its source column is hidden', async () => {
+    const { sel, visible } = setup();
+    sel.select({ rowId: 'r1', colId: 'b' });
+    sel.press(
+      { rowId: 'r1', colId: 'b' },
+      { extend: false, target: 'fillHandle' },
+    );
+    sel.enter({ rowId: 'r3', colId: 'b' });
+    visible.value = { rowIds: ORDER.rowIds, colIds: ['a', 'c'] };
+    await nextTick();
+    expect(sel.isFillTarget('r3', 'c')).toBe(true);
+
+    expect(sel.release()).toEqual({
+      source: {
+        anchor: { rowId: 'r1', colId: 'c' },
+        focus: { rowId: 'r1', colId: 'c' },
+      },
+      toRowId: 'r3',
+    });
+    expect(selected(sel)).toEqual(['r1:c', 'r2:c', 'r3:c']);
+  });
+
   it('selects a whole row or a whole column of the visible grid', () => {
     const { sel } = setup();
     sel.selectRow('r2');

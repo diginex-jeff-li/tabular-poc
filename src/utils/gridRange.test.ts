@@ -99,6 +99,10 @@ describe('cellsIn', () => {
     expect(
       cellsIn({ anchor: at('r1', 'a'), focus: at('r3', 'a') }, filtered),
     ).toEqual([]);
+    const hidden = { ...order, colIds: ['a', 'c'] };
+    expect(
+      cellsIn({ anchor: at('r1', 'b'), focus: at('r3', 'c') }, hidden),
+    ).toEqual([]);
   });
 });
 
