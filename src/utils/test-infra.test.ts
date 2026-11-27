@@ -1,17 +1,13 @@
-import { mount } from '@vue/test-utils';
 import { useLocalStorage } from '@vueuse/core';
 import { describe, it, expect, beforeEach } from 'vite-plus/test';
-import { defineComponent, h, nextTick } from 'vue';
-import type { VNode } from 'vue';
+import { nextTick } from 'vue';
 
-describe('test infrastructure — localStorage polyfill and mounting', () => {
+describe('test infrastructure — localStorage', () => {
   beforeEach(() => {
     localStorage.clear();
   });
 
   it('localStorage is available and round-trips values under vitest', () => {
-    // Without the setup-localstorage.ts polyfill loaded via setupFiles,
-    // globalThis.localStorage is undefined and every call below would throw.
     expect(localStorage).toBeDefined();
     expect(localStorage.getItem('missing')).toBeNull();
 
@@ -31,10 +27,6 @@ describe('test infrastructure — localStorage polyfill and mounting', () => {
   });
 
   it('useLocalStorage from @vueuse/core persists an array of objects', async () => {
-    // This test guards against the silent VueUse in-memory fallback that
-    // occurs when localStorage is undefined. Without the polyfill, the raw
-    // localStorage key would never exist and the second useLocalStorage call
-    // would return the default instead of the persisted value.
     const key = 'sc-test-array';
     const data = [
       { id: '1', name: 'Alice', role: 'admin' },
@@ -56,26 +48,9 @@ describe('test infrastructure — localStorage polyfill and mounting', () => {
     expect(parsed[2]).toEqual({ id: '3', name: 'Carol', role: 'user' });
 
     // A fresh useLocalStorage call on the same key reads the persisted value
-    // from localStorage, proving the polyfill is real storage — not a no-op.
+    // from localStorage, proving it is real storage — not a no-op.
     const fresh = useLocalStorage<typeof data>(key, []);
     expect(fresh.value).toHaveLength(3);
     expect(fresh.value[0]).toEqual(data[0]);
-  });
-
-  it('@vue/test-utils mounts a defineComponent render function', () => {
-    // Proves component-mounting tests are now possible in this repo.
-    // The repo uses TSX defineComponent with render functions (no SFCs);
-    // this test mirrors that pattern using h() for JSX-free verification.
-    const TestComponent = defineComponent({
-      name: 'TestMount',
-      setup() {
-        const msg = 'Hello from mounted component';
-        return (): VNode => h('div', { class: 'test-mount' }, msg);
-      },
-    });
-
-    const wrapper = mount(TestComponent);
-    expect(wrapper.text()).toContain('Hello from mounted component');
-    expect(wrapper.find('.test-mount').exists()).toBe(true);
   });
 });

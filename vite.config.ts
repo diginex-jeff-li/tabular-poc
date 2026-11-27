@@ -60,7 +60,6 @@ export default defineConfig({
     globals: true,
     environment: 'happy-dom',
     include: ['src/**/*.test.ts'],
-    setupFiles: ['./setup-localstorage.ts'],
   },
   staged: {
     '*.{ts,tsx}': ['vp lint', 'vp fmt --check'],

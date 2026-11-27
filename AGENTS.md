@@ -38,8 +38,8 @@ Vue 3.5 + Vite+ (Vite 8) + TSX (NOT SFCs) + Nuxt UI v4 + Tailwind v4.
 - Vite resolve aliases (mirrored in `tsconfig.json` paths): `components`,
   `composables`, `utils`, and `contracts` → `src/contracts`. Everything else
   under `src/` is imported by relative path.
-- `vite.config.ts` is the only config: app, `test` (happy-dom, the
-  `setup-localstorage.ts` polyfill), `lint`, `fmt` and `staged`.
+- `vite.config.ts` is the only config: app, `test` (happy-dom), `lint`, `fmt`
+  and `staged`.
 
 ### Contracts (`src/contracts/`)
 
@@ -126,8 +126,7 @@ own `computed`, never in the column `cell` function. Rows have a fixed
 | `CONTEXT.md` / `docs/adr/` | Domain glossary (bulk invite terms) and ADRs |
 | `src/composables/useAgentTools.ts` | Registers tools on `document.modelContext` (WebMCP) + `window.scInvite` bridge |
 | `src/composables/useInviteDraftStorage.ts` | Invite draft in localStorage (`/invite-users` only): rows + agent-proposed ids, saved on every draft check, restored on load |
-| `src/utils/test-infra.test.ts`                           | Test infrastructure tests (localStorage polyfill, component mounting) |
-| `setup-localstorage.ts`                                  | In-memory localStorage polyfill wired via vitest setupFiles |
+| `src/utils/test-infra.test.ts`                           | Test infrastructure tests (localStorage under happy-dom) |
 | `src/contracts/compliance-library/schemas/index.ts`       | Zod schema for compliance library entity              |
 | `.wayfinder/map.md`                                       | Wayfinder decision map                                |
 | `knip.json`                                               | Dead code detection config                            |
