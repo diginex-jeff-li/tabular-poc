@@ -1,20 +1,6 @@
 @import './figma-tokens.css';
 
-@font-face {
-  font-family: Formular;
-  src: url('./fonts/formular-regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0-20, U+2C-2E, U+30-39, U+41-5A, U+61-7A, U+7F-10FFFF;
-}
-
 @theme {
-  --color-risk-low: #76f09b;
-  --color-risk-medium: #ffcf2e;
-  --color-risk-high: #ff515a;
-  --color-risk-extreme: #b72c4b;
-
   /* Motion (emil-design-eng): ease-out-strong for UI enter and press
      feedback, ease-drawer for panels that slide in. Utilities:
      `ease-out-strong`, `ease-drawer`. */
