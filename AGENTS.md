@@ -51,9 +51,10 @@ returns is the grid's `GridSaveResponse` (`utils/gridApi.ts`), not a contract.
 ## Conventions
 
 **Dependency versions** — no `catalog:` references (StackBlitz does not support
-catalogs). Dependencies are pinned to explicit versions in `package.json`
-(e.g. `"vue": "3.5.38"`). `pnpm-workspace.yaml` holds only pnpm settings:
-`allowBuilds`, and one `overrides` entry that pins every `vite` to Vite+'s
+catalogs). Dependencies are pinned to exact versions in `package.json`, with
+no range operator. `pnpm-workspace.yaml` holds only pnpm settings:
+`allowBuilds`, `nodeLinker: hoisted` (StackBlitz WebContainers need a flat
+`node_modules`), and one `overrides` entry that pins every `vite` to Vite+'s
 bundled core (`npm:@voidzero-dev/vite-plus-core@…`, an explicit version) so
 tests and the app share one Vite. `vp migrate` maintains it; keep it, the
 `vite` devDependency and `vite-plus` in step when upgrading Vite+.
@@ -77,10 +78,10 @@ AGENTS.md is validated for documented commands on every commit via
 `pnpm agents:check`. `pnpm install` runs `vp config`, which installs the hook
 dispatcher.
 
-**Naming conventions** — use camelCase for functions and variables, PascalCase
-for components and types, kebab-case for file names of non-component modules.
-Oxlint `unicorn/filename-case` rule enforces file naming. Cyclomatic complexity
-is capped at 15 via the Oxlint `complexity` rule.
+**Naming conventions** — use camelCase for functions, variables and the file
+names of non-component modules, and PascalCase for components and types. No
+lint rule checks file names. Cyclomatic complexity is capped at 15 via the
+Oxlint `complexity` rule.
 
 **Module boundaries** — `import/no-cycle` prevents circular dependencies.
 `src/contracts/` must not import from the app; a `no-restricted-imports` lint

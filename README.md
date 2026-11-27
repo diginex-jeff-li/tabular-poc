@@ -51,9 +51,9 @@ Vue 3.5 + Vite+ (Vite 8) + TSX (NOT SFCs) + Nuxt UI v4 + Tailwind v4.
 <.../> } })` with render functions. No SFCs, no `<script setup>`.
 - Nuxt UI v4 components imported explicitly with `U` prefix (no auto-registration).
 - AutoImport configured for Vue + vue-router APIs only.
-- Vite resolve aliases (mirrored in `tsconfig.json` paths): `src`, `components`,
-  `composables`, `config`, `pages`, `styles`, `utils`, and `contracts` →
-  `src/contracts`.
+- Vite resolve aliases (mirrored in `tsconfig.json` paths): `components`,
+  `composables`, `utils`, and `contracts` → `src/contracts`. Everything else
+  under `src/` is imported by relative path.
 - `vite.config.ts` is the only config: app, `test` (happy-dom, the
   `setup-localstorage.ts` polyfill), `lint`, `fmt` and `staged`.
 
@@ -119,8 +119,8 @@ Trying it with an agent (observed):
 
 ## Conventions
 
-**Dependency versions** — dependencies use explicit pinned versions in
-`package.json` (e.g. `"vue": "3.5.38"`), with no `catalog:` references.
+**Dependency versions** — dependencies use exact pinned versions in
+`package.json`, with no range operator and no `catalog:` references.
 `pnpm-workspace.yaml` holds only pnpm settings.
 
 **Toolchain** — Vite+ (`vite-plus`, the `vp` CLI) supplies Vite, Vitest, Oxlint
@@ -134,9 +134,9 @@ jscpd (duplicate code). Run `pnpm validate` before committing.
 format check on staged files). AGENTS.md is validated for documented commands
 on every commit.
 
-**Naming conventions** — use camelCase for functions and variables, PascalCase for
-components and types, kebab-case for file names of non-component modules. Oxlint
-`unicorn/filename-case` and `complexity` rules are enabled.
+**Naming conventions** — use camelCase for functions, variables and the file
+names of non-component modules, and PascalCase for components and types. No
+lint rule checks file names. The Oxlint `complexity` rule is enabled.
 
 **Module boundaries** — `import/no-cycle` prevents circular dependencies.
 `src/contracts/` must not import from the app; a `no-restricted-imports` lint
