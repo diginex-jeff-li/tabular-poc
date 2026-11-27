@@ -2,13 +2,8 @@ import { useDataGrid } from 'composables/useDataGrid';
 import { normalizeInviteRow } from 'utils/draftRow';
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 import { effectScope } from 'vue';
-import {
-  AddRowsOutputSchema,
-  createInviteTools,
-  DeleteRowsOutputSchema,
-  ReadRowsOutputSchema,
-  UpdateRowsOutputSchema,
-} from './inviteAgentTools';
+import { z } from 'zod';
+import { createInviteTools } from './inviteAgentTools';
 import { createInviteDraft } from './inviteDraft';
 import type { EffectScope } from 'vue';
 
@@ -101,18 +96,34 @@ describe('invite agent tools', () => {
     const deleted = await call('delete_rows', { ids: [second, 'gone'] });
     const read = await call('read_rows');
 
-    expect(AddRowsOutputSchema.safeParse(added).success).toBe(true);
-    expect(UpdateRowsOutputSchema.safeParse(updated).success).toBe(true);
-    expect(DeleteRowsOutputSchema.safeParse(deleted).success).toBe(true);
-    expect(ReadRowsOutputSchema.safeParse(read).success).toBe(true);
     expect(updated).toMatchObject({ updated: [first], missingIds: ['nope'] });
     expect(deleted).toMatchObject({ deleted: [second], missingIds: ['gone'] });
-    expect(tools.filter((t) => t.outputSchema).map((t) => t.name)).toEqual([
+    const advertised = tools.filter((t) => t.outputSchema);
+    expect(advertised.map((t) => t.name)).toEqual([
       'read_rows',
       'add_rows',
       'update_rows',
       'delete_rows',
     ]);
+    const results: Record<string, unknown> = {
+      read_rows: read,
+      add_rows: added,
+      update_rows: updated,
+      delete_rows: deleted,
+    };
+    const matches = Object.fromEntries(
+      advertised.map((tool) => [
+        tool.name,
+        z.fromJSONSchema(tool.outputSchema).safeParse(results[tool.name])
+          .success,
+      ]),
+    );
+    expect(matches).toEqual({
+      read_rows: true,
+      add_rows: true,
+      update_rows: true,
+      delete_rows: true,
+    });
   });
 
   it("add_rows ignores agent-supplied ids and unknown fields, and returns the new rows' errors", async () => {

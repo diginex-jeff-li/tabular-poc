@@ -68,17 +68,17 @@ const CheckResultSchema = z.object({
 const GridRowOutputSchema = InviteDraftRowSchema.extend({
   status: z.enum(INVITE_ROW_STATUSES),
 }).strict();
-export const ReadRowsOutputSchema = CheckResultSchema.extend({
+const ReadRowsOutputSchema = CheckResultSchema.extend({
   rows: z.array(GridRowOutputSchema),
 }).strict();
-export const AddRowsOutputSchema = CheckResultSchema.extend({
+const AddRowsOutputSchema = CheckResultSchema.extend({
   added: z.array(z.string()),
 }).strict();
-export const UpdateRowsOutputSchema = CheckResultSchema.extend({
+const UpdateRowsOutputSchema = CheckResultSchema.extend({
   updated: z.array(z.string()),
   missingIds: z.array(z.string()),
 }).strict();
-export const DeleteRowsOutputSchema = CheckResultSchema.extend({
+const DeleteRowsOutputSchema = CheckResultSchema.extend({
   deleted: z.array(z.string()),
   missingIds: z.array(z.string()),
 }).strict();
