@@ -19,7 +19,6 @@ The user (Jeff, Head of Engineering at Diginex ESG) wants to extend the prototyp
 - **buildComplianceColumns.ts** — builds columns for the compliance library (includes checkbox column with clipboard:false, header filters)
 - **contracts/** — shared Zod schemas for compliance library (22 tests)
 - **frontend tests** — 24 tests total (ComplianceGridEditor, zodToTabulatorColumns, useDirtyTracking)
-- **StackBlitz** — deployed at https://stackblitz.com/~/github.com/diginex-jeff-li/tabular-poc
 - **Guardrails** — oxlint, oxfmt, vitest, tsc, knip, pnpm validate
 
 ## M2 Decisions (from grilling session)
@@ -68,8 +67,7 @@ git show 610d9df:spec-m2.md                             — interface contracts
 - **Vite 8** with `@vitejs/plugin-vue-jsx`
 - **Tabulator 6.5.2** — `TabulatorFull as Tabulator` from `tabulator-tables`
 - **Zod 3.25** for validation
-- **pnpm workspace** with explicit versions (no catalog: — StackBlitz compat)
-- **.npmrc** with `node-linker=hoisted` (StackBlitz compat)
+- **pnpm workspace** with explicit versions
 - **AutoImport** for Vue + vue-router APIs only
 
 ## Guardrails (run before committing)
@@ -95,6 +93,5 @@ pnpm --filter contracts lint
 - Don't add auth (prototype)
 - Don't add min/max/integer constraints to Number type
 - Don't allow column rename/delete/type-change after data exists (add only)
-- Don't use `catalog:` in package.json (StackBlitz doesn't support it)
 - Don't create SFCs (.vue files) — TSX only
 - Don't skip the refactor (Q16) — M1 must be refactored to use the shared GridEditor component, not duplicated
