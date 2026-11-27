@@ -1,6 +1,6 @@
 # 03 Sorting and header filters
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 02
 Parity: P3, P4
 

@@ -1,6 +1,6 @@
 # 10 GridApi adapter and the bulk invite page
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 07, 08, 09
 Parity: P17, P18, P19
 

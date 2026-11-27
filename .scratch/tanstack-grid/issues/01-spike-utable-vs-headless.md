@@ -1,6 +1,6 @@
 # 01 Spike: UTable or headless useVueTable
 
-Status: ready-for-agent
+Status: resolved
 Type: prototype
 Spec: `../spec.md` (decision 7)
 

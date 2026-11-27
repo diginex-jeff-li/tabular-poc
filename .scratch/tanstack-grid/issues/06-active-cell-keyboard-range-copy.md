@@ -1,6 +1,6 @@
 # 06 Active cell, keyboard navigation, range selection, copy
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 05
 Parity: P11, P12
 

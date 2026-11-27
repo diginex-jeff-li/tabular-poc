@@ -1,6 +1,6 @@
 # 08 Delete/Backspace clears the range
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 06
 Parity: P15
 

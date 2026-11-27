@@ -1,6 +1,6 @@
 # Replace Tabulator with TanStack Table (Nuxt UI `UTable`)
 
-Status: needs-triage
+Status: resolved
 
 ## Goal
 

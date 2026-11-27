@@ -1,6 +1,6 @@
 # 14 Undo / redo
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 13 (Tabulator side)
 Spec: `../spec.md` "Phase 2", decisions 1–2, P21, P25
 

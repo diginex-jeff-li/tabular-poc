@@ -1,6 +1,6 @@
 # 04 Row selection, add/delete/clear, dirty tracking, save loop
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 02
 Parity: P5, P6, P7
 

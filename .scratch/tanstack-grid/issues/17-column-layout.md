@@ -1,6 +1,6 @@
 # 17 Column resize, reorder, hide
 
-Status: ready-for-agent
+Status: resolved
 Spec: `../spec.md` "Phase 2", decision 6, P24
 
 ## Change

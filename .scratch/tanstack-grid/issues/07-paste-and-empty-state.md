@@ -1,6 +1,6 @@
 # 07 Paste from Excel and the empty state
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 06
 Parity: P13, P14
 

@@ -1,6 +1,6 @@
 # 11 Virtualization for large pastes
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 10
 Parity: P20
 

@@ -1,6 +1,6 @@
 # 12 Cutover: TanStack by default, Tabulator kept for comparison, custom tables deleted
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 11
 
 ## Decision (user)

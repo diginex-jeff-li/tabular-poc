@@ -1,6 +1,6 @@
 # 02 Column defs from Zod + read-only DataGrid
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 01
 Parity: P1, P2
 

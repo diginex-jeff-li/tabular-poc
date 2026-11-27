@@ -1,6 +1,6 @@
 # 16 Fill down
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 13 (Tabulator side)
 Spec: `../spec.md` "Phase 2", decision 5, P23, P25
 

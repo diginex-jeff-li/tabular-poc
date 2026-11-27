@@ -1,6 +1,6 @@
 # 13 Tabulator: derive dirty state from the data
 
-Status: ready-for-agent
+Status: resolved
 Spec: `../spec.md` "Phase 2", invariant + P25
 Blocks: 14, 15, 16, 17 (Tabulator side)
 

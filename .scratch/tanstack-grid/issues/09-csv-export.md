@@ -1,6 +1,6 @@
 # 09 CSV export
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 02
 Parity: P16
 

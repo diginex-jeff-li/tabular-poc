@@ -1,6 +1,6 @@
 # 05 Inline editing, validation highlight, error sidebar
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 03, 04
 Parity: P8, P9, P10
 

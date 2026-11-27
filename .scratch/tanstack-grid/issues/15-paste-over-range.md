@@ -1,6 +1,6 @@
 # 15 Paste over a range
 
-Status: ready-for-agent
+Status: resolved
 Blocked by: 13 (Tabulator side)
 Spec: `../spec.md` "Phase 2", decisions 3–4, P22, P25
 
