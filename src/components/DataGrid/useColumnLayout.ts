@@ -12,7 +12,7 @@ export const SELECT_ID = '__select';
 const MOVE_THRESHOLD = 4;
 
 /** `UTable`'s controlled column state, in TanStack's shapes. */
-export interface ColumnLayout {
+interface ColumnLayout {
   /** Pinned columns stay at the left edge while the grid scrolls sideways. */
   pinning: { left: Array<string>; right: Array<string> };
   columnOrder: Ref<Array<string>>;

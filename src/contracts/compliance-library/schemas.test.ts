@@ -1,12 +1,5 @@
 import { describe, it, expect } from 'vite-plus/test';
-import {
-  ComplianceLibrarySchema,
-  CategoryCodeEnum,
-  ComplianceCategoryEnum,
-  TopicEnum,
-  RiskLevelEnum,
-  ClosureTimingEnum,
-} from './schemas/index.js';
+import { ComplianceLibrarySchema } from './schemas/index.js';
 import type { ComplianceLibraryType } from './schemas/index.js';
 
 // ── Test data: a valid row matching Sample library.xlsx shape ──
@@ -93,27 +86,29 @@ describe('ComplianceLibrarySchema', () => {
   });
 });
 
-describe('Enum exports', () => {
-  it('CategoryCodeEnum has 17 values A-Q', () => {
-    expect(CategoryCodeEnum.options).toHaveLength(17);
-    expect(CategoryCodeEnum.options[0]).toBe('A');
-    expect(CategoryCodeEnum.options[16]).toBe('Q');
+describe('Option lists', () => {
+  const { shape } = ComplianceLibrarySchema;
+
+  it('categoryCode has 17 values A-Q', () => {
+    expect(shape.categoryCode.options).toHaveLength(17);
+    expect(shape.categoryCode.options[0]).toBe('A');
+    expect(shape.categoryCode.options[16]).toBe('Q');
   });
 
-  it('ComplianceCategoryEnum has 3 values', () => {
-    expect(ComplianceCategoryEnum.options).toEqual([
+  it('complianceCategory has 3 values', () => {
+    expect(shape.complianceCategory.options).toEqual([
       'Governance',
       'Social',
       'Environment',
     ]);
   });
 
-  it('RiskLevelEnum has 3 values', () => {
-    expect(RiskLevelEnum.options).toEqual(['High', 'Medium', 'Low']);
+  it('riskLevel has 3 values', () => {
+    expect(shape.riskLevel.options).toEqual(['High', 'Medium', 'Low']);
   });
 
-  it('ClosureTimingEnum has 5 values', () => {
-    expect(ClosureTimingEnum.options).toEqual([
+  it('closureTiming has 5 values', () => {
+    expect(shape.closureTiming.options).toEqual([
       '7',
       '30',
       '60',
@@ -122,7 +117,7 @@ describe('Enum exports', () => {
     ]);
   });
 
-  it('TopicEnum has 14 values', () => {
-    expect(TopicEnum.options).toHaveLength(14);
+  it('topic has 14 values', () => {
+    expect(shape.topic.options).toHaveLength(14);
   });
 });

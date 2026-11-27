@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const CategoryCodeEnum = z.enum([
+const CategoryCodeEnum = z.enum([
   'A',
   'B',
   'C',
@@ -20,13 +20,9 @@ export const CategoryCodeEnum = z.enum([
   'Q',
 ]);
 
-export const ComplianceCategoryEnum = z.enum([
-  'Governance',
-  'Social',
-  'Environment',
-]);
+const ComplianceCategoryEnum = z.enum(['Governance', 'Social', 'Environment']);
 
-export const TopicEnum = z.enum([
+const TopicEnum = z.enum([
   'Key Compliance Requirements',
   'Zero Tolerance Policy',
   'Freedom of Association',
@@ -43,15 +39,9 @@ export const TopicEnum = z.enum([
   'Community & Environment',
 ]);
 
-export const RiskLevelEnum = z.enum(['High', 'Medium', 'Low']);
+const RiskLevelEnum = z.enum(['High', 'Medium', 'Low']);
 
-export const ClosureTimingEnum = z.enum([
-  '7',
-  '30',
-  '60',
-  '90',
-  'Next assessment',
-]);
+const ClosureTimingEnum = z.enum(['7', '30', '60', '90', 'Next assessment']);
 
 export const ComplianceLibrarySchema = z.object({
   id: z.string().uuid(),
