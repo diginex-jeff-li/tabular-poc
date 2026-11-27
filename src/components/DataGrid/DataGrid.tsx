@@ -613,13 +613,7 @@ export default defineComponent({
             }}
             columnPinning={layout.pinning}
             columnOrder={layout.columnOrder.value}
-            onUpdate:columnOrder={(value: Array<string>) => {
-              layout.columnOrder.value = value;
-            }}
             columnVisibility={layout.columnVisibility.value}
-            onUpdate:columnVisibility={(value: Record<string, boolean>) => {
-              layout.columnVisibility.value = value;
-            }}
             columnSizing={layout.columnSizing.value}
             onUpdate:columnSizing={(value: Record<string, number>) => {
               layout.columnSizing.value = value;
