@@ -15,7 +15,7 @@
     "test": "vp test run",
     "test:watch": "vp test",
     "knip": "knip",
-    "jscpd": "jscpd --pattern '**/*.{ts,tsx}' --ignore '**/node_modules/**,**/dist/**,**/*.test.ts,**/*.d.ts'",
+    "jscpd": "jscpd",
     "agents:check": "node scripts/check-agents-md.mjs",
     "prepare": "vp config --no-agent",
     "validate": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run knip"

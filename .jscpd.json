@@ -7,10 +7,7 @@
     "**/node_modules/**",
     "**/dist/**",
     "**/*.test.ts",
-    "**/*.d.ts",
-    "**/auto-imports.d.ts",
-    "**/.wayfinder/**",
-    "**/reports/**"
+    "**/*.d.ts"
   ],
   "min-lines": 5,
   "min-tokens": 50

@@ -43,7 +43,6 @@ export default defineConfig({
       contracts: path.resolve(__dirname, 'src/contracts'),
     },
     dedupe: ['@nuxt/ui', 'vue', 'vue-router'],
-    extensions: ['.tsx', '.ts', '.jsx', '.js', '.vue', '.json'],
   },
   plugins: lazyPlugins(() => [
     vue(),
