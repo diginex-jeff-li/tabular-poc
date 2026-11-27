@@ -2,7 +2,7 @@
 
 > **Label:** `wayfinder:prototype`
 > **Type:** Prototype (HITL)
-> **Status:** In progress — subagent running
+> **Status:** Closed — resolved 2026-08-10 (commit 4d7cef45)
 
 ## Question
 

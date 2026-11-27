@@ -2,7 +2,7 @@
 
 > **Label:** `wayfinder:prototype`
 > **Type:** Prototype (HITL)
-> **Status:** Open — blocked
+> **Status:** Closed — resolved 2026-08-10 (commit 40b575b3)
 
 ## Question
 

@@ -2,7 +2,7 @@
 
 > **Label:** `wayfinder:task`
 > **Type:** Task (AFK)
-> **Status:** In progress — subagent running
+> **Status:** Closed — resolved 2026-08-10 (commit 4d7cef45)
 
 ## Question
 

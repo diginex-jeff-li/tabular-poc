@@ -61,6 +61,6 @@ A full spec for a reusable admin-grid pattern: replace the download-Excel / popu
 - [Checkbox column](09-checkbox-column.md) — ✅ Closed (commit ad8a894a)
 - [View saved rows](10-view-saved-rows.md) — ✅ Closed (commit 0ab00a41)
 - [Remove spike + cleanup](11-remove-spike-cleanup.md) — ✅ Closed (commit ad8a894a)
-- [Filtering + sorting showcase](12-filtering-sorting.md) — Column header filters + multi-column sort. Free in Tabulator, paid in RevoGrid Pro.
-- [CSV/Excel export showcase](13-csv-export.md) — Export button. Free in Tabulator, Enterprise-only in AG Grid, Pro in RevoGrid.
-- [Licensing comparison panel](14-licensing-panel.md) — Collapsible info panel showing the ✅/❌ feature comparison across Tabulator / AG Grid / RevoGrid.
+- [Filtering + sorting showcase](12-filtering-sorting.md) — ✅ Closed (commit 34c2ed72)
+- [CSV/Excel export showcase](13-csv-export.md) — ✅ Closed (commit 34c2ed72)
+- [Licensing comparison panel](14-licensing-panel.md) — ✅ Closed (commit 34c2ed72)

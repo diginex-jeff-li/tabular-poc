@@ -2,7 +2,7 @@
 
 > **Label:** `wayfinder:task`
 > **Type:** Task (AFK)
-> **Status:** Open — frontier ticket
+> **Status:** Closed — resolved 2026-08-10 (commit ad8a894a)
 
 ## Question
 

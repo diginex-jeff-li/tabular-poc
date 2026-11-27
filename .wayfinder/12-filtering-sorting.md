@@ -2,7 +2,7 @@
 
 > **Label:** `wayfinder:prototype`
 > **Type:** Prototype (HITL)
-> **Status:** Open — frontier ticket
+> **Status:** Closed — resolved 2026-08-10 (commit 34c2ed72)
 
 ## Question
 
