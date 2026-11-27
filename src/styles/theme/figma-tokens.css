@@ -1,6 +1,7 @@
-/* GENERATED from Figma "💠 Diginex Library" variables — do not edit by hand.
-   Fonts (Open Sans, Public_Sans) load via apps/supply-chain/index.html.
-   Source: tokens/_extracted/*  ·  regen: node tokens/build-theme.mjs
+/* Generated in sc-frontend from Figma "💠 Diginex Library" variables. This copy
+   came through sc-boilerplate from an earlier revision of sc-frontend's
+   packages/theme/src/figma-tokens.css. The generator does not ship with this
+   repo. Open Sans loads from index.html.
    Active colors: primary=Lilac-3, secondary=Orange-3, neutral=Slate, error=Red, info=Blue, success=Green, warning=Yellow */
 
 @theme {
