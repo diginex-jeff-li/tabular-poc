@@ -10,9 +10,15 @@ import type { DataGridState } from 'composables/useDataGrid';
 import type { GridSaveError } from 'utils/gridApi';
 import type { PropType, Ref, VNode } from 'vue';
 
-/** A row's 1-based place in the grid as shown, or "Hidden row" when a filter hides it. */
-function rowLabel(rowNumber: number | null): string {
-  return rowNumber === null ? 'Hidden row' : `Row ${rowNumber}`;
+/**
+ * A row's 1-based place in the grid as shown; "Hidden row" when a filter
+ * hides it, "Deleted row" when it is no longer in the grid.
+ */
+function rowLabel(rowNumber: number | null, inGrid: boolean): string {
+  if (rowNumber !== null) {
+    return `Row ${rowNumber}`;
+  }
+  return inGrid ? 'Hidden row' : 'Deleted row';
 }
 
 // Slides in from the edge it covers; leaves faster than it came. Under
@@ -91,7 +97,11 @@ export default defineComponent({
                 onClick={() => props.onPick(error)}
               >
                 <div class="font-semibold text-error">
-                  {rowLabel(props.rowNumber(error.rowId))}: {error.field}
+                  {rowLabel(
+                    props.rowNumber(error.rowId),
+                    props.grid.rows.value.some((row) => row.id === error.rowId),
+                  )}
+                  : {error.field}
                 </div>
                 <div class="mt-1 text-muted">{error.message}</div>
               </button>

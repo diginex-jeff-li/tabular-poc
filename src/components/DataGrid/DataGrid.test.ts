@@ -312,7 +312,7 @@ describe('DataGrid save errors', () => {
     const entry = w
       .findAll('button')
       .find((b) => b.text().includes('Too risky'));
-    // r1 was deleted, so r3 is the 2nd row on screen; the request says row 0.
+    // r1 was deleted, so r3 is the 2nd row on screen.
     expect(entry?.text()).toContain('Row 2: risk');
 
     vi.useFakeTimers();

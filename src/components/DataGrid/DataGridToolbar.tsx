@@ -184,7 +184,7 @@ export default defineComponent({
         <UModal
           open={clearDialog.isRevealed.value}
           title="Clear all rows?"
-          description={`This will remove all ${props.grid.rowCount.value} rows from the grid. Unsaved changes will be lost. Saved rows will remain in the backend store.`}
+          description={`This removes all ${props.grid.rowCount.value} rows from the grid. Undo brings them back.`}
           onUpdate:open={(open: boolean) => {
             if (!open) {
               clearDialog.cancel();
