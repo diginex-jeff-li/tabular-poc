@@ -3,5 +3,6 @@ allowBuilds:
   vue-demi: true
 minimumReleaseAgeExclude:
   - '@types/node@26.6.10'
+nodeLinker: hoisted
 overrides:
   vite@*: npm:@voidzero-dev/vite-plus-core@8.3.8001
