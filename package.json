@@ -37,7 +37,6 @@
     "happy-dom": "21.0.4",
     "jscpd": "5.4.3",
     "knip": "6.48.0",
-    "sass": "1.108.2",
     "tailwindcss": "4.3.5",
     "typescript": "7.0.2",
     "unplugin-auto-import": "21.1.0",
