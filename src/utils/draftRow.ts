@@ -4,6 +4,7 @@ import {
   INVITE_ROLES,
   parseInviteGroups,
 } from 'contracts';
+import type { InviteField } from 'contracts';
 
 /**
  * PROTOTYPE — turns whatever reached the invite draft into draft rows
@@ -15,7 +16,6 @@ import {
  * only when every column is clear; otherwise the text stays as typed and the
  * row needs review.
  */
-const DRAFT_FIELDS = INVITE_FIELDS;
 
 const byLowerCase = (values: ReadonlyArray<string>) =>
   new Map(values.map((v) => [v.toLowerCase(), v]));
@@ -40,7 +40,7 @@ const PHRASES = [
     ),
   }));
 
-type Fields = Record<(typeof DRAFT_FIELDS)[number], string | null>;
+type Fields = Record<InviteField, string | null>;
 
 function text(value: unknown): string | null {
   if (value === undefined || value === null) {
@@ -75,7 +75,7 @@ function clean(fields: Fields): Fields {
 
 /** The one filled cell, when it holds more than one part. */
 function lineText(fields: Fields): string | null {
-  const filled = DRAFT_FIELDS.map((f) => fields[f]).filter((v) => v !== null);
+  const filled = INVITE_FIELDS.map((f) => fields[f]).filter((v) => v !== null);
   if (filled.length !== 1) {
     return null;
   }
@@ -85,8 +85,8 @@ function lineText(fields: Fields): string | null {
 function parseSeparated(line: string, separator: string): Fields | null {
   const pieces = line.split(separator).map(text);
   if (
-    pieces.length !== DRAFT_FIELDS.length &&
-    pieces.length !== DRAFT_FIELDS.length - 1
+    pieces.length !== INVITE_FIELDS.length &&
+    pieces.length !== INVITE_FIELDS.length - 1
   ) {
     return null;
   }
@@ -138,7 +138,7 @@ function parseLine(line: string): Fields | null {
 /** The template's columns of a row, trimmed, blank as null. */
 export function draftFields(row: Record<string, unknown>): Fields {
   return Object.fromEntries(
-    DRAFT_FIELDS.map((f) => [f, text(row[f])]),
+    INVITE_FIELDS.map((f) => [f, text(row[f])]),
   ) as Fields;
 }
 
@@ -157,11 +157,11 @@ export function normalizeInviteRow(
   }
   // Needs review: keep the text as typed, in the cell it was typed in.
   const kept = Object.fromEntries(
-    DRAFT_FIELDS.filter((f) => fields[f] !== null).map((f) => [f, fields[f]]),
+    INVITE_FIELDS.filter((f) => fields[f] !== null).map((f) => [f, fields[f]]),
   );
   const others = Object.fromEntries(
     Object.entries(row).filter(
-      ([k]) => !(DRAFT_FIELDS as ReadonlyArray<string>).includes(k),
+      ([k]) => !(INVITE_FIELDS as ReadonlyArray<string>).includes(k),
     ),
   );
   return { ...others, ...kept };
