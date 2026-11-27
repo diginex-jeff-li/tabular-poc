@@ -25,7 +25,7 @@ The user (Jeff, Head of Engineering at Diginex ESG) wants to extend the prototyp
 ## M2 Decisions (from grilling session)
 
 Read `.wayfinder/m2-map.md` for the full decision table and ticket list.
-Read `spec-m2.md` for interface contracts (GridEditor props, useGridEditor returns, localStorage schema, route structure).
+Read `git show 610d9df:spec-m2.md` for interface contracts (GridEditor props, useGridEditor returns, localStorage schema, route structure).
 
 Key decisions:
 - localStorage persistence (no backend)
@@ -57,7 +57,7 @@ frontend/apps/admin/src/composables/buildComplianceColumns.ts — column builder
 frontend/apps/admin/src/utils/zodToTabulatorColumns.ts  — Zod→Tabulator mapping
 frontend/apps/admin/src/config/router.ts                — route definitions
 frontend/apps/admin/vite.config.ts                      — aliases, plugins
-spec-m2.md                                              — interface contracts
+git show 610d9df:spec-m2.md                             — interface contracts
 .wayfinder/m2-map.md                                    — decisions + tickets
 ```
 

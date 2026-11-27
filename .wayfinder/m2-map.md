@@ -31,7 +31,7 @@ compliance library is refactored to share the same grid engine.
 
 ## Spec
 
-See `spec-m2.md` for interface contracts (GridEditor props, useGridEditor
+See `git show 610d9df:spec-m2.md` for interface contracts (GridEditor props, useGridEditor
 returns, localStorage schema, route structure, runtime Zod builder).
 
 ## Tickets
