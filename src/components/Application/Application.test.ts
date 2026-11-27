@@ -73,16 +73,7 @@ describe('Application — nav shell', () => {
   it('the header shows the application name', async () => {
     const wrapper = await mountApplication();
     const header = wrapper.find('header');
-    expect(header.text()).toContain('Compliance');
-  });
-
-  it('the header contains a "Compliance Library" RouterLink navigating to "/"', async () => {
-    const wrapper = await mountApplication();
-    const links = wrapper.findAll('header a[href]');
-    const complianceLink = links.find((l) => l.text() === 'Compliance Library');
-    expect(complianceLink).toBeDefined();
-    // RouterLink with createMemoryHistory renders href="#" or href="/"
-    // — either way it is a link, not a dead-end
+    expect(header.find('span').text()).toBe('Compliance Admin');
   });
 
   it('the header nav links are Compliance Library and Invite Users', async () => {
@@ -98,21 +89,27 @@ describe('Application — nav shell', () => {
     const wrapper = await mountApplication('/');
     const links = wrapper.findAll('header a');
     const complianceLink = links.find((l) => l.text() === 'Compliance Library');
+    const inviteLink = links.find((l) => l.text() === 'Invite Users');
     expect(complianceLink).toBeDefined();
     const classes = complianceLink.classes();
     // The active link must carry a distinguishing class (font-semibold + text-primary)
     expect(classes).toContain('font-semibold');
     expect(classes).toContain('text-primary');
+    expect(inviteLink.classes()).not.toContain('text-primary');
+    expect(inviteLink.attributes('aria-current')).toBeUndefined();
   });
 
   it('the "Invite Users" link is visually distinguished as active when on "/invite-users"', async () => {
     const wrapper = await mountApplication('/invite-users');
     const links = wrapper.findAll('header a');
     const inviteLink = links.find((l) => l.text() === 'Invite Users');
+    const complianceLink = links.find((l) => l.text() === 'Compliance Library');
     expect(inviteLink).toBeDefined();
     const classes = inviteLink.classes();
     expect(classes).toContain('font-semibold');
     expect(classes).toContain('text-primary');
+    expect(complianceLink.classes()).not.toContain('text-primary');
+    expect(complianceLink.attributes('aria-current')).toBeUndefined();
   });
 
   it('the shell root uses flex h-screen flex-col layout', async () => {
