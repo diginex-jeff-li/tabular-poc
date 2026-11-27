@@ -1,4 +1,4 @@
-import { onBeforeUnmount, onMounted } from 'vue';
+import { onBeforeUnmount, onMounted, readonly, shallowRef } from 'vue';
 import type { AgentTool } from 'utils/inviteAgentTools';
 
 /**
@@ -31,9 +31,11 @@ declare global {
 
 export function useAgentTools(globalName: string, tools: Array<AgentTool>) {
   const controller = new AbortController();
+  const webmcp = shallowRef(false);
 
   onMounted(() => {
     const modelContext = document.modelContext ?? navigator.modelContext;
+    webmcp.value = Boolean(modelContext);
 
     for (const tool of modelContext ? tools : []) {
       const registered = modelContext.registerTool(
@@ -46,7 +48,7 @@ export function useAgentTools(globalName: string, tools: Array<AgentTool>) {
     }
 
     Reflect.set(window, globalName, {
-      webmcp: Boolean(modelContext),
+      webmcp: webmcp.value,
       tools: tools.map(
         ({ name, description, inputSchema, outputSchema, annotations }) => ({
           name,
@@ -70,4 +72,6 @@ export function useAgentTools(globalName: string, tools: Array<AgentTool>) {
     controller.abort();
     Reflect.deleteProperty(window, globalName);
   });
+
+  return { webmcp: readonly(webmcp) };
 }

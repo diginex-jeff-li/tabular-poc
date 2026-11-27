@@ -33,14 +33,7 @@ import { createInviteTools } from 'utils/inviteAgentTools';
 import { createInviteDraft, describeOutcome } from 'utils/inviteDraft';
 import { buildInviteWorkbook, readInviteWorkbook } from 'utils/inviteWorkbook';
 import { zodToColumnDefs } from 'utils/zodToColumnDefs';
-import {
-  defineComponent,
-  nextTick,
-  onMounted,
-  ref,
-  shallowRef,
-  Transition,
-} from 'vue';
+import { defineComponent, nextTick, ref, shallowRef, Transition } from 'vue';
 import type { GridApi, GridColumn } from 'utils/gridApi';
 import type { InviteDraft } from 'utils/inviteDraft';
 import type { InviteRowStatus } from 'utils/readyRows';
@@ -112,7 +105,6 @@ export default defineComponent({
   setup() {
     let grid: GridApi | null = null;
     const fileInput = ref<HTMLInputElement | null>(null);
-    const webmcp = ref(false);
     const notice = ref<string | null>(null);
     const autoMatch = ref(true);
     // Notices and the mapping panel fade in after a pointer action; after a
@@ -125,10 +117,7 @@ export default defineComponent({
       store: useInviteDraftStorage(),
     });
     const tools = createInviteTools(draft);
-    useAgentTools('scInvite', tools);
-    onMounted(() => {
-      webmcp.value = Boolean(document.modelContext ?? navigator.modelContext);
-    });
+    const { webmcp } = useAgentTools('scInvite', tools);
 
     function pasteParser(
       clipboard: string,
