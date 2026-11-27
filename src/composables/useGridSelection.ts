@@ -103,8 +103,9 @@ function filledRange(source: Range, toRowId: string, order: GridOrder): Range {
 /**
  * Active cell, range, editing cell and the press gesture over the grid's
  * visible `order` (sorted and filtered row ids, visible column ids in screen
- * order). When the order changes, the range and a running fill's source are
- * fitted to it (`reconcile`) and an edit on a row that left the view ends.
+ * order). When the order changes, the range is fitted to it (`reconcile`),
+ * a fill whose source is no longer visible is cancelled, and an edit on a
+ * row that left the view ends.
  */
 export function useGridSelection(
   order: Readonly<Ref<GridOrder>>,
@@ -169,16 +170,18 @@ export function useGridSelection(
   watch(order, (next, prev) => {
     const { range, editing, fill } = state.value;
     const fitted = range && reconcile(range, prev, next);
-    const source = fill && reconcile(fill.source, prev, next);
-    const fittedFill =
-      !fill || source === fill.source ? fill : source && { ...fill, source };
+    const keptFill =
+      fill && cellsIn(fill.source, next).length > 0 ? fill : null;
+    if (keptFill !== fill) {
+      held.value = false;
+    }
     const stillEditing =
       editing && next.rowIds.includes(editing.pos.rowId) ? editing : null;
-    if (fitted !== range || fittedFill !== fill || stillEditing !== editing) {
+    if (fitted !== range || keptFill !== fill || stillEditing !== editing) {
       state.value = {
         range: fitted,
         editing: stillEditing,
-        fill: fittedFill,
+        fill: keptFill,
       };
     }
   });
